@@ -28,7 +28,7 @@ export async function getProducts(filters?: {
 
   const { data, error } = await query
   if (error) throw error
-  return data as ProductWithVariants[]
+  return data as unknown as ProductWithVariants[]
 }
 
 export async function getProductBySlug(slug: string) {
@@ -47,7 +47,7 @@ export async function getProductBySlug(slug: string) {
     .single()
 
   if (error) throw error
-  return data as ProductWithVariants
+  return data as unknown as ProductWithVariants
 }
 
 export async function getFeaturedProducts(limit = 3) {

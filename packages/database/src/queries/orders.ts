@@ -35,7 +35,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
     .single()
 
   if (error) throw error
-  return data as Order
+  return data as unknown as Order
 }
 
 export async function getOrdersByCustomer(customerId: string) {
@@ -47,7 +47,7 @@ export async function getOrdersByCustomer(customerId: string) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as Order[]
+  return data as unknown as Order[]
 }
 
 export async function getOrderById(id: number) {
@@ -59,13 +59,13 @@ export async function getOrderById(id: number) {
     .single()
 
   if (error) throw error
-  return data as Order
+  return data as unknown as Order
 }
 
 export async function updateOrderStatus(
   id: number,
   status: Order['status'],
-  extra?: Partial<Order>
+  extra?: Partial<Omit<Order, 'id' | 'created_at'>>
 ) {
   const supabase = createServerClient()
   const { data, error } = await supabase
@@ -76,5 +76,5 @@ export async function updateOrderStatus(
     .single()
 
   if (error) throw error
-  return data as Order
+  return data as unknown as Order
 }
