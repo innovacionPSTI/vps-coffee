@@ -1,4 +1,5 @@
 import { createServerClient } from '@vps/database'
+import type { OrderStatus } from '@vps/database'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
@@ -27,7 +28,7 @@ export default async function PedidosAdminPage({
     .limit(50)
 
   if (searchParams.status) {
-    query = query.eq('status', searchParams.status)
+    query = query.eq('status', searchParams.status as OrderStatus)
   }
 
   const { data: orders } = await query
