@@ -20,7 +20,7 @@ export default async function PedidoDetailPage({ params }: { params: Promise<{ i
   const { data: order } = await supabase
     .from('orders')
     .select('*')
-    .eq('id', id)
+    .eq('id', Number(id))
     .single()
 
   if (!order) notFound()

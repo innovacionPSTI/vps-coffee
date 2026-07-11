@@ -16,5 +16,5 @@
     "incremental": true,
     "plugins": [{ "name": "next" }]
   },
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules", "tailwind.config.ts", "postcss.config.ts", "postcss.config.js"]
 }
