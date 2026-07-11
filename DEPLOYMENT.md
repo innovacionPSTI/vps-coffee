@@ -1,6 +1,6 @@
 # VPS Coffee — Guía de Despliegue en Vercel + GitHub
 
-> **Stack:** Next.js 15 · Turborepo · pnpm · Supabase  
+> **Stack:** Next.js 16 · Turborepo · pnpm · Supabase  
 > **Repositorio:** monorepo con dos apps (`apps/web` y `apps/admin`)  
 > **Desarrollado por:** [Parquesoft TI](mailto:produccion@parquesoftti.com)
 
@@ -212,24 +212,35 @@ En la pantalla de configuración del nuevo proyecto:
 | **Project Name** | `vps-coffee-web` |
 | **Framework Preset** | `Next.js` (detección automática) |
 | **Root Directory** | `apps/web` |
-| **Build Command** | `cd ../.. && pnpm build --filter=web` |
-| **Output Directory** | `.next` (dejar por defecto) |
+| **Build Command** | `cd ../.. && pnpm turbo build --filter=@vps/web` |
+| **Output Directory** | `.next` *(relativo a `apps/web` — dejar por defecto)* |
 | **Install Command** | `cd ../.. && pnpm install --frozen-lockfile` |
 | **Node.js Version** | `20.x` |
 
-> **Nota sobre el Build Command:** Vercel ejecuta los comandos desde el Root Directory configurado. Al hacer `cd ../..` se sube a la raíz del monorepo para que Turborepo resuelva correctamente las dependencias entre packages.
+> **Por qué Root Directory = `apps/web`:** Vercel detecta la versión de Next.js leyendo el `package.json` del Root Directory. Si se deja en blanco apunta al `package.json` de la raíz del monorepo, que no tiene `next` como dependencia y falla con *"No Next.js version detected"*.
 
-### 5.3 Alternativa — usar vercel.json
+> **Por qué `cd ../..` en los comandos:** Vercel ejecuta los comandos desde el Root Directory (`apps/web`). El `cd ../..` sube a la raíz del monorepo para que `pnpm install` instale todos los `packages/*` del workspace y Turborepo resuelva las dependencias correctamente.
 
-Crear `apps/web/vercel.json` en el repositorio:
+> **Nombre del filtro:** Debe coincidir con `"name"` en `apps/web/package.json` → `@vps/web`.
+
+### 5.3 vercel.json — **método recomendado**
+
+El `vercel.json` en `apps/web/` tiene prioridad sobre cualquier campo configurado en la UI de Vercel. Esto evita que Vercel use sus propios defaults y garantiza que el comando sea siempre el correcto.
+
+El archivo ya está creado en el repositorio en `apps/web/vercel.json`:
 
 ```json
 {
-  "buildCommand": "cd ../.. && pnpm turbo build --filter=web",
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=@vps/web",
+  "outputDirectory": ".next",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "framework": "nextjs"
 }
 ```
+
+> Con este archivo en el repo, los campos **Build Command** e **Install Command** en la UI de Vercel quedan sobreescritos. Se pueden dejar en blanco en la UI.
+
+> **Error frecuente:** `pnpm build --filter=web` falla porque pnpm interpreta `--filter=web` como un filtro de workspace (busca el paquete con `"name": "web"`). El comando correcto invoca `turbo` directamente: `pnpm turbo build --filter=@vps/web`.
 
 ### 5.4 Agregar variables de entorno
 
@@ -267,21 +278,27 @@ Si el build falla, revisar el log en la pestaña **Deployments** → clic en el 
 | **Project Name** | `vps-coffee-admin` |
 | **Framework Preset** | `Next.js` |
 | **Root Directory** | `apps/admin` |
-| **Build Command** | `cd ../.. && pnpm build --filter=admin` |
+| **Build Command** | `cd ../.. && pnpm turbo build --filter=@vps/admin` |
+| **Output Directory** | `.next` *(relativo a `apps/admin` — dejar por defecto)* |
 | **Install Command** | `cd ../.. && pnpm install --frozen-lockfile` |
 | **Node.js Version** | `20.x` |
 
-### 6.2 Alternativa — vercel.json para admin
+> El filtro `@vps/admin` coincide con `"name": "@vps/admin"` en `apps/admin/package.json`. La misma lógica que el proyecto web: Root Directory apunta a la app para que Vercel detecte Next.js, y los comandos suben a la raíz para instalar todo el workspace.
 
-Crear `apps/admin/vercel.json`:
+### 6.2 vercel.json — **método recomendado**
+
+El archivo ya está creado en el repositorio en `apps/admin/vercel.json`:
 
 ```json
 {
-  "buildCommand": "cd ../.. && pnpm turbo build --filter=admin",
+  "buildCommand": "cd ../.. && pnpm turbo build --filter=@vps/admin",
+  "outputDirectory": ".next",
   "installCommand": "cd ../.. && pnpm install --frozen-lockfile",
   "framework": "nextjs"
 }
 ```
+
+> Mismo principio que el proyecto web: el `vercel.json` sobreescribe cualquier campo en la UI de Vercel.
 
 ### 6.3 Variables de entorno del admin
 
@@ -401,7 +418,7 @@ Developer                    GitHub                      Vercel
     ├── git push origin main ──▶│                           │
     │                           ├── trigger build ─────────▶│
     │                           │                           ├── pnpm install
-    │                           │                           ├── turbo build
+    │                           │                           ├── turbo build --filter=@vps/web|@vps/admin
     │                           │                           ├── deploy to CDN
     │                           │◀── notify status ─────────┤
     │◀── GitHub check status ───┤                           │
@@ -532,8 +549,10 @@ Completar antes de hacer el primer deploy a producción:
 
 ### Vercel — vps-coffee-web
 
-- [ ] Root Directory configurado como `apps/web`
-- [ ] Build Command: `cd ../.. && pnpm build --filter=web`
+- [ ] Root Directory: `apps/web`
+- [ ] Build Command: `cd ../.. && pnpm turbo build --filter=@vps/web`
+- [ ] Output Directory: `.next` (por defecto)
+- [ ] Install Command: `cd ../.. && pnpm install --frozen-lockfile`
 - [ ] Node.js 20.x seleccionado
 - [ ] Variables de entorno de producción configuradas (todas las de la lista de la sección 15)
 - [ ] Primer build exitoso (sin errores en Build Logs)
@@ -541,8 +560,10 @@ Completar antes de hacer el primer deploy a producción:
 
 ### Vercel — vps-coffee-admin
 
-- [ ] Root Directory configurado como `apps/admin`
-- [ ] Build Command: `cd ../.. && pnpm build --filter=admin`
+- [ ] Root Directory: `apps/admin`
+- [ ] Build Command: `cd ../.. && pnpm turbo build --filter=@vps/admin`
+- [ ] Output Directory: `.next` (por defecto)
+- [ ] Install Command: `cd ../.. && pnpm install --frozen-lockfile`
 - [ ] Node.js 20.x seleccionado
 - [ ] Variables de entorno de producción configuradas
 - [ ] Primer build exitoso
@@ -686,7 +707,7 @@ Configurar alertas en Vercel → **Observability** → **Alerts** para recibir n
 ┌──────────────────────────────────────────────────────────────────── ┐
 │                          Vercel CI                                  │
 │                                                                     │
-│  turbo build --filter=web      turbo build --filter=admin           │
+│  turbo build --filter=@vps/web  turbo build --filter=@vps/admin     │
 │         │                               │                           │
 │  Production Deploy              Production Deploy                   │
 │  vpscoffee.com                  admin.vpscoffee.com                 │
