@@ -1,9 +1,12 @@
 import { createServerClient } from '@vps/database'
+import type { Database } from '@vps/database'
 import { NextRequest, NextResponse } from 'next/server'
+
+type CategoryUpdate = Database['public']['Tables']['categories']['Update']
 
 export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
-  const body = await req.json()
+  const body = await req.json() as CategoryUpdate
   const supabase = createServerClient()
 
   const { data, error } = await supabase

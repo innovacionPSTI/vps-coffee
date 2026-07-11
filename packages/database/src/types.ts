@@ -289,6 +289,25 @@ export type Database = {
         }
         Update: Partial<Database['public']['Tables']['shipping_config']['Row']>
       }
+      store_config: {
+        Row: {
+          id: number
+          whatsapp_number: string | null
+          store_name: string
+          store_email: string | null
+          logo_url: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          whatsapp_number?: string | null
+          store_name?: string
+          store_email?: string | null
+          logo_url?: string | null
+          updated_at?: string
+        }
+        Update: Partial<Database['public']['Tables']['store_config']['Row']>
+      }
     }
     Views: Record<string, never>
     Functions: Record<string, never>
@@ -345,6 +364,7 @@ export type Order = Database['public']['Tables']['orders']['Row']
 export type BlogPost = Database['public']['Tables']['blog_posts']['Row']
 export type NewsletterSubscriber =
   Database['public']['Tables']['newsletter_subscribers']['Row']
+export type StoreConfigRow = Database['public']['Tables']['store_config']['Row']
 
 export type ProductWithVariants = Product & {
   variants: ProductVariant[]

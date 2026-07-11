@@ -1,5 +1,8 @@
 import { createServerClient } from '@vps/database'
+import type { Database } from '@vps/database'
 import { NextRequest, NextResponse } from 'next/server'
+
+type VariantInsert = Database['public']['Tables']['product_variants']['Insert']
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
@@ -32,12 +35,12 @@ export async function POST(req: NextRequest) {
   if (productError) return NextResponse.json({ error: productError.message }, { status: 500 })
 
   // Crear variantes
-  const variantRows = variants.map((v: any) => ({
+  const variantRows: VariantInsert[] = variants.map((v: any) => ({
     product_id: product.id,
-    roast: v.roast || null,
-    weight: v.weight || null,
-    grind: v.grind || null,
-    brew_method: v.brew_method || null,
+    roast: (v.roast || null) as VariantInsert['roast'],
+    weight: (v.weight || null) as VariantInsert['weight'],
+    grind: (v.grind || null) as VariantInsert['grind'],
+    brew_method: (v.brew_method || null) as VariantInsert['brew_method'],
     price: Number(v.price),
     stock: Number(v.stock ?? 0),
     sku: v.sku || null,

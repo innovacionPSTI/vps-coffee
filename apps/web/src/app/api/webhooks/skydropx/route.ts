@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@vps/database'
+import type { OrderStatus } from '@vps/database'
 
-const STATUS_MAP: Record<string, string> = {
+const STATUS_MAP: Record<string, OrderStatus> = {
   'shipment.in_transit':       'shipped',
   'shipment.out_for_delivery': 'shipped',
   'shipment.delivered':        'delivered',

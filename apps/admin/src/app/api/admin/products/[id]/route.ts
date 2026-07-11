@@ -1,5 +1,9 @@
 import { createServerClient } from '@vps/database'
+import type { Database } from '@vps/database'
 import { NextRequest, NextResponse } from 'next/server'
+
+type ProductUpdate = Database['public']['Tables']['products']['Update']
+type VariantUpsert = Database['public']['Tables']['product_variants']['Insert']
 
 export async function GET(_req: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
@@ -23,7 +27,7 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
   // Actualizar datos del producto
   const { data: product, error: productError } = await supabase
     .from('products')
-    .update(productData)
+    .update(productData as ProductUpdate)
     .eq('id', Number(id))
     .select()
     .single()
@@ -38,15 +42,15 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
     }
 
     // Upsert el resto
-    const toUpsert = variants
+    const toUpsert: VariantUpsert[] = variants
       .filter((v: any) => !v._delete)
       .map((v: any) => ({
         ...(v.id ? { id: v.id } : {}),
         product_id: Number(id),
-        roast: v.roast || null,
-        weight: v.weight || null,
-        grind: v.grind || null,
-        brew_method: v.brew_method || null,
+        roast: (v.roast || null) as VariantUpsert['roast'],
+        weight: (v.weight || null) as VariantUpsert['weight'],
+        grind: (v.grind || null) as VariantUpsert['grind'],
+        brew_method: (v.brew_method || null) as VariantUpsert['brew_method'],
         price: Number(v.price),
         stock: Number(v.stock ?? 0),
         sku: v.sku || null,
