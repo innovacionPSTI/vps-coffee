@@ -14,12 +14,13 @@ const TIMELINE_STEPS = [
 ]
 const STATUS_ORDER = ['pending', 'processing', 'shipped', 'delivered']
 
-export default async function PedidoDetailPage({ params }: { params: { id: string } }) {
+export default async function PedidoDetailPage({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
   const supabase = createServerClient()
   const { data: order } = await supabase
     .from('orders')
     .select('*')
-    .eq('id', params.id)
+    .eq('id', id)
     .single()
 
   if (!order) notFound()
