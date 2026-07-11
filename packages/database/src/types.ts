@@ -84,7 +84,7 @@ export type Database = {
           slug: string
           description?: string | null
           category_id?: number | null
-          images?: Json
+          images?: ProductImage[]
           active?: boolean
           featured?: boolean
           seo_title?: string | null
@@ -97,7 +97,7 @@ export type Database = {
           slug?: string
           description?: string | null
           category_id?: number | null
-          images?: Json
+          images?: ProductImage[]
           active?: boolean
           featured?: boolean
           seo_title?: string | null
@@ -244,8 +244,8 @@ export type Database = {
           customer_name: string
           customer_email: string
           customer_phone?: string | null
-          shipping_addr: Json
-          items: Json
+          shipping_addr: ShippingAddress
+          items: OrderItem[]
           subtotal: number
           shipping_cost: number
           discount?: number
@@ -274,8 +274,8 @@ export type Database = {
           customer_name?: string
           customer_email?: string
           customer_phone?: string | null
-          shipping_addr?: Json
-          items?: Json
+          shipping_addr?: ShippingAddress
+          items?: OrderItem[]
           subtotal?: number
           shipping_cost?: number
           discount?: number
