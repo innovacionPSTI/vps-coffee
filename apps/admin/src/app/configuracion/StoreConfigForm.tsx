@@ -1,0 +1,144 @@
+'use client'
+
+import { useState, useTransition } from 'react'
+import type { StoreConfig } from '@vps/database'
+import ImageUpload from '@/components/ImageUpload'
+
+interface Props {
+  initialConfig: StoreConfig | null
+}
+
+export default function StoreConfigForm({ initialConfig }: Props) {
+  const [logoUrl, setLogoUrl]     = useState(initialConfig?.logo_url     ?? '')
+  const [whatsapp, setWhatsapp]   = useState(initialConfig?.whatsapp_number ?? '')
+  const [storeName, setStoreName] = useState(initialConfig?.store_name   ?? 'VPS Coffee')
+  const [storeEmail, setStoreEmail] = useState(initialConfig?.store_email ?? '')
+
+  const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
+  const [errorMsg, setErrorMsg] = useState('')
+  const [, startTransition] = useTransition()
+
+  async function handleSave() {
+    setStatus('saving')
+    setErrorMsg('')
+
+    try {
+      const res = await fetch('/api/admin/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          logo_url:        logoUrl        || null,
+          whatsapp_number: whatsapp       || null,
+          store_name:      storeName      || 'VPS Coffee',
+          store_email:     storeEmail     || null,
+        }),
+      })
+      const data = await res.json()
+
+      if (!res.ok) {
+        setErrorMsg(data.error ?? 'Error desconocido')
+        setStatus('error')
+        return
+      }
+
+      setStatus('saved')
+      startTransition(() => { setTimeout(() => setStatus('idle'), 3000) })
+    } catch {
+      setErrorMsg('Error de red al guardar')
+      setStatus('error')
+    }
+  }
+
+  return (
+    <div className="space-y-6">
+
+      {/* Logo */}
+      <div>
+        <p className="font-brand text-xs font-semibold text-brand-primary mb-1">Logo de la tienda</p>
+        <p className="font-brand text-xs text-brand-primary/40 mb-3">
+          Aparece en la barra de navegación y el pie de página. PNG o WebP con fondo transparente recomendado.
+          Dimensiones sugeridas: <strong>400 × 400 px</strong>.
+        </p>
+        <div className="w-48">
+          <ImageUpload
+            value={logoUrl}
+            onChange={setLogoUrl}
+            bucket="logos"
+            label=""
+            sizeClass="w-48 h-48"
+          />
+        </div>
+      </div>
+
+      <div className="border-t border-gray-100 pt-5 space-y-4">
+        {/* WhatsApp */}
+        <div>
+          <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">
+            Número de WhatsApp
+          </label>
+          <p className="font-brand text-xs text-brand-primary/40 mb-2">
+            Formato internacional sin + ni espacios (ej. 573001234567).
+          </p>
+          <input
+            type="tel"
+            value={whatsapp}
+            onChange={(e) => setWhatsapp(e.target.value)}
+            placeholder="573001234567"
+            className="w-64 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
+          />
+        </div>
+
+        {/* Nombre */}
+        <div>
+          <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">
+            Nombre de la tienda
+          </label>
+          <input
+            type="text"
+            value={storeName}
+            onChange={(e) => setStoreName(e.target.value)}
+            placeholder="VPS Coffee"
+            className="w-64 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
+          />
+        </div>
+
+        {/* Email */}
+        <div>
+          <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">
+            Email de contacto
+          </label>
+          <input
+            type="email"
+            value={storeEmail}
+            onChange={(e) => setStoreEmail(e.target.value)}
+            placeholder="contacto@vpscoffee.com"
+            className="w-64 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
+          />
+        </div>
+      </div>
+
+      {/* Actions */}
+      <div className="flex items-center gap-4 pt-1">
+        <button
+          onClick={handleSave}
+          disabled={status === 'saving'}
+          className="bg-brand-primary text-brand-cream rounded-full px-6 py-2.5 font-brand text-sm hover:bg-brand-dark transition-colors disabled:opacity-50"
+        >
+          {status === 'saving' ? 'Guardando...' : 'Guardar'}
+        </button>
+
+        {status === 'saved' && (
+          <span className="font-brand text-sm text-green-600 flex items-center gap-1">
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+            </svg>
+            Guardado
+          </span>
+        )}
+        {status === 'error' && (
+          <span className="font-brand text-sm text-red-600">{errorMsg}</span>
+        )}
+      </div>
+    </div>
+  )
+}
