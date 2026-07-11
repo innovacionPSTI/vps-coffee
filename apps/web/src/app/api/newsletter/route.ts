@@ -11,8 +11,7 @@ export async function POST(req: NextRequest) {
     const supabase = createServerClient()
     const { error } = await supabase
       .from('newsletter_subscribers')
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      .upsert({ email, active: true } as any, { onConflict: 'email' })
+      .upsert({ email, active: true }, { onConflict: 'email' })
 
     if (error) throw error
     return NextResponse.json({ ok: true })
