@@ -50,20 +50,22 @@ export default function RegistroForm() {
       // signUpWithCredential no acepta displayName — hay que persistirlo
       // explícitamente con user.update() después de crear la cuenta.
       const trimmedName = name.trim()
-      if (trimmedName) {
-        const currentUser = await app.getUser()
-        if (currentUser) {
-          await currentUser.update({ displayName: trimmedName })
-        }
+      const currentUser = await app.getUser()
+      if (trimmedName && currentUser) {
+        await currentUser.update({ displayName: trimmedName })
       }
 
       // Sincroniza el usuario en Supabase (customers) y envía email de bienvenida.
-      // Se awaita para garantizar que el upsert completa antes de navegar;
-      // los errores se silencian para no bloquear el registro.
+      // Pasamos email y stackId explícitamente para evitar race conditions donde
+      // stackServerApp.getUser() aún no encuentra la sesión en el servidor.
       await fetch('/api/auth/welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: name.trim() }),
+        body: JSON.stringify({
+          name: trimmedName,
+          email,
+          stackId: currentUser?.id ?? null,
+        }),
       }).catch(() => {})
 
       router.push('/mi-cuenta')
