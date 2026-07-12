@@ -2,7 +2,7 @@ import { Suspense } from 'react'
 import LoginForm from '@/components/auth/LoginForm'
 
 export const metadata = {
-  title: 'Iniciar sesión — VPS Coffee',
+  title: 'Iniciar sesión',
 }
 
 export default function LoginPage() {

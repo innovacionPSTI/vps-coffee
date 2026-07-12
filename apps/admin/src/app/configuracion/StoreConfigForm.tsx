@@ -11,7 +11,7 @@ interface Props {
 export default function StoreConfigForm({ initialConfig }: Props) {
   const [logoUrl, setLogoUrl]     = useState(initialConfig?.logo_url     ?? '')
   const [whatsapp, setWhatsapp]   = useState(initialConfig?.whatsapp_number ?? '')
-  const [storeName, setStoreName] = useState(initialConfig?.store_name   ?? 'VPS Coffee')
+  const [storeName, setStoreName] = useState(initialConfig?.store_name   ?? '')
   const [storeEmail, setStoreEmail] = useState(initialConfig?.store_email ?? '')
 
   // Redes sociales
@@ -41,7 +41,7 @@ export default function StoreConfigForm({ initialConfig }: Props) {
         body: JSON.stringify({
           logo_url:           logoUrl    || null,
           whatsapp_number:    whatsapp   || null,
-          store_name:         storeName  || 'VPS Coffee',
+          store_name:         storeName  || 'Mi Tienda',
           store_email:        storeEmail || null,
           instagram_url:      igUrl      || null,
           instagram_enabled:  igEnabled,
@@ -117,7 +117,7 @@ export default function StoreConfigForm({ initialConfig }: Props) {
             type="text"
             value={storeName}
             onChange={(e) => setStoreName(e.target.value)}
-            placeholder="VPS Coffee"
+            placeholder="Nombre de la tienda"
             className="w-64 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
           />
         </div>
@@ -131,7 +131,7 @@ export default function StoreConfigForm({ initialConfig }: Props) {
             type="email"
             value={storeEmail}
             onChange={(e) => setStoreEmail(e.target.value)}
-            placeholder="contacto@vpscoffee.com"
+            placeholder="contacto@mitienda.com"
             className="w-64 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
           />
         </div>
@@ -150,21 +150,21 @@ export default function StoreConfigForm({ initialConfig }: Props) {
           {
             key: 'instagram',
             label: 'Instagram',
-            placeholder: 'https://instagram.com/vpscoffee',
+            placeholder: 'https://instagram.com/mitienda',
             url: igUrl, setUrl: setIgUrl,
             enabled: igEnabled, setEnabled: setIgEnabled,
           },
           {
             key: 'facebook',
             label: 'Facebook',
-            placeholder: 'https://facebook.com/vpscoffee',
+            placeholder: 'https://facebook.com/mitienda',
             url: fbUrl, setUrl: setFbUrl,
             enabled: fbEnabled, setEnabled: setFbEnabled,
           },
           {
             key: 'tiktok',
             label: 'TikTok',
-            placeholder: 'https://tiktok.com/@vpscoffee',
+            placeholder: 'https://tiktok.com/@mitienda',
             url: ttUrl, setUrl: setTtUrl,
             enabled: ttEnabled, setEnabled: setTtEnabled,
           },

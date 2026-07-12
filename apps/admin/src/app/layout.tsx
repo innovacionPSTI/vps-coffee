@@ -24,7 +24,7 @@ const dmSans = DM_Sans({
 })
 
 export const metadata: Metadata = {
-  title: { default: 'Admin — VPS Coffee', template: '%s | Admin VPS' },
+  title: { default: 'Panel de Administración', template: '%s | Admin' },
   robots: { index: false, follow: false },
 }
 

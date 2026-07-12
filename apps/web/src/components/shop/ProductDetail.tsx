@@ -91,7 +91,7 @@ export default function ProductDetail({ product, related }: Props) {
           {/* Info */}
           <div>
             <p className="font-brand text-sm text-brand-primary/50 uppercase tracking-wider mb-1">
-              VPS Coffee Roasting House
+              {product.category?.name ?? ''}
             </p>
             <h1 className="font-display text-brand-primary leading-none mb-4"
                 style={{ fontSize: 'clamp(2rem, 4vw, 3.5rem)' }}>

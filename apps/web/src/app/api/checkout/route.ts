@@ -161,7 +161,7 @@ export async function POST(req: NextRequest) {
       }
     } catch { /* non-critical */ }
 
-    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vpscoffee.com').replace(/\/$/, '')
+    const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
     const confirmUrl = `${siteUrl}/checkout/confirmacion?order=${order.order_number}`
 
     let payment_url: string

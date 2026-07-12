@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { stackServerApp } from '@/stack'
 import ConfiguracionForm from '@/components/account/ConfiguracionForm'
 
-export const metadata: Metadata = { title: 'Configuración — VPS Coffee' }
+export const metadata: Metadata = { title: 'Configuración de cuenta' }
 
 export default async function ConfiguracionPage() {
   const user = await stackServerApp.getUser()

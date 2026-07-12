@@ -19,17 +19,16 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-14">
           <h2 className="text-section font-display text-brand-primary">
-            Café de Especialidad
+            Productos Destacados
           </h2>
           <p className="font-brand text-brand-primary/60 mt-4 max-w-xl mx-auto">
-            Trazabilidad completa, tueste artesanal y calidad sensorial extraordinaria.
-            Cada bolsa cuenta la historia del grano.
+            Descubre nuestra selección de productos. Calidad garantizada en cada artículo.
           </p>
           <Link
             href="/tienda"
             className="inline-block mt-6 border border-brand-primary text-brand-primary rounded-full px-6 py-2 font-brand text-sm hover:bg-brand-primary hover:text-brand-cream transition-colors"
           >
-            Ver todos nuestros cafés →
+            Ver todos los productos →
           </Link>
         </div>
 
@@ -51,7 +50,7 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
                       />
                     ) : (
                       <div className="w-full h-full flex items-center justify-center">
-                        <span className="font-display text-brand-primary/10 text-6xl">VPS</span>
+                        <span className="font-display text-brand-primary/10 text-6xl">▲</span>
                       </div>
                     )}
                     <div className="absolute bottom-0 left-0 right-0 h-10 bg-white rounded-t-[60%]" />
@@ -61,7 +60,7 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
                 <div className="p-6 pt-2">
                   <Link href={`/tienda/${product.slug}`}>
                     <p className="font-brand text-xs text-brand-primary/50 uppercase tracking-wider">
-                      {product.category?.name ?? 'Café VPS'}
+                      {product.category?.name ?? 'Sin categoría'}
                     </p>
                     <h3 className="font-brand text-xl font-semibold text-brand-primary mt-1 group-hover:text-brand-dark transition-colors">
                       {product.name}

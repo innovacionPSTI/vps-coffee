@@ -31,7 +31,7 @@ export default async function ConfirmacionPage({
 
         <p className="font-brand text-brand-primary/60 mb-8 leading-relaxed">
           Recibirás un correo electrónico con los detalles de tu pedido y el número de seguimiento
-          una vez que tu café esté en camino.
+          una vez que sea despachado.
         </p>
 
         <div className="flex flex-col gap-3">

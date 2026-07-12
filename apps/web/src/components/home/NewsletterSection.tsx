@@ -32,12 +32,12 @@ export default function NewsletterSection() {
           Suscríbete a nuestro boletín
         </h2>
         <p className="font-brand text-brand-cream/60 mb-8">
-          Recibe recetas, orígenes y novedades de VPS Coffee directamente en tu correo.
+          Recibe novedades, ofertas y contenido exclusivo directamente en tu correo.
         </p>
 
         {status === 'success' ? (
           <p className="font-brand text-brand-cream bg-brand-cream/10 rounded-full py-3 px-6">
-            ¡Gracias! Pronto tendrás noticias de VPS. ☕
+            ¡Gracias! Pronto recibirás nuestras novedades.
           </p>
         ) : (
           <form onSubmit={handleSubmit} className="flex flex-col sm:flex-row gap-3">

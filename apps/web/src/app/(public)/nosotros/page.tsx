@@ -3,7 +3,7 @@ import Link from 'next/link'
 
 export const metadata: Metadata = {
   title: 'Nosotros',
-  description: 'Conoce la historia y valores de VPS Coffee Roasting House.',
+  description: 'Conoce la historia y valores de nuestra empresa.',
 }
 
 const values = [
@@ -25,7 +25,7 @@ export default function NosotrosPage() {
             Vivir para<br />Servir
           </h1>
           <p className="font-brand text-brand-cream/80 text-xl max-w-xl mx-auto">
-            La filosofía detrás de cada taza de VPS Coffee.
+            La filosofía que guía nuestra empresa.
           </p>
         </div>
       </section>
@@ -38,7 +38,7 @@ export default function NosotrosPage() {
           </h2>
           <div className="space-y-6 font-brand text-brand-primary/70 text-lg leading-relaxed">
             <p>
-              VPS Coffee Roasting House nació del compromiso con la excelencia y el cuidado desde el origen hasta tu mesa.
+              Nuestra empresa nació del compromiso con la excelencia y el cuidado desde el origen hasta el cliente final.
               Somos una tostadora artesanal que trabaja directamente con productores colombianos para garantizar
               la máxima calidad y trazabilidad en cada bolsa.
             </p>

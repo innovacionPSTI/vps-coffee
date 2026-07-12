@@ -105,7 +105,7 @@ export default function CategoryFormModal({ category, onClose }: Props) {
               value={form.name}
               onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
-              placeholder="Ej: Cafés de origen"
+              placeholder="Ej: Electrónica, Ropa, Accesorios"
             />
           </div>
 
@@ -117,7 +117,7 @@ export default function CategoryFormModal({ category, onClose }: Props) {
               value={form.slug}
               onChange={(e) => { setSlugTouched(true); setForm((f) => ({ ...f, slug: toSlug(e.target.value) })) }}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm text-brand-primary/60 focus:outline-none focus:border-brand-primary"
-              placeholder="cafes-de-origen"
+              placeholder="nombre-categoria"
             />
             <p className="font-brand text-xs text-brand-primary/30 mt-1">URL: /tienda?categoria={form.slug}</p>
           </div>

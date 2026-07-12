@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, getStoreConfig } from '@vps/database'
-import { sendShippingNotification } from '@/lib/email'
+import { sendShippingNotification, buildEmailConfig } from '@/lib/email'
 import type { Order } from '@vps/database'
 
 /**
@@ -92,7 +92,7 @@ export async function POST(req: NextRequest) {
         if (storeConfig?.resend_api_key && storeConfig?.resend_from_email && updatedOrder.tracking_number) {
           await sendShippingNotification(
             updatedOrder as unknown as Order & { tracking_number: string; carrier_name: string | null; label_url: string | null },
-            { apiKey: storeConfig.resend_api_key, fromEmail: storeConfig.resend_from_email },
+            buildEmailConfig(storeConfig.resend_api_key, storeConfig.resend_from_email, storeConfig.store_name),
           )
         }
       } catch (emailErr) {

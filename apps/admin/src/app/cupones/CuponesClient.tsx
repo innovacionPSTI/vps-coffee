@@ -123,7 +123,7 @@ export default function CuponesClient({ initialCoupons }: Props) {
                 <input
                   value={form.code ?? ''}
                   onChange={(e) => setForm((f) => ({ ...f, code: e.target.value.toUpperCase() }))}
-                  placeholder="VPS20"
+                  placeholder="DESCUENTO20"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm uppercase focus:outline-none focus:border-brand-primary"
                 />
               </div>

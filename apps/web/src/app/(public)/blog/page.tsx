@@ -3,13 +3,13 @@ import Link from 'next/link'
 import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
-  title: 'Blog — Notas de Café',
-  description: 'Descubre el mundo del café de especialidad: orígenes, métodos y curiosidades.',
+  title: 'Blog',
+  description: 'Novedades, tutoriales y contenido de interés para nuestra comunidad.',
 }
 
 export const revalidate = 60
 
-const CATEGORIES = ['Orígenes', 'Preparación', 'Novedades', 'Cultura']
+const CATEGORIES = ['Novedades', 'Tutoriales', 'Cultura', 'Empresa']
 
 export default async function BlogPage({
   searchParams,
@@ -27,7 +27,7 @@ export default async function BlogPage({
         {/* Header */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-6 mb-12">
           <h1 className="font-display text-brand-primary text-section">
-            Notas de Café
+            Blog
           </h1>
           <div className="flex flex-wrap gap-2">
             <Link

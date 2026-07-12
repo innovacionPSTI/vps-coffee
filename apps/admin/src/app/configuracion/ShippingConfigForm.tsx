@@ -286,7 +286,7 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
                   type="text"
                   value={originName}
                   onChange={(e) => setOriginName(e.target.value)}
-                  placeholder="VPS Coffee Roasting House"
+                  placeholder="Nombre del remitente / empresa"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
                 />
               </div>
@@ -320,7 +320,7 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
                   type="text"
                   value={originNeighborhood}
                   onChange={(e) => setOriginNeighborhood(e.target.value)}
-                  placeholder="El Poblado"
+                  placeholder="Barrio / sector"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
                 />
               </div>
@@ -330,7 +330,7 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
                   type="text"
                   value={originCity}
                   onChange={(e) => setOriginCity(e.target.value)}
-                  placeholder="Medellín"
+                  placeholder="Ciudad de despacho"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
                 />
               </div>
@@ -343,7 +343,7 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
                   type="text"
                   value={originDepartment}
                   onChange={(e) => setOriginDepartment(e.target.value)}
-                  placeholder="Antioquia"
+                  placeholder="Departamento"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
                 />
               </div>
@@ -366,7 +366,7 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
                 type="email"
                 value={originEmail}
                 onChange={(e) => setOriginEmail(e.target.value)}
-                placeholder="pedidos@vpscoffee.com"
+                placeholder="despachos@mitienda.com"
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
               />
             </div>

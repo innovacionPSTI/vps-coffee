@@ -1,5 +1,5 @@
 # VPS Coffee — Estado del Proyecto
-> **Última actualización:** Julio 2026 (v6) · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
+> **Última actualización:** Julio 2026 (v7) · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
 
 ---
 
@@ -21,28 +21,24 @@
 - `src/client.ts` — `createBrowserClient()` y `createServerClient()`
 - `src/queries/` — products, orders, blog, banners, shipping-config, store-config, **payment-config**
 - `supabase/migrations/1_initial_schema.sql` — schema completo para Stack Auth (sin FK a auth.users, sin trigger on_auth_user_created); RLS solo con políticas válidas; roles correctos incluido `miembro`
-- `supabase/migrations/2_shipping_config.sql` — tabla `shipping_config` con soporte multi-proveedor
+- `supabase/migrations/2_shipping_config.sql` — tabla `shipping_config` con soporte multi-proveedor, reglas de envío gratis (`free_shipping_enabled`, `free_shipping_min_amount`) y dirección de origen Skydropx (8 campos `origin_*`); todo consolidado en una sola migración
 - `supabase/migrations/3_banner_mobile_image.sql` — tabla `banners` con campos de imagen web/mobile
-- `supabase/migrations/4_store_config.sql` — tabla `store_config` singleton (id=1) con whatsapp, nombre, email, logo; RLS habilitado
+- `supabase/migrations/4_store_config.sql` — tabla `store_config` singleton (id=1) con branding, Resend (api_key + from_email), contenido legal (terms/privacy Markdown), redes sociales (instagram/facebook/tiktok), modo mantenimiento y analytics; todo consolidado en una sola migración
 - `supabase/migrations/5_payment_config.sql` — tabla `payment_config` singleton (id=1) con credenciales Wompi y MercadoPago
-- `supabase/migrations/6_email_config.sql` — añade `resend_api_key` y `resend_from_email` a `store_config`
-- `supabase/migrations/7_shipping_profiles.sql` — tabla `shipping_profiles` para perfiles de envío; RLS habilitado
-- `supabase/migrations/8_customers.sql` — tabla `customers` (mirror de compradores web desde Stack Auth); FK `orders.customer_id → customers.id`; RLS habilitado (solo service_role)
-- `supabase/migrations/9_customer_addresses.sql` — tabla `customer_addresses` (1 cliente → N direcciones guardadas para pre-llenar checkout); RLS habilitado
-- `supabase/migrations/10_shipping_free_threshold.sql` — añade `free_shipping_enabled` (boolean) y `free_shipping_min_amount` (numeric) a `shipping_config`; configurable desde el admin sin código
-- `supabase/migrations/11_legal_content.sql` — añade `terms_content` y `privacy_content` (TEXT nullable) a `store_config`; editor Markdown en admin
-- `supabase/migrations/12_social_links.sql` — añade `instagram_url/enabled`, `facebook_url/enabled`, `tiktok_url/enabled` a `store_config`; iconos SVG en footer
-- `supabase/migrations/13_skydropx_origin_address.sql` — añade 8 campos de dirección de origen a `shipping_config` (origin_name, origin_street, origin_neighborhood, origin_city, origin_department, origin_postal_code, origin_phone, origin_email) — **ejecutar manualmente en Supabase SQL Editor**
-- `supabase/migrations/14_maintenance_mode.sql` — añade `maintenance_mode` y `analytics_enabled` (boolean) a `store_config`
-- `supabase/migrations/15_coupons.sql` — tabla `coupons` con código, tipo (percentage/fixed), valor, mínimo de pedido, usos máximos, contador de usos, expiración, estado activo
-- `supabase/migrations/16_testimonials.sql` — tabla `testimonials` con autor, cargo, contenido, avatar, rating (1-5), orden, estado activo
-- `supabase/migrations/17_cart_items.sql` — tabla `cart_items` para sincronizar carrito de usuarios logueados (FK a `customers`)
+- `supabase/migrations/6_shipping_profiles.sql` — tabla `shipping_profiles` para perfiles de envío; RLS habilitado
+- `supabase/migrations/7_customers.sql` — tabla `customers` (mirror de compradores web desde Stack Auth); FK `orders.customer_id → customers.id`; RLS habilitado (solo service_role)
+- `supabase/migrations/8_customer_addresses.sql` — tabla `customer_addresses` (1 cliente → N direcciones guardadas para pre-llenar checkout); RLS habilitado
+- `supabase/migrations/9_section_settings.sql` — tabla `section_settings` para habilitar/deshabilitar secciones del home; seed con secciones por defecto
+- `supabase/migrations/10_coupons.sql` — tabla `coupons` con código, tipo (percentage/fixed), valor, mínimo de pedido, usos máximos, contador de usos, expiración, estado activo
+- `supabase/migrations/11_testimonials.sql` — tabla `testimonials` con autor, cargo, contenido, avatar, rating (1-5), orden, estado activo
+- `supabase/migrations/12_cart_items.sql` — tabla `cart_items` para sincronizar carrito de usuarios logueados (FK a `customers`)
+- `supabase/migrations/13_themes.sql` — tabla `themes` con paleta hex completa y selección de fuentes; seed con tema VPS Coffee original; unique index parcial `WHERE is_active = true`
 - `src/queries/coupons.ts` — `getCoupons`, `getCouponByCode`, **`validateCoupon` (función pura)**, `createCoupon`, `updateCoupon`, `deleteCoupon`, `incrementCouponUsage`
 - `src/queries/testimonials.ts` — `getTestimonials(onlyActive)`, `createTestimonial`, `updateTestimonial`, `deleteTestimonial`
 - `src/queries/cart.ts` — `getCartItems`, `upsertCartItem`, `removeCartItem`, `clearCart`, `replaceCart`
 - `src/queries/sections.ts` — `getSectionSettings()` (lista todas ordenadas por `order_index`), `isSectionEnabled(key)` (fail-open: devuelve `true` si la tabla no existe)
 - `src/queries/themes.ts` — `getThemes()`, `getActiveTheme()`, `createTheme()`, `updateTheme()`, `setActiveTheme()`, `deleteTheme()` (protege activo y predeterminado)
-- `supabase/migrations/18_themes.sql` — tabla `themes` con paleta hex completa (`color_primary`, `color_dark`, `color_cream`, `color_cream_warm`, `color_yellow`, `color_yellow_pale`, `color_text`) y selección de fuentes (`font_display`, `font_body`); seed con tema VPS Coffee original; unique index parcial `WHERE is_active = true`
+- `supabase/migrations/13_themes.sql` — tabla `themes` con paleta hex completa (`color_primary`, `color_dark`, `color_cream`, `color_cream_warm`, `color_yellow`, `color_yellow_pale`, `color_text`) y selección de fuentes (`font_display`, `font_body`); seed con tema VPS Coffee original; unique index parcial `WHERE is_active = true`
 - `src/types.ts` — añadidas tablas `order_items` (con `image_url`), `section_settings`, `themes`; añadida función `increment_coupon_usage` en `Database['public']['Functions']`
 
 ### `packages/ui`
@@ -147,7 +143,7 @@
 - `lib/whatsapp.ts` — async, lee número desde `getStoreConfig()` en BD; fallback `573XXXXXXXXX`
 - `lib/wompi.ts` — `buildWompiCheckoutUrl` (firma SHA256), `verifyWompiWebhook`, `mapWompiStatus`; sin process.env
 - `lib/mercadopago.ts` — `createMercadoPagoPreference`, `getMercadoPagoPayment`, `mapMercadoPagoStatus`, `isMercadoPagoSandbox`; sin process.env
-- `lib/email.ts` — `sendOrderConfirmation`, `sendShippingNotification`, `sendWelcomeEmail`, `sendNewsletterConfirmation` vía Resend (fetch directo); credenciales como parámetros
+- `lib/email.ts` — `sendOrderConfirmation`, `sendShippingNotification`, `sendWelcomeEmail`, `sendNewsletterConfirmation` vía Resend (fetch directo); credenciales como parámetros; **`buildEmailConfig()`** construye `EmailConfig` con `storeName` (desde `store_config.store_name`) y `siteUrl` (desde `NEXT_PUBLIC_SITE_URL`) — elimina todos los valores hardcodeados en plantillas
 - `lib/markdown.ts` — **conversor Markdown→HTML sin dependencias externas**, compartido entre blog y páginas legales; soporta h1/h2/h3 (con o sin espacio tras `#`), **bold**, *italic*, `code`, links y listas; extraído de `LegalPage.tsx`; aplicado en `/blog/[slug]/page.tsx`
 - `lib/shipping/types.ts` — interfaces `ShippingAddress`, `ShippingRate`, `Parcel`, `calculateParcel()`
 - `lib/shipping/index.ts` — factory `getShippingProvider()` + exports de providers
@@ -285,6 +281,10 @@
 - [x] **Conversor Markdown compartido** — `lib/markdown.ts` extraído a librería compartida; `/blog/[slug]` y `LegalPage.tsx` lo usan; corregida detección de títulos sin espacio tras `#` (ej. `##texto`) ✅
 - [x] **`'newsletter'` en roles y sidebar** — `AdminSection` extendido; `ROLE_CONFIG` actualizado para super_admin, admin y gestor_tienda; ítem 📧 Newsletter añadido al grupo Contenido ✅
 
+### Completado en v7
+- [x] **Eliminación de valores hardcodeados en emails** — `lib/email.ts` reescrito: `storeName` y `siteUrl` vienen de `store_config` y `NEXT_PUBLIC_SITE_URL`; helper `buildEmailConfig()` actualizado en los 5 callers (wompi, mercadopago, skydropx, newsletter, welcome); `admin/newsletter/send/route.ts` corregido (footer ya no tiene `vpscoffee.com` hardcodeado) ✅
+- [x] **Consolidación de migraciones** — reducidas de 19 a 13 archivos; 6 `ALTER TABLE` eliminados (6_email_config, 10_shipping_free_threshold, 11_legal_content, 12_social_links, 13_skydropx_origin_address, 14_maintenance_mode); sus columnas incorporadas en las migraciones CREATE TABLE originales (2 y 4); archivos renumerados sin colisiones; ambas apps pasan `tsc --noEmit` ✅
+
 ### Pendiente
 - [ ] **Tests newsletter** — API routes GET /api/admin/newsletter y POST /api/admin/newsletter/send
 - [ ] **Tracking en Mi Cuenta** — timeline visual del estado del pedido / Skydropx
@@ -321,19 +321,14 @@ packages/database/supabase/migrations/2_shipping_config.sql
 packages/database/supabase/migrations/3_banner_mobile_image.sql
 packages/database/supabase/migrations/4_store_config.sql
 packages/database/supabase/migrations/5_payment_config.sql
-packages/database/supabase/migrations/6_email_config.sql
-packages/database/supabase/migrations/7_shipping_profiles.sql
-packages/database/supabase/migrations/8_customers.sql
-packages/database/supabase/migrations/9_customer_addresses.sql
-packages/database/supabase/migrations/10_shipping_free_threshold.sql
-packages/database/supabase/migrations/11_legal_content.sql
-packages/database/supabase/migrations/12_social_links.sql
-packages/database/supabase/migrations/13_skydropx_origin_address.sql
-packages/database/supabase/migrations/14_maintenance_mode.sql
-packages/database/supabase/migrations/15_coupons.sql
-packages/database/supabase/migrations/16_testimonials.sql
-packages/database/supabase/migrations/17_cart_items.sql
-packages/database/supabase/migrations/18_themes.sql
+packages/database/supabase/migrations/6_shipping_profiles.sql
+packages/database/supabase/migrations/7_customers.sql
+packages/database/supabase/migrations/8_customer_addresses.sql
+packages/database/supabase/migrations/9_section_settings.sql
+packages/database/supabase/migrations/10_coupons.sql
+packages/database/supabase/migrations/11_testimonials.sql
+packages/database/supabase/migrations/12_cart_items.sql
+packages/database/supabase/migrations/13_themes.sql
 ```
 
 ### 5. Levantar el proyecto
@@ -469,25 +464,20 @@ vps-coffee/
 │   │   │   ├── cart.ts                 — getCartItems, upsertCartItem, removeCartItem, clearCart, replaceCart
 │   │   │   ├── sections.ts             — getSectionSettings(), isSectionEnabled() (fail-open)
 │   │   │   └── themes.ts               — getThemes(), getActiveTheme(), createTheme(), updateTheme(), setActiveTheme(), deleteTheme()
-│   │   └── supabase/migrations/
-│   │       ├── 1_initial_schema.sql        — Stack Auth-native: sin FK auth.users, sin triggers
-│   │       ├── 2_shipping_config.sql
+│   │   └── supabase/migrations/         — 13 archivos (consolidados desde 19)
+│   │       ├── 1_initial_schema.sql      — Stack Auth-native: sin FK auth.users, sin triggers
+│   │       ├── 2_shipping_config.sql     — shipping_config con multi-proveedor, envío gratis y origen Skydropx
 │   │       ├── 3_banner_mobile_image.sql
-│   │       ├── 4_store_config.sql
+│   │       ├── 4_store_config.sql        — store_config con branding, Resend, legal, sociales, toggles
 │   │       ├── 5_payment_config.sql
-│   │       ├── 6_email_config.sql
-│   │       ├── 7_shipping_profiles.sql
-│   │       ├── 8_customers.sql
-│   │       ├── 9_customer_addresses.sql
-│   │       ├── 10_shipping_free_threshold.sql
-│   │       ├── 11_legal_content.sql
-│   │       ├── 12_social_links.sql
-│   │       ├── 13_skydropx_origin_address.sql
-│   │       ├── 14_maintenance_mode.sql
-│   │       ├── 15_coupons.sql
-│   │       ├── 16_testimonials.sql
-│   │       ├── 17_cart_items.sql
-│   │       └── 18_themes.sql
+│   │       ├── 6_shipping_profiles.sql
+│   │       ├── 7_customers.sql
+│   │       ├── 8_customer_addresses.sql
+│   │       ├── 9_section_settings.sql
+│   │       ├── 10_coupons.sql
+│   │       ├── 11_testimonials.sql
+│   │       ├── 12_cart_items.sql
+│   │       └── 13_themes.sql
 │   └── config/
 │
 ├── .env.example

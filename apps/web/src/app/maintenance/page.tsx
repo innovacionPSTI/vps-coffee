@@ -2,7 +2,7 @@ import type { Metadata } from 'next'
 import { getStoreConfig } from '@vps/database'
 
 export const metadata: Metadata = {
-  title: 'Sitio en mantenimiento — VPS Coffee',
+  title: 'Sitio en mantenimiento',
   robots: { index: false, follow: false },
 }
 
@@ -10,7 +10,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function MaintenancePage() {
   const config = await getStoreConfig().catch(() => null)
-  const storeName = config?.store_name ?? 'VPS Coffee'
+  const storeName = config?.store_name ?? 'Mi Tienda'
   const whatsapp = config?.whatsapp_number
 
   return (
@@ -25,7 +25,7 @@ export default async function MaintenancePage() {
           />
         ) : (
           <div className="w-16 h-16 rounded-full bg-brand-cream flex items-center justify-center mx-auto mb-4">
-            <span className="font-display text-brand-primary text-xl font-bold">VPS</span>
+            <span className="font-display text-brand-primary text-xl font-bold">▲</span>
           </div>
         )}
         <span className="font-display text-brand-cream text-2xl">{storeName}</span>

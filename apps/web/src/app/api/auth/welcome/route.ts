@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { stackServerApp } from '@/stack'
 import { createServerClient, getStoreConfig } from '@vps/database'
-import { sendWelcomeEmail } from '@/lib/email'
+import { sendWelcomeEmail, buildEmailConfig } from '@/lib/email'
 
 /**
  * POST /api/auth/welcome
@@ -99,10 +99,11 @@ export async function POST(request: NextRequest) {
     if (sessionUser) {
       const config = await getStoreConfig()
       if (config?.resend_api_key && config?.resend_from_email) {
-        await sendWelcomeEmail(email, displayName, {
-          apiKey: config.resend_api_key,
-          fromEmail: config.resend_from_email,
-        })
+        await sendWelcomeEmail(
+          email,
+          displayName,
+          buildEmailConfig(config.resend_api_key, config.resend_from_email, config.store_name),
+        )
       }
     }
 

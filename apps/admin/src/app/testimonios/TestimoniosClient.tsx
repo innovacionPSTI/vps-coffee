@@ -126,7 +126,7 @@ export default function TestimoniosClient({ initialTestimonials }: Props) {
                 <input
                   value={form.author_role ?? ''}
                   onChange={(e) => setForm((f) => ({ ...f, author_role: e.target.value }))}
-                  placeholder="Dueña de Café La Paloma"
+                  placeholder="Cargo o empresa del cliente"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
                 />
               </div>

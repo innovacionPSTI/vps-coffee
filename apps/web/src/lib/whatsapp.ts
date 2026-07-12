@@ -1,8 +1,8 @@
 import { getStoreConfig } from '@vps/database'
 
 const MESSAGES = {
-  maquila: 'Hola, quiero cotizar el servicio de maquila y tueste de café.',
-  asesoria: 'Hola, quiero información sobre las asesorías profesionales de café.',
+  maquila: 'Hola, quiero información sobre los servicios de maquila.',
+  asesoria: 'Hola, quiero información sobre las asesorías disponibles.',
 }
 
 export async function getWhatsAppNumber(): Promise<string> {

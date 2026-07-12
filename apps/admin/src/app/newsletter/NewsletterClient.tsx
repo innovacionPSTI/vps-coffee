@@ -197,7 +197,7 @@ export default function NewsletterClient({ initialSubscribers }: Props) {
                 type="text"
                 value={subject}
                 onChange={(e) => setSubject(e.target.value)}
-                placeholder="Ej: Nuevos orígenes de temporada ☕"
+                placeholder="Ej: Novedades de esta semana"
                 required
                 className="w-full px-4 py-2.5 rounded-xl border border-brand-primary/15 font-brand text-sm text-brand-primary bg-brand-cream/30 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary/30"
               />
@@ -211,7 +211,7 @@ export default function NewsletterClient({ initialSubscribers }: Props) {
                 value={body}
                 onChange={(e) => setBody(e.target.value)}
                 rows={12}
-                placeholder={`## Hola, comunidad VPS ☕\n\nEscribe aquí el contenido de tu campaña.\n\nPuedes usar:\n- **negrita** para destacar\n- *cursiva* para énfasis\n- ## Títulos para secciones`}
+                placeholder={`## Hola a todos\n\nEscribe aquí el contenido de tu campaña.\n\nPuedes usar:\n- **negrita** para destacar\n- *cursiva* para énfasis\n- ## Títulos para secciones`}
                 required
                 className="w-full px-4 py-3 rounded-xl border border-brand-primary/15 font-brand text-sm text-brand-primary bg-brand-cream/30 focus:outline-none focus:ring-2 focus:ring-brand-primary/20 focus:border-brand-primary/30 resize-y font-mono"
               />

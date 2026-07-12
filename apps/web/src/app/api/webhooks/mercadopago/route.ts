@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, getPaymentConfig, getStoreConfig } from '@vps/database'
 import { getMercadoPagoPayment, mapMercadoPagoStatus } from '@/lib/mercadopago'
-import { sendOrderConfirmation, sendShippingNotification } from '@/lib/email'
+import { sendOrderConfirmation, sendShippingNotification, buildEmailConfig } from '@/lib/email'
 import { createShipmentForOrder } from '@/lib/shipping/shipments'
 import type { Order, Database } from '@vps/database'
 
@@ -77,7 +77,7 @@ export async function POST(req: NextRequest) {
   if (paymentStatus === 'approved' && updatedOrder) {
     const storeConfig = await getStoreConfig().catch(() => null)
     const emailConfig = storeConfig?.resend_api_key && storeConfig?.resend_from_email
-      ? { apiKey: storeConfig.resend_api_key, fromEmail: storeConfig.resend_from_email }
+      ? buildEmailConfig(storeConfig.resend_api_key, storeConfig.resend_from_email, storeConfig.store_name)
       : null
 
     // Email de confirmación de pago

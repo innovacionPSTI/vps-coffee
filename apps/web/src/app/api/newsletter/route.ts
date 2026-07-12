@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, getStoreConfig } from '@vps/database'
-import { sendNewsletterConfirmation } from '@/lib/email'
+import { sendNewsletterConfirmation, buildEmailConfig } from '@/lib/email'
 
 export async function POST(req: NextRequest) {
   try {
@@ -31,10 +31,10 @@ export async function POST(req: NextRequest) {
       try {
         const storeConfig = await getStoreConfig()
         if (storeConfig?.resend_api_key && storeConfig?.resend_from_email) {
-          await sendNewsletterConfirmation(email, {
-            apiKey: storeConfig.resend_api_key,
-            fromEmail: storeConfig.resend_from_email,
-          })
+          await sendNewsletterConfirmation(
+            email,
+            buildEmailConfig(storeConfig.resend_api_key, storeConfig.resend_from_email, storeConfig.store_name),
+          )
         }
       } catch (emailErr) {
         // Non-critical — subscription saved regardless of email failure

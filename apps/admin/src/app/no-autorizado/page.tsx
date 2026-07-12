@@ -1,7 +1,7 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 
-export const metadata: Metadata = { title: 'Sin acceso — Admin VPS Coffee' }
+export const metadata: Metadata = { title: 'Sin acceso' }
 
 export default function NoAutorizadoPage() {
   return (

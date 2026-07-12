@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next'
 import { getProducts, getBlogPosts } from '@vps/database'
 
-const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vpscoffee.com').replace(/\/$/, '')
+const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   // Static pages

@@ -4,7 +4,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Tienda',
-  description: 'Explora nuestra selección de cafés de especialidad colombianos.',
+  description: 'Explora nuestra selección de productos.',
 }
 
 export const revalidate = 60

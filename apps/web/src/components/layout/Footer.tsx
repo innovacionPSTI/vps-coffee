@@ -64,13 +64,14 @@ interface SocialConfig {
 
 interface FooterProps {
   logoUrl?: string | null
+  storeName?: string | null
   whatsapp?: string | null
   social?: SocialConfig
 }
 
 /* ── Component ──────────────────────────────────────────────────────────── */
 
-export default function Footer({ logoUrl, whatsapp, social }: FooterProps) {
+export default function Footer({ logoUrl, storeName, whatsapp, social }: FooterProps) {
   const wa = whatsapp ?? '573XXXXXXXXX'
 
   const socialNetworks = [
@@ -108,12 +109,12 @@ export default function Footer({ logoUrl, whatsapp, social }: FooterProps) {
                 <img src={logoUrl} alt="Logo" className="h-10 w-auto object-contain" />
               ) : (
                 <div className="w-10 h-10 rounded-full bg-brand-cream flex items-center justify-center">
-                  <span className="font-display text-brand-primary text-sm font-bold">VPS</span>
+                  <span className="font-display text-brand-primary text-sm font-bold">▲</span>
                 </div>
               )}
             </div>
             <p className="font-brand text-xs text-brand-cream/60 leading-relaxed">
-              © {new Date().getFullYear()} VPS Coffee<br />
+              © {new Date().getFullYear()} {storeName ?? 'Mi Tienda'}<br />
               Todos los derechos reservados.
             </p>
 

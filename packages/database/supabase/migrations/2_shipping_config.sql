@@ -1,11 +1,10 @@
 -- ============================================================
 -- Migration 002 — Shipping Provider Configuration
 -- ============================================================
--- Stores the active shipping provider and its credentials.
+-- Stores the active shipping provider, its credentials,
+-- free-shipping rules, and the sender address used for
+-- Skydropx quotations and shipment labels.
 -- Only one row is expected (singleton config pattern).
--- Credentials for each provider are stored in dedicated columns
--- so that adding a new provider only requires adding columns,
--- never restructuring the table.
 -- ============================================================
 
 CREATE TYPE shipping_provider_type AS ENUM ('fixed', 'skydropx');
@@ -20,16 +19,27 @@ CREATE TABLE shipping_config (
   -- Used when provider = 'fixed' OR when the selected provider fails.
   fixed_rate       NUMERIC(12, 2) NOT NULL DEFAULT 8000,
 
+  -- ── Free shipping promotion ─────────────────────────────────
+  free_shipping_enabled    BOOLEAN        NOT NULL DEFAULT true,
+  free_shipping_min_amount NUMERIC(12, 2) NOT NULL DEFAULT 100000,
+
   -- ── Skydropx credentials ───────────────────────────────────
   skydropx_client_id       TEXT,
   skydropx_client_secret   TEXT,
   skydropx_address_from_id TEXT,
   skydropx_base_url        TEXT NOT NULL DEFAULT 'https://api-pro.skydropx.com',
 
-  -- ── Extensibility: future providers add columns here ───────
-  -- fedex_api_key   TEXT,
-  -- deprisa_username TEXT,
-  -- ...
+  -- ── Skydropx origin address ────────────────────────────────
+  -- Used in quotations (postal_code, neighborhood, city, department)
+  -- and shipment labels (name, street, city, department, postal_code, phone, email)
+  origin_name         TEXT,
+  origin_street       TEXT,
+  origin_neighborhood TEXT,
+  origin_city         TEXT,
+  origin_department   TEXT,
+  origin_postal_code  TEXT,
+  origin_phone        TEXT,
+  origin_email        TEXT,
 
   updated_at       TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -57,3 +67,8 @@ COMMENT ON TABLE shipping_config IS
   'Singleton table that stores the active shipping provider and its credentials. '
   'Managed from the admin panel. Credentials are stored here instead of env vars '
   'so they can be updated at runtime without redeployment.';
+
+COMMENT ON COLUMN shipping_config.free_shipping_enabled IS
+  'When true, orders whose subtotal >= free_shipping_min_amount pay $0 shipping.';
+COMMENT ON COLUMN shipping_config.free_shipping_min_amount IS
+  'Minimum order subtotal (COP) to qualify for free shipping.';

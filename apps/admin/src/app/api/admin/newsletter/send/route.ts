@@ -4,7 +4,8 @@ import { createServerClient } from '@vps/database'
 
 const RESEND_API_URL = 'https://api.resend.com/emails'
 
-function baseTemplate(content: string, storeName: string): string {
+function baseTemplate(content: string, storeName: string, siteUrl?: string): string {
+  const url = (siteUrl ?? '').replace(/\/$/, '')
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -26,8 +27,7 @@ function baseTemplate(content: string, storeName: string): string {
           <tr>
             <td style="background: #fff0d1; padding: 16px 32px; text-align: center; border-top: 1px solid #f0e8d0;">
               <p style="margin: 0; font-size: 12px; color: #8a6a4a; font-family: sans-serif;">
-                ${storeName} · Medellín, Colombia<br/>
-                <a href="https://vpscoffee.com" style="color: #614a2a;">vpscoffee.com</a>
+                ${storeName}${url ? ` · <a href="${url}" style="color: #614a2a;">${url.replace(/^https?:\/\//, '')}</a>` : ''}
               </p>
               <p style="margin: 8px 0 0; font-size: 11px; color: #b08a5a; font-family: sans-serif;">
                 Recibiste este correo porque te suscribiste al boletín de ${storeName}.
@@ -111,8 +111,9 @@ export async function POST(req: NextRequest) {
   }
 
   const storeName = config.store_name ?? 'VPS Coffee'
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL
   const htmlContent = markdownToEmailHtml(emailBody)
-  const html = baseTemplate(htmlContent, storeName)
+  const html = baseTemplate(htmlContent, storeName, siteUrl)
   const emails = subscribers.map((s) => s.email)
 
   // Send in batches of 50 (Resend free tier limit per request)

@@ -83,7 +83,7 @@ function ThemePreview({ form }: { form: ThemeFormData }) {
         style={{ background: form.color_primary }}
       >
         <span className="font-semibold text-sm" style={{ color: form.color_cream }}>
-          VPS Coffee
+          Mi Tienda
         </span>
         <div className="flex gap-1.5">
           <div className="w-2 h-2 rounded-full opacity-50" style={{ background: form.color_cream }} />
@@ -95,13 +95,13 @@ function ThemePreview({ form }: { form: ThemeFormData }) {
         <div>
           <div className="text-xs mb-1" style={{ color: form.color_text + '80' }}>Encabezado</div>
           <div className="text-lg font-bold leading-tight" style={{ color: form.color_primary }}>
-            Café de Especialidad
+            Nombre del Producto
           </div>
         </div>
         <div>
           <div className="text-xs mb-1" style={{ color: form.color_text + '80' }}>Párrafo</div>
           <div className="text-xs leading-relaxed" style={{ color: form.color_text }}>
-            Trazabilidad completa desde el origen hasta tu taza.
+            Descripción del producto con sus principales características.
           </div>
         </div>
         {/* Botones */}
@@ -528,7 +528,7 @@ export default function TemasClient({ initialThemes }: { initialThemes: Theme[] 
       {/* Nota informativa */}
       <div className="mt-8 p-4 bg-amber-50 border border-amber-200 rounded-xl text-sm text-amber-800">
         <strong>Nota:</strong> Los cambios de tema se reflejan en el sitio web en la próxima carga de página.
-        El tema predeterminado (VPS Coffee) no se puede eliminar.
+        El tema predeterminado no se puede eliminar.
       </div>
 
       {/* Modal crear/editar */}

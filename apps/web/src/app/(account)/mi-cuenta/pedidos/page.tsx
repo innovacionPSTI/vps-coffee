@@ -3,7 +3,7 @@ import Link from 'next/link'
 import { stackServerApp } from '@/stack'
 import { getOrdersByCustomerEmail } from '@vps/database'
 
-export const metadata: Metadata = { title: 'Mis pedidos — VPS Coffee' }
+export const metadata: Metadata = { title: 'Mis pedidos' }
 
 const STATUS: Record<string, { label: string; color: string; dot: string }> = {
   pending:    { label: 'Pendiente',  color: 'bg-amber-50 text-amber-700',   dot: 'bg-amber-400' },

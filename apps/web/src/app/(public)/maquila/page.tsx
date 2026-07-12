@@ -4,7 +4,7 @@ import { getWhatsAppURL } from '@/lib/whatsapp'
 
 export const metadata: Metadata = {
   title: 'Maquila & Tueste',
-  description: 'Servicio profesional de tueste de café a medida. Lleva tu café verde al siguiente nivel con VPS Coffee.',
+  description: 'Servicio profesional de maquila a medida. Lleva tus productos al siguiente nivel.',
 }
 
 const faqs = [

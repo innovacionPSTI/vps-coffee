@@ -211,9 +211,8 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
       <div className="bg-brand-cream border-b border-brand-primary/10 px-6 py-4 flex items-center justify-center">
         <Link href="/" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-brand-primary flex items-center justify-center">
-            <span className="font-display text-brand-cream text-xs font-bold">VPS</span>
+            <span className="font-display text-brand-cream text-xs font-bold">▲</span>
           </div>
-          <span className="font-display text-brand-primary text-lg">VPS Coffee</span>
         </Link>
       </div>
 

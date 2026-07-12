@@ -14,7 +14,7 @@ const navLinks = [
   { href: '/blog', label: 'Blog' },
 ]
 
-export default function Navbar({ logoUrl }: { logoUrl?: string | null }) {
+export default function Navbar({ logoUrl, storeName }: { logoUrl?: string | null; storeName?: string | null }) {
   const [scrolled, setScrolled] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [cartOpen, setCartOpen] = useState(false)
@@ -46,10 +46,10 @@ export default function Navbar({ logoUrl }: { logoUrl?: string | null }) {
               ) : (
                 <>
                   <div className="w-10 h-10 rounded-full bg-brand-primary flex items-center justify-center">
-                    <span className="font-display text-brand-cream text-sm font-bold">VPS</span>
+                    <span className="font-display text-brand-cream text-sm font-bold">▲</span>
                   </div>
                   <span className="font-display text-brand-primary text-xl hidden sm:block">
-                    VPS Coffee
+                    {storeName ?? 'Mi Tienda'}
                   </span>
                 </>
               )}

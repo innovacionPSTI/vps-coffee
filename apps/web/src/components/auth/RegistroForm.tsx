@@ -85,7 +85,7 @@ export default function RegistroForm() {
             Crear cuenta
           </h1>
           <p className="font-brand text-sm text-brand-primary/50">
-            Únete a la familia VPS Coffee
+            Crea tu cuenta para empezar
           </p>
         </div>
 

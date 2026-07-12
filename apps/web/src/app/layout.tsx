@@ -90,30 +90,24 @@ function buildThemeCSS(theme: Theme): string {
 
 // ── Metadata ──────────────────────────────────────────────────────────────────
 
-const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vpscoffee.com').replace(/\/$/, '')
+const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
 
 export const metadata: Metadata = {
   title: {
-    default: 'VPS Coffee Roasting House',
-    template: '%s | VPS Coffee',
+    default: 'Tienda en línea',
+    template: '%s | Tienda',
   },
-  description:
-    'Café de especialidad colombiano con trazabilidad completa. Tueste artesanal, maquila y asesorías profesionales.',
-  keywords: ['café de especialidad', 'café colombiano', 'tueste artesanal', 'maquila de café', 'VPS Coffee'],
-  metadataBase: new URL(BASE_URL),
+  description: 'Bienvenido a nuestra tienda en línea. Explora nuestros productos y realiza tu pedido de forma segura.',
+  keywords: ['tienda online', 'ecommerce', 'compras en línea'],
+  metadataBase: BASE_URL ? new URL(BASE_URL) : undefined,
   openGraph: {
-    siteName: 'VPS Coffee Roasting House',
     locale: 'es_CO',
     type: 'website',
-    url: BASE_URL,
-    title: 'VPS Coffee Roasting House',
-    description: 'Café de especialidad colombiano con trazabilidad completa. Tueste artesanal, maquila y asesorías.',
-    images: [{ url: '/og-default.jpg', width: 1200, height: 630, alt: 'VPS Coffee Roasting House' }],
+    ...(BASE_URL && { url: BASE_URL }),
+    images: [{ url: '/og-default.jpg', width: 1200, height: 630, alt: 'Tienda en línea' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'VPS Coffee Roasting House',
-    description: 'Café de especialidad colombiano. Tueste artesanal, maquila y asesorías.',
     images: ['/og-default.jpg'],
   },
   robots: { index: true, follow: true },

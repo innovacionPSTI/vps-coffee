@@ -5,6 +5,10 @@ const RESEND_API_URL = 'https://api.resend.com/emails'
 export interface EmailConfig {
   apiKey: string
   fromEmail: string
+  /** Nombre de la tienda — desde store_config.store_name */
+  storeName?: string
+  /** URL base del sitio — desde NEXT_PUBLIC_SITE_URL */
+  siteUrl?: string
 }
 
 interface EmailPayload {
@@ -66,7 +70,10 @@ function orderItemsTable(order: Order): string {
     </table>`
 }
 
-function baseTemplate(content: string): string {
+function baseTemplate(content: string, config: EmailConfig): string {
+  const name = config.storeName ?? 'Mi Tienda'
+  const url  = (config.siteUrl ?? process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
+
   return `<!DOCTYPE html>
 <html lang="es">
 <head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"></head>
@@ -77,8 +84,7 @@ function baseTemplate(content: string): string {
         <table width="600" cellpadding="0" cellspacing="0" style="background: #ffffff; border-radius: 16px; overflow: hidden; max-width: 600px;">
           <tr>
             <td style="background: #614a2a; padding: 24px 32px; text-align: center;">
-              <h1 style="margin: 0; color: #fff8ec; font-size: 24px; letter-spacing: 0.1em;">VPS Coffee</h1>
-              <p style="margin: 4px 0 0; color: #c9a97e; font-size: 12px; letter-spacing: 0.2em; text-transform: uppercase;">Roasting House</p>
+              <h1 style="margin: 0; color: #fff8ec; font-size: 24px; letter-spacing: 0.1em;">${name}</h1>
             </td>
           </tr>
           <tr>
@@ -87,8 +93,7 @@ function baseTemplate(content: string): string {
           <tr>
             <td style="background: #fff0d1; padding: 16px 32px; text-align: center; border-top: 1px solid #f0e8d0;">
               <p style="margin: 0; font-size: 12px; color: #8a6a4a; font-family: sans-serif;">
-                VPS Coffee Roasting House · Medellín, Colombia<br/>
-                <a href="https://vpscoffee.com" style="color: #614a2a;">vpscoffee.com</a>
+                ${name}${url ? ` · <a href="${url}" style="color: #614a2a;">${url.replace(/^https?:\/\//, '')}</a>` : ''}
               </p>
             </td>
           </tr>
@@ -100,8 +105,23 @@ function baseTemplate(content: string): string {
 </html>`
 }
 
+/** Construye un EmailConfig con los campos opcionales desde store_config y env */
+export function buildEmailConfig(
+  apiKey: string,
+  fromEmail: string,
+  storeName?: string | null,
+): EmailConfig {
+  return {
+    apiKey,
+    fromEmail,
+    storeName: storeName ?? undefined,
+    siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+  }
+}
+
 /** Email de confirmación de pedido — se envía cuando el pago es aprobado */
 export async function sendOrderConfirmation(order: Order, config: EmailConfig): Promise<void> {
+  const name = config.storeName ?? 'Mi Tienda'
   const addr = order.shipping_addr
   const addressText = `${addr.address}, ${addr.city}, ${addr.department}`
 
@@ -138,10 +158,10 @@ export async function sendOrderConfirmation(order: Order, config: EmailConfig): 
     </p>`
 
   await sendEmail(config, {
-    from: `VPS Coffee <${config.fromEmail}>`,
+    from: `${name} <${config.fromEmail}>`,
     to: [order.customer_email],
-    subject: `Pedido confirmado ${order.order_number} — VPS Coffee`,
-    html: baseTemplate(content),
+    subject: `Pedido confirmado ${order.order_number} — ${name}`,
+    html: baseTemplate(content, config),
   })
 }
 
@@ -150,10 +170,12 @@ export async function sendShippingNotification(
   order: Order & { tracking_number: string; carrier_name: string | null; label_url?: string | null },
   config: EmailConfig,
 ): Promise<void> {
+  const name = config.storeName ?? 'Mi Tienda'
+
   const content = `
     <h2 style="margin: 0 0 8px; color: #614a2a; font-size: 20px; font-family: sans-serif;">¡Tu pedido está en camino!</h2>
     <p style="margin: 0 0 24px; color: #8a6a4a; font-size: 14px; font-family: sans-serif;">
-      Tu café ${order.order_number} ha sido despachado.
+      Tu pedido ${order.order_number} ha sido despachado.
     </p>
     <div style="background: #fff8ec; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
       <p style="margin: 0 0 4px; font-size: 13px; color: #8a6a4a; font-family: sans-serif;">Número de tracking</p>
@@ -174,10 +196,10 @@ export async function sendShippingNotification(
     </p>`
 
   await sendEmail(config, {
-    from: `VPS Coffee <${config.fromEmail}>`,
+    from: `${name} <${config.fromEmail}>`,
     to: [order.customer_email],
-    subject: `Tu pedido ${order.order_number} ha sido despachado — VPS Coffee`,
-    html: baseTemplate(content),
+    subject: `Tu pedido ${order.order_number} ha sido despachado — ${name}`,
+    html: baseTemplate(content, config),
   })
 }
 
@@ -186,31 +208,34 @@ export async function sendNewsletterConfirmation(
   to: string,
   config: EmailConfig,
 ): Promise<void> {
-  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vpscoffee.com'
+  const name    = config.storeName ?? 'Mi Tienda'
+  const siteUrl = (config.siteUrl ?? process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
+
   const content = `
-    <h2 style="margin: 0 0 8px; color: #614a2a; font-size: 20px; font-family: sans-serif;">¡Ya eres parte de la familia VPS Coffee!</h2>
+    <h2 style="margin: 0 0 8px; color: #614a2a; font-size: 20px; font-family: sans-serif;">¡Ya eres parte de la familia ${name}!</h2>
     <p style="margin: 0 0 16px; color: #8a6a4a; font-size: 14px; font-family: sans-serif;">
-      Gracias por suscribirte a nuestro boletín. Te mantendremos al tanto de nuevos
-      orígenes, temporadas de cosecha y contenido exclusivo sobre café de especialidad.
+      Gracias por suscribirte a nuestro boletín. Te mantendremos al tanto de
+      novedades, promociones y contenido exclusivo.
     </p>
     <p style="margin: 0 0 24px; color: #8a6a4a; font-size: 14px; font-family: sans-serif;">
-      Mientras tanto, te invitamos a explorar nuestra tienda y descubrir los cafés
+      Mientras tanto, te invitamos a explorar nuestra tienda y descubrir los productos
       que seleccionamos esta temporada.
     </p>
+    ${siteUrl ? `
     <div style="text-align: center;">
       <a href="${siteUrl}/tienda" style="display: inline-block; background: #614a2a; color: #fff8ec; text-decoration: none; padding: 12px 28px; border-radius: 50px; font-size: 14px; font-weight: 600; font-family: sans-serif;">
         Ver la tienda
       </a>
-    </div>
+    </div>` : ''}
     <p style="margin: 24px 0 0; color: #8a6a4a; font-size: 12px; font-family: sans-serif; text-align: center;">
       Si no solicitaste esta suscripción, puedes ignorar este correo.
     </p>`
 
   await sendEmail(config, {
-    from: `VPS Coffee <${config.fromEmail}>`,
+    from: `${name} <${config.fromEmail}>`,
     to: [to],
-    subject: '¡Bienvenido al boletín de VPS Coffee! ☕',
-    html: baseTemplate(content),
+    subject: `¡Bienvenido al boletín de ${name}! ☕`,
+    html: baseTemplate(content, config),
   })
 }
 
@@ -220,22 +245,26 @@ export async function sendWelcomeEmail(
   name: string,
   config: EmailConfig,
 ): Promise<void> {
+  const storeName = config.storeName ?? 'Mi Tienda'
+  const siteUrl   = (config.siteUrl ?? process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
+
   const content = `
-    <h2 style="margin: 0 0 8px; color: #614a2a; font-size: 20px; font-family: sans-serif;">¡Bienvenido a VPS Coffee, ${name}!</h2>
+    <h2 style="margin: 0 0 8px; color: #614a2a; font-size: 20px; font-family: sans-serif;">¡Bienvenido a ${storeName}, ${name}!</h2>
     <p style="margin: 0 0 24px; color: #8a6a4a; font-size: 14px; font-family: sans-serif;">
       Tu cuenta ha sido creada exitosamente. Ya puedes explorar nuestro catálogo
       y hacer seguimiento de tus pedidos desde tu cuenta.
     </p>
+    ${siteUrl ? `
     <div style="text-align: center;">
-      <a href="https://vpscoffee.com/tienda" style="display: inline-block; background: #614a2a; color: #fff8ec; text-decoration: none; padding: 12px 28px; border-radius: 50px; font-size: 14px; font-weight: 600; font-family: sans-serif;">
+      <a href="${siteUrl}/tienda" style="display: inline-block; background: #614a2a; color: #fff8ec; text-decoration: none; padding: 12px 28px; border-radius: 50px; font-size: 14px; font-weight: 600; font-family: sans-serif;">
         Explorar la tienda
       </a>
-    </div>`
+    </div>` : ''}`
 
   await sendEmail(config, {
-    from: `VPS Coffee <${config.fromEmail}>`,
+    from: `${storeName} <${config.fromEmail}>`,
     to: [to],
-    subject: 'Bienvenido a VPS Coffee — Cuenta creada',
-    html: baseTemplate(content),
+    subject: `Bienvenido a ${storeName} — Cuenta creada`,
+    html: baseTemplate(content, config),
   })
 }

@@ -174,7 +174,7 @@ export default function AdminSidebar({ role }: Props) {
       <div className="p-5 border-b border-brand-cream/10">
         <Link href="/dashboard" className="flex items-center gap-2">
           <div className="w-8 h-8 rounded-full bg-brand-cream flex items-center justify-center">
-            <span className="font-display text-brand-primary text-xs font-bold">VPS</span>
+            <span className="font-display text-brand-primary text-xs font-bold">▲</span>
           </div>
           <span className="font-display text-brand-cream text-base">Admin</span>
         </Link>

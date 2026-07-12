@@ -260,7 +260,7 @@ export default function ProductForm({ product, categories }: Props) {
                 value={form.name}
                 onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
-                placeholder="Ej: Geisha Natural — Huila"
+                placeholder="Nombre del producto"
               />
             </div>
 
@@ -283,7 +283,7 @@ export default function ProductForm({ product, categories }: Props) {
                 value={form.description}
                 onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
                 className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary resize-none"
-                placeholder="Descripción del producto, origen, notas de cata..."
+                placeholder="Descripción del producto..."
               />
             </div>
           </section>
@@ -454,7 +454,7 @@ export default function ProductForm({ product, categories }: Props) {
                           value={variant.sku}
                           onChange={(e) => updateVariant(idx, 'sku', e.target.value)}
                           className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
-                          placeholder="VPS-001-M"
+                          placeholder="SKU-001"
                         />
                       </div>
                     </div>

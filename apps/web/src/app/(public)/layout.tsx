@@ -7,10 +7,11 @@ export default async function PublicLayout({ children }: { children: React.React
 
   return (
     <>
-      <Navbar logoUrl={config?.logo_url} />
+      <Navbar logoUrl={config?.logo_url} storeName={config?.store_name} />
       <main>{children}</main>
       <Footer
         logoUrl={config?.logo_url}
+        storeName={config?.store_name}
         whatsapp={config?.whatsapp_number}
         social={{
           instagramUrl:     config?.instagram_url,

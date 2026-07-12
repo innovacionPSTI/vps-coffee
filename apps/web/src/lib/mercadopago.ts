@@ -49,7 +49,7 @@ export async function createMercadoPagoPreference(
     back_urls: params.backUrls,
     auto_return: 'approved',
     notification_url: params.notificationUrl,
-    statement_descriptor: 'VPS Coffee',
+    statement_descriptor: 'Mi Tienda',
   }
 
   const res = await fetch(`${MP_API_BASE}/checkout/preferences`, {

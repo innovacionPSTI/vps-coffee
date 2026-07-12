@@ -139,7 +139,7 @@ export default function ServicioFormModal({ servicio, onClose }: Props) {
               required
               value={form.title}
               onChange={(e) => setForm((f) => ({ ...f, title: e.target.value }))}
-              placeholder="Maquila & Tueste"
+              placeholder="Nombre del servicio"
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
             />
             <p className="font-brand text-xs text-brand-primary/30 mt-1">Usa \n para saltos de línea</p>
@@ -151,7 +151,7 @@ export default function ServicioFormModal({ servicio, onClose }: Props) {
             <textarea
               value={form.subtitle}
               onChange={(e) => setForm((f) => ({ ...f, subtitle: e.target.value }))}
-              placeholder="Llevamos tu café verde al siguiente nivel…"
+              placeholder="Descripción del servicio…"
               rows={3}
               className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary resize-none"
             />

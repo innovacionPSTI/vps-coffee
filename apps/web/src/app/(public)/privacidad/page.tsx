@@ -7,7 +7,7 @@ export const dynamic = 'force-dynamic'
 export async function generateMetadata(): Promise<Metadata> {
   const config = await getStoreConfig().catch(() => null)
   return {
-    title: `Política de privacidad | ${config?.store_name ?? 'VPS Coffee'}`,
+    title: `Política de privacidad | ${config?.store_name ?? 'Mi Tienda'}`,
     robots: { index: true, follow: true },
   }
 }
@@ -19,7 +19,7 @@ export default async function PrivacidadPage() {
     <LegalPage
       title="Política de privacidad"
       content={config?.privacy_content ?? null}
-      storeName={config?.store_name ?? 'VPS Coffee'}
+      storeName={config?.store_name ?? 'Mi Tienda'}
     />
   )
 }

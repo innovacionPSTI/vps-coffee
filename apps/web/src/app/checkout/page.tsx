@@ -4,7 +4,7 @@ import { stackServerApp } from '@/stack'
 import { createServerClient } from '@vps/database'
 import CheckoutClient from '@/components/checkout/CheckoutClient'
 
-export const metadata: Metadata = { title: 'Checkout — VPS Coffee' }
+export const metadata: Metadata = { title: 'Checkout' }
 
 interface SavedAddress {
   full_name: string

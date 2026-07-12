@@ -48,7 +48,7 @@ export default function LoginForm() {
             Iniciar sesión
           </h1>
           <p className="font-brand text-sm text-brand-primary/50">
-            Accede a tu cuenta VPS Coffee
+            Accede a tu cuenta
           </p>
         </div>
 

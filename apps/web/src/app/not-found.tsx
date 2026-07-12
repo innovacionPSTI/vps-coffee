@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 
 export const metadata: Metadata = {
   title: 'Página no encontrada',
-  description: 'La página que buscas no existe. Explora nuestra tienda de café de especialidad.',
+  description: 'La página que buscas no existe. Explora nuestra tienda.',
   robots: { index: false, follow: false },
 }
 
@@ -22,10 +22,10 @@ export default function NotFound() {
       </div>
 
       <h1 className="font-display text-3xl md:text-4xl font-light text-brand-primary mb-3">
-        Esta taza está vacía
+        Página no encontrada
       </h1>
       <p className="font-brand text-brand-primary/60 text-base max-w-md mb-8 leading-relaxed">
-        La página que buscas se perdió en el camino, igual que un buen café que se enfría.
+        La página que buscas no existe o fue movida.
         Pero tranquilo — hay mucho más por descubrir.
       </p>
 

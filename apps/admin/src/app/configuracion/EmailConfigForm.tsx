@@ -106,8 +106,8 @@ export default function EmailConfigForm({ initialConfig }: Props) {
         <input
           type="email"
           name="resend_from_email"
-          defaultValue={initialConfig?.resend_from_email ?? 'pedidos@vpscoffee.com'}
-          placeholder="pedidos@vpscoffee.com"
+          defaultValue={initialConfig?.resend_from_email ?? ''}
+          placeholder="pedidos@mitienda.com"
           className="w-full border border-brand-primary/20 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
         />
         <p className="font-brand text-xs text-brand-primary/40 mt-1">

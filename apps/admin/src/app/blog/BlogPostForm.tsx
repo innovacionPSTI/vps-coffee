@@ -5,10 +5,10 @@ import { useRouter } from 'next/navigation'
 import ImageUpload from '@/components/ImageUpload'
 
 const CATEGORIES = [
-  { value: 'origenes',    label: 'Orígenes' },
-  { value: 'preparacion', label: 'Preparación' },
   { value: 'novedades',   label: 'Novedades' },
+  { value: 'tutoriales',  label: 'Tutoriales' },
   { value: 'cultura',     label: 'Cultura' },
+  { value: 'empresa',     label: 'Empresa' },
 ]
 
 function toSlug(str: string) {
@@ -48,7 +48,7 @@ export default function BlogPostForm({ post }: Props) {
     excerpt:     post?.excerpt     ?? '',
     content:     post?.content     ?? '',
     cover_image: post?.cover_image ?? '',
-    category:    post?.category    ?? 'origenes',
+    category:    post?.category    ?? 'novedades',
     published:   post?.published   ?? false,
     seo_title:   post?.seo_title   ?? '',
     seo_desc:    post?.seo_desc    ?? '',
@@ -135,7 +135,7 @@ export default function BlogPostForm({ post }: Props) {
             value={form.title}
             onChange={(e) => setTitle(e.target.value)}
             required
-            placeholder="Cómo el terroir define el sabor del café"
+            placeholder="Título del artículo"
             className={fieldClass}
           />
         </div>
@@ -156,7 +156,7 @@ export default function BlogPostForm({ post }: Props) {
               setForm((f) => ({ ...f, slug: e.target.value }))
             }}
             required
-            placeholder="como-el-terroir-define-el-sabor"
+            placeholder="titulo-del-articulo"
             className={`${fieldClass} font-mono`}
           />
         </div>

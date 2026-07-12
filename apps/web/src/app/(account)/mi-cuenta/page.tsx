@@ -3,7 +3,7 @@ import type { Metadata } from 'next'
 import { stackServerApp } from '@/stack'
 import { createServerClient } from '@vps/database'
 
-export const metadata: Metadata = { title: 'Mi perfil — VPS Coffee' }
+export const metadata: Metadata = { title: 'Mi perfil' }
 
 interface DefaultAddress {
   full_name: string

@@ -60,7 +60,7 @@ export default function CarritoPage() {
           </svg>
         </div>
         <h1 className="font-display text-brand-primary text-3xl">Tu carrito está vacío</h1>
-        <p className="font-brand text-brand-primary/50">Agrega algunos cafés para continuar</p>
+        <p className="font-brand text-brand-primary/50">Agrega productos para continuar</p>
         <Link href="/tienda" className="bg-brand-primary text-brand-cream rounded-full px-8 py-3 font-brand font-medium hover:bg-brand-dark transition-colors">
           Explorar tienda
         </Link>

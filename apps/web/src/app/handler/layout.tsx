@@ -9,6 +9,7 @@ import { getStoreConfig } from '@vps/database'
  */
 export default async function HandlerLayout({ children }: { children: React.ReactNode }) {
   const config = await getStoreConfig().catch(() => null)
+  const storeName = config?.store_name ?? 'Mi Tienda'
 
   return (
     <div className="min-h-screen bg-brand-cream flex flex-col">
@@ -16,14 +17,14 @@ export default async function HandlerLayout({ children }: { children: React.Reac
       <header className="px-6 py-5 flex items-center justify-between max-w-7xl mx-auto w-full">
         <Link href="/" className="flex items-center gap-2">
           {config?.logo_url ? (
-            <img src={config.logo_url} alt="VPS Coffee" className="h-9 w-auto object-contain" />
+            <img src={config.logo_url} alt={storeName} className="h-9 w-auto object-contain" />
           ) : (
             <>
               <div className="w-9 h-9 rounded-full bg-brand-primary flex items-center justify-center">
-                <span className="font-display text-brand-cream text-xs font-bold">VPS</span>
+                <span className="font-display text-brand-cream text-xs font-bold">▲</span>
               </div>
               <span className="font-display text-brand-primary text-lg hidden sm:block">
-                VPS Coffee
+                {storeName}
               </span>
             </>
           )}
@@ -44,7 +45,7 @@ export default async function HandlerLayout({ children }: { children: React.Reac
       {/* Footer mínimo */}
       <footer className="text-center py-6">
         <p className="font-brand text-xs text-brand-primary/30">
-          © {new Date().getFullYear()} VPS Coffee Roasting House
+          © {new Date().getFullYear()} {storeName}
         </p>
       </footer>
     </div>
