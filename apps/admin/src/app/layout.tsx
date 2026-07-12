@@ -32,6 +32,9 @@ export const metadata: Metadata = {
 const PUBLIC_PATHS = ['/handler', '/no-autorizado']
 
 function isPublicPath(pathname: string): boolean {
+  // pathname vacío = build-time (no hay request headers); tratar como público
+  // para que Next.js pueda pre-renderizar /_not-found sin sesión de usuario.
+  if (!pathname) return true
   return PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(p + '/') || pathname.startsWith(p + '?'))
 }
 
