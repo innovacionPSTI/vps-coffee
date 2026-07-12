@@ -1,3 +1,4 @@
+import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@vps/database'
 import { getAdminUser } from '@/lib/auth'
@@ -77,21 +78,47 @@ export async function POST(request: NextRequest) {
     // Usuario ya existe → continuamos normalmente
   }
 
-  // ── 2. Upsert en profiles con rol 'miembro' ────────────────────────────────
+  // ── 2. Insert / update en profiles con rol 'miembro' ─────────────────────
+  // Se genera el UUID en el servidor para evitar depender del DEFAULT de la BD
+  // (puede no estar disponible si la tabla profiles preexistía antes de la migración).
+  // En caso de conflicto por email, se actualiza solo el nombre — nunca el id ni el rol.
   const supabase = createServerClient()
-  const { data: profile, error: dbError } = await supabase
+
+  const { data: existingProfile } = await supabase
     .from('profiles')
-    .upsert(
-      {
+    .select('id, role')
+    .eq('email', email)
+    .maybeSingle()
+
+  let profile: { id: string; email: string | null; full_name: string | null; role: string; created_at: string } | null = null
+  let dbError: { message: string } | null = null
+
+  if (existingProfile) {
+    // Perfil ya existe → actualizar solo el nombre (el rol lo gestiona el admin después)
+    const { data, error } = await supabase
+      .from('profiles')
+      .update({ full_name: full_name ?? null })
+      .eq('email', email)
+      .select('id, email, full_name, role, created_at')
+      .single()
+    profile = data
+    dbError = error
+  } else {
+    // Perfil nuevo → insertar con UUID generado en servidor
+    const { data, error } = await supabase
+      .from('profiles')
+      .insert({
+        id:         randomUUID(),
         email,
-        full_name: full_name ?? null,
-        role: 'miembro',         // siempre inicia sin permisos
+        full_name:  full_name ?? null,
+        role:       'miembro',
         created_at: new Date().toISOString(),
-      },
-      { onConflict: 'email' },
-    )
-    .select()
-    .single()
+      })
+      .select('id, email, full_name, role, created_at')
+      .single()
+    profile = data
+    dbError = error
+  }
 
   if (dbError) {
     return NextResponse.json({ error: dbError.message }, { status: 500 })
@@ -213,19 +240,24 @@ async function sendPasswordSetupEmail(email: string): Promise<boolean> {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'x-stack-project-id': process.env.NEXT_PUBLIC_HEXCLAVE_PROJECT_ID!,
-        'x-stack-publishable-client-key':
-          process.env.NEXT_PUBLIC_HEXCLAVE_PUBLISHABLE_CLIENT_KEY!,
-        'x-stack-access-type': 'client',
+        'x-stack-project-id':    process.env.NEXT_PUBLIC_HEXCLAVE_PROJECT_ID!,
+        'x-stack-secret-server-key': process.env.HEXCLAVE_SECRET_SERVER_KEY!,
+        'x-stack-access-type':   'server',
       },
       body: JSON.stringify({
         email,
-        redirect_url: `${adminUrl}/handler`,
+        redirect_url: `${adminUrl}/handler/password-reset`,
       }),
     })
 
+    if (!res.ok) {
+      const body = await res.text()
+      console.error('[usuarios] send-reset-email failed:', res.status, body)
+    }
+
     return res.ok
-  } catch {
+  } catch (err) {
+    console.error('[usuarios] send-reset-email error:', err)
     return false
   }
 }

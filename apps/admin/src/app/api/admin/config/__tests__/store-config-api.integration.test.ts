@@ -32,6 +32,14 @@ const baseConfig = {
   logo_url: null,
   resend_api_key: 're_test_abcd1234',
   resend_from_email: 'pedidos@vpscoffee.com',
+  terms_content: null,
+  privacy_content: null,
+  instagram_url: null,
+  instagram_enabled: true,
+  facebook_url: null,
+  facebook_enabled: true,
+  tiktok_url: null,
+  tiktok_enabled: true,
   updated_at: new Date().toISOString(),
 }
 
@@ -225,6 +233,112 @@ describe('PATCH /api/admin/config — Resend', () => {
 
     expect(data.resend_api_key).not.toBe('re_test_newkey5678')
     expect(data.has_resend_api_key).toBe(true)
+  })
+})
+
+// ─────────────────────────────────────────────
+// PATCH — contenido legal
+// ─────────────────────────────────────────────
+describe('PATCH /api/admin/config — contenido legal', () => {
+  it('guarda terms_content y lo devuelve en la respuesta', async () => {
+    const content = '## Términos\n\nEsto es un ejemplo de texto legal.'
+    const updated = { ...baseConfig, terms_content: content }
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    const req = makePatchRequest({ terms_content: content })
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ terms_content: content })
+    )
+    const data = await res.json()
+    expect(data.terms_content).toBe(content)
+  })
+
+  it('guarda privacy_content correctamente', async () => {
+    const content = '## Política de privacidad\n\nTus datos están seguros.'
+    const updated = { ...baseConfig, privacy_content: content }
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    const req = makePatchRequest({ privacy_content: content })
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.privacy_content).toBe(content)
+  })
+
+  it('permite null para borrar el contenido legal', async () => {
+    const updated = { ...baseConfig, terms_content: null, privacy_content: null }
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    const req = makePatchRequest({ terms_content: null, privacy_content: null })
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.terms_content).toBeNull()
+    expect(data.privacy_content).toBeNull()
+  })
+})
+
+// ─────────────────────────────────────────────
+// PATCH — redes sociales
+// ─────────────────────────────────────────────
+describe('PATCH /api/admin/config — redes sociales', () => {
+  it('guarda instagram_url e instagram_enabled', async () => {
+    const updated = { ...baseConfig, instagram_url: 'https://instagram.com/vpscoffee', instagram_enabled: true }
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    const req = makePatchRequest({ instagram_url: 'https://instagram.com/vpscoffee', instagram_enabled: true })
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        instagram_url: 'https://instagram.com/vpscoffee',
+        instagram_enabled: true,
+      })
+    )
+  })
+
+  it('guarda facebook_enabled = false (deshabilitar red)', async () => {
+    const updated = { ...baseConfig, facebook_enabled: false }
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    const req = makePatchRequest({ facebook_enabled: false })
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.facebook_enabled).toBe(false)
+  })
+
+  it('guarda tiktok_url y tiktok_enabled juntos', async () => {
+    const updated = { ...baseConfig, tiktok_url: 'https://tiktok.com/@vpscoffee', tiktok_enabled: true }
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    const req = makePatchRequest({ tiktok_url: 'https://tiktok.com/@vpscoffee', tiktok_enabled: true })
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.tiktok_url).toBe('https://tiktok.com/@vpscoffee')
+  })
+
+  it('devuelve campos de redes sociales en el GET', async () => {
+    mockGet.mockResolvedValueOnce({
+      ...baseConfig,
+      instagram_url: 'https://instagram.com/vpscoffee',
+      instagram_enabled: true,
+      facebook_url: null,
+      facebook_enabled: false,
+    })
+    const res = await GET()
+    const data = await res.json()
+    expect(data.instagram_url).toBe('https://instagram.com/vpscoffee')
+    expect(data.facebook_enabled).toBe(false)
   })
 })
 

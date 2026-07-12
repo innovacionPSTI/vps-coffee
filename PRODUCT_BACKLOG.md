@@ -96,7 +96,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | N-01 | Navbar global con logo, links y sticky scroll | Alta | ✅ |
 | N-02 | Menú hamburger para móvil con drawer lateral | Alta | ✅ |
 | N-03 | Iconos de cuenta y carrito con badge numérico | Alta | ✅ |
-| N-04 | Footer con links, redes sociales y WhatsApp | Alta | ✅ |
+| N-04 | Footer con links, WhatsApp y redes sociales (Instagram, Facebook, TikTok) con iconos SVG — habilitables y configurables desde admin | Alta | ✅ |
 | N-05 | Página 404 personalizada con estilo VPS | Media | 🔲 |
 | N-06 | Página de mantenimiento con logo VPS | Baja | 🔲 |
 | N-07 | Breadcrumb dinámico en páginas internas | Media | ✅ |
@@ -145,7 +145,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | C-02 | Drawer lateral del carrito accesible desde cualquier página | Alta | ✅ |
 | C-03 | Agregar/eliminar/actualizar cantidad desde el drawer | Alta | ✅ |
 | C-04 | Página de carrito completa con resumen de pedido | Alta | ✅ |
-| C-05 | Cálculo automático de envío gratis (+$100.000) | Media | ✅ |
+| C-05 | Envío gratis configurable desde admin: toggle habilitar/deshabilitar + monto mínimo editable; barra de progreso en carrito | Media | ✅ |
 | C-06 | Campo de cupón de descuento | Media | 🔲 |
 | C-07 | Sincronización del carrito con BD para usuarios logueados | Media | 🔲 |
 | C-08 | Cierre del drawer con tecla Escape y bloqueo de scroll | Alta | ✅ |
@@ -166,7 +166,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | P-08 | Integración real de MercadoPago (preference + redirect) | Alta | ✅ |
 | P-09 | Webhook Wompi — actualización automática de estado de pago | Alta | ✅ |
 | P-10 | Webhook MercadoPago — actualización automática de estado de pago | Alta | ✅ |
-| P-11 | Pre-llenado de dirección de envío desde `customer_addresses` si el usuario está logueado | Media | ✅ API lista (`GET /api/account/addresses`); integración en CheckoutClient pendiente |
+| P-11 | Pre-llenado de dirección de envío desde `customer_addresses` si el usuario está logueado | Media | ✅ |
 | P-12 | Generación automática de número de orden correlativo (VPS-XXXX) | Alta | ✅ |
 
 ---
@@ -248,10 +248,10 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | AD-11 | Vista de envío con tracking y botón descargar guía | Media | ✅ |
 | AD-12 | Modal de despacho masivo (pickups Skydropx) | Media | 🔲 |
 | AD-13 | Gestión de banners del hero (CRUD con drag & drop) | Alta | ✅ |
-| AD-14 | Formulario de edición de slide con imagen web + imagen mobile; drag & drop para reordenar | Alta | 🔲 |
+| AD-14 | Formulario de edición de slide con imagen web + imagen mobile | Alta | ✅ |
 | AD-15 | Gestión de imágenes de sección servicios | Media | ✅ |
 | AD-16 | Listado de artículos del blog con estado publicado/borrador | Alta | ✅ |
-| AD-17 | Formulario de creación/edición de artículo con rich text | Alta | 🔲 |
+| AD-17 | Formulario de creación/edición de artículo (Markdown, imagen portada, SEO, publicado/borrador) | Alta | ✅ |
 | AD-18 | Vista previa de artículo antes de publicar (Draft Mode) | Media | 🔲 |
 | AD-19 | Listado de clientes: con cuenta (Stack Auth) y sin cuenta (solo en pedidos) con badge de tipo | Media | ✅ |
 | AD-20 | Gestión de roles y usuarios — invitar (crea en Stack Auth + email de contraseña), cambiar rol, eliminar | Alta | ✅ |
@@ -260,6 +260,9 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | AD-23 | CRUD de categorías | Media | ✅ |
 | AD-24 | Upload y gestión de logo desde panel admin | Alta | ✅ |
 | AD-25 | Auto-creación de buckets en Supabase Storage al subir primera imagen | Media | ✅ |
+| AD-26 | Redes sociales configurables (Instagram, Facebook, TikTok): URL + toggle habilitado por red | Alta | ✅ |
+| AD-27 | Editor de contenido legal (Términos y Política de privacidad) en Markdown con tabs | Alta | ✅ |
+| AD-28 | Envío gratis configurable: toggle habilitar + monto mínimo editable desde admin | Alta | ✅ |
 
 ---
 
@@ -624,7 +627,7 @@ Cada historia incluye sus criterios de aceptación y el estado de implementació
 - Los slides tienen campos editables: imagen, título, subtítulo, texto CTA y URL CTA.
 - El orden de los slides es arrastrable.
 
-**Estado:** ✅ Listado/preview implementado; soporte de imagen web + imagen mobile por slide | 🔲 Formulario de edición de slide pendiente
+**Estado:** ✅ Implementado (listado, preview, formulario de edición con imagen web + imagen mobile por slide)
 
 ---
 
@@ -637,7 +640,7 @@ Cada historia incluye sus criterios de aceptación y el estado de implementació
 - El formulario tiene campos para título, slug, extracto, contenido (rich text), imagen de portada y categoría.
 - Los artículos en borrador no son visibles en el sitio público.
 
-**Estado:** ✅ Listado implementado | 🔲 Formulario pendiente
+**Estado:** ✅ Implementado (listado, formulario con Markdown, imagen de portada, SEO, toggle publicado/borrador, slug auto-generado, botón "Vista previa ↗")
 
 ---
 
@@ -671,7 +674,52 @@ Cada historia incluye sus criterios de aceptación y el estado de implementació
 
 ---
 
-**HU-026 — Ver todos los clientes en un solo lugar**
+**HU-026 — Configurar redes sociales desde admin**
+> Como administrador, quiero poder configurar los enlaces de Instagram, Facebook y TikTok de la tienda desde el panel, y habilitar o deshabilitar cada red de forma independiente, para mantener el footer actualizado sin tocar código.
+
+**Criterios de aceptación:**
+- En Configuración → Configuración general aparece una sección "Redes sociales" con tres filas: Instagram, Facebook y TikTok.
+- Cada fila tiene un toggle de habilitado y un campo de URL.
+- El campo de URL se deshabilita visualmente cuando el toggle está apagado.
+- En el footer del sitio público, solo aparecen los iconos de redes que tienen `enabled: true` y URL no vacía.
+- Los iconos son los SVG oficiales de cada red.
+- Los cambios se aplican en la siguiente carga del sitio (SSR `force-dynamic` en el layout).
+
+**Estado:** ✅ Implementado
+
+---
+
+**HU-027 — Editar términos y política de privacidad desde admin**
+> Como administrador, quiero editar el contenido de los Términos y condiciones y la Política de privacidad desde el panel, usando Markdown, para mantener el contenido legal actualizado sin redeploys.
+
+**Criterios de aceptación:**
+- En Configuración → Contenido legal hay dos tabs: "Términos y condiciones" y "Política de privacidad".
+- El editor es un textarea con sintaxis Markdown; muestra un contador de caracteres y un hint de formato.
+- Hay un botón "Guardar contenido legal" que persiste ambos textos en `store_config`.
+- El enlace "Ver en sitio ↗" lleva a `/terminos` o `/privacidad` según el tab activo.
+- Las páginas `/terminos` y `/privacidad` renderizan el Markdown almacenado (h1/h2/h3, bold, italic, listas, links).
+- Si el contenido está vacío, las páginas muestran un aviso en lugar de una página en blanco.
+
+**Estado:** ✅ Implementado
+
+---
+
+**HU-028 — Envío gratis configurable desde admin**
+> Como administrador, quiero poder habilitar o deshabilitar la promoción de envío gratis y definir el monto mínimo del pedido desde el panel admin, para gestionar incentivos de compra sin cambios de código.
+
+**Criterios de aceptación:**
+- En Configuración → Proveedor de envíos existe un toggle "Envío gratis" (habilitado/deshabilitado).
+- Cuando está habilitado, se muestra un campo editable con el monto mínimo en COP.
+- El campo muestra una vista previa del umbral formateado (ej. "$100.000").
+- En el carrito, si el toggle está activo, aparece una barra de progreso que muestra cuánto falta para el envío gratis.
+- Si el subtotal supera el umbral, el costo de envío se muestra como "Gratis" (en carrito y en checkout).
+- El fallback es tarifa fija si la BD no responde.
+
+**Estado:** ✅ Implementado
+
+---
+
+**HU-029 — Ver todos los clientes en un solo lugar**
 > Como administrador, quiero ver en un panel la lista completa de personas que han interactuado con la tienda —tanto las que tienen cuenta registrada como las que compraron como invitados— para llevar un control total y planificar campañas.
 
 **Criterios de aceptación:**
@@ -930,15 +978,15 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 | Home | 8 | 8 | 0 | 100% |
 | Tienda y Catálogo | 12 | 12 | 0 | 100% |
 | Carrito | 8 | 6 | 2 | 75% |
-| Checkout y Pagos | 12 | 9 | 3 | 75% |
+| Checkout y Pagos | 12 | 10 | 2 | 83% |
 | Envíos (Skydropx) | 8 | 4 | 4 | 50% |
 | Servicios | 6 | 5 | 1 | 83% |
 | Blog | 8 | 8 | 0 | 100% |
 | Autenticación y Mi Cuenta | 10 | 9 | 1 | 90% |
-| Panel de Administración | 25 | 19 | 6 | 76% |
+| Panel de Administración | 28 | 25 | 3 | 89% |
 | Emails Transaccionales | 5 | 4 | 1 | 80% |
 | SEO y Rendimiento | 9 | 5 | 4 | 56% |
-| **TOTAL** | **128** | **105** | **23** | **82%** |
+| **TOTAL** | **134** | **116** | **18** | **87%** |
 
 ---
 

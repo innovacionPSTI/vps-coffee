@@ -1,16 +1,55 @@
 'use client'
 
+import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useCartStore } from '@/store/cart'
 
+interface ShippingPublicConfig {
+  provider: 'fixed' | 'skydropx'
+  fixed_rate: number
+  free_shipping_enabled: boolean
+  free_shipping_min_amount: number
+}
+
+const FALLBACK_CONFIG: ShippingPublicConfig = {
+  provider: 'fixed',
+  fixed_rate: 8000,
+  free_shipping_enabled: true,
+  free_shipping_min_amount: 100000,
+}
+
 export default function CarritoPage() {
   const { items, removeItem, updateQty, subtotal, clearCart } = useCartStore()
+  const [shippingCfg, setShippingCfg] = useState<ShippingPublicConfig>(FALLBACK_CONFIG)
+  const [cfgLoaded, setCfgLoaded] = useState(false)
+
+  useEffect(() => {
+    fetch('/api/shipping/config')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setShippingCfg(data) })
+      .catch(() => {})
+      .finally(() => setCfgLoaded(true))
+  }, [])
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
-  const shippingCost = subtotal() >= 100_000 ? 0 : 8_000
-  const total = subtotal() + shippingCost
+  const sub = subtotal()
+
+  // Envío gratis si está habilitado y el subtotal supera el umbral
+  const isFreeShipping =
+    shippingCfg.free_shipping_enabled && sub >= shippingCfg.free_shipping_min_amount
+
+  // Para Skydropx en el carrito mostramos la tarifa fija como estimado
+  // (el costo real se calcula en el checkout al ingresar la dirección)
+  const shippingCost = isFreeShipping ? 0 : shippingCfg.fixed_rate
+  const total = sub + shippingCost
+
+  // Cuánto falta para el envío gratis
+  const amountToFreeShipping =
+    shippingCfg.free_shipping_enabled && !isFreeShipping
+      ? shippingCfg.free_shipping_min_amount - sub
+      : 0
 
   if (items.length === 0) {
     return (
@@ -81,24 +120,44 @@ export default function CarritoPage() {
           {/* Resumen */}
           <div className="bg-white rounded-2xl p-6 shadow-sm h-fit sticky top-24">
             <h2 className="font-brand font-semibold text-brand-primary text-lg mb-5">Resumen del pedido</h2>
+
+            {/* Barra de progreso hacia envío gratis */}
+            {shippingCfg.free_shipping_enabled && !isFreeShipping && cfgLoaded && (
+              <div className="mb-4">
+                <div className="h-1.5 bg-brand-primary/10 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-green-500 rounded-full transition-all"
+                    style={{ width: `${Math.min((sub / shippingCfg.free_shipping_min_amount) * 100, 100)}%` }}
+                  />
+                </div>
+                <p className="font-brand text-xs text-brand-primary/50 mt-1.5">
+                  Te faltan <strong>{fmt(amountToFreeShipping)}</strong> para envío gratis
+                </p>
+              </div>
+            )}
+
             <div className="space-y-3 mb-5">
               <div className="flex justify-between font-brand text-sm">
                 <span className="text-brand-primary/60">Subtotal</span>
-                <span className="text-brand-primary font-medium">{fmt(subtotal())}</span>
+                <span className="text-brand-primary font-medium">{fmt(sub)}</span>
               </div>
               <div className="flex justify-between font-brand text-sm">
                 <span className="text-brand-primary/60">Envío</span>
                 <span className="text-brand-primary font-medium">
-                  {shippingCost === 0 ? (
+                  {!cfgLoaded ? (
+                    <span className="text-brand-primary/30">Calculando...</span>
+                  ) : isFreeShipping ? (
                     <span className="text-green-600">Gratis</span>
-                  ) : fmt(shippingCost)}
+                  ) : shippingCfg.provider === 'skydropx' ? (
+                    <span className="text-brand-primary/60">
+                      ~{fmt(shippingCfg.fixed_rate)}
+                      <span className="block text-xs font-normal text-brand-primary/40">Estimado — se calcula en el pago</span>
+                    </span>
+                  ) : (
+                    fmt(shippingCost)
+                  )}
                 </span>
               </div>
-              {shippingCost > 0 && (
-                <p className="font-brand text-xs text-brand-primary/40">
-                  Envío gratis en compras +$100.000
-                </p>
-              )}
               <hr className="border-brand-primary/10" />
               <div className="flex justify-between font-brand font-bold text-brand-primary text-lg">
                 <span>Total</span>

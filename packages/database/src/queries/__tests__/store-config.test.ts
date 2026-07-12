@@ -36,6 +36,16 @@ const fullConfig = {
   store_name: 'VPS Coffee',
   store_email: 'info@vpscoffee.com',
   logo_url: 'https://example.com/logo.png',
+  resend_api_key: null,
+  resend_from_email: 'pedidos@vpscoffee.com',
+  terms_content: null,
+  privacy_content: null,
+  instagram_url: null,
+  instagram_enabled: true,
+  facebook_url: null,
+  facebook_enabled: true,
+  tiktok_url: null,
+  tiktok_enabled: true,
   updated_at: '2026-07-09T00:00:00.000Z',
 }
 
@@ -139,5 +149,49 @@ describe('updateStoreConfig', () => {
     expect(result.logo_url).toBe('https://example.com/new-logo.png')
     const upsertArg = mockUpsert.mock.calls[0][0]
     expect(upsertArg).not.toHaveProperty('whatsapp_number')
+  })
+
+  it('guarda terms_content y privacy_content en Markdown', async () => {
+    const legalConfig = {
+      ...fullConfig,
+      terms_content: '## Términos\n\nEsto es un ejemplo.',
+      privacy_content: '## Privacidad\n\nDatos protegidos.',
+    }
+    mockUpsertChain.mockResolvedValueOnce({ data: legalConfig, error: null })
+
+    const result = await updateStoreConfig({
+      terms_content: '## Términos\n\nEsto es un ejemplo.',
+      privacy_content: '## Privacidad\n\nDatos protegidos.',
+    })
+
+    expect(result.terms_content).toContain('## Términos')
+    expect(result.privacy_content).toContain('## Privacidad')
+    const upsertArg = mockUpsert.mock.calls[0][0]
+    expect(upsertArg).toHaveProperty('terms_content')
+    expect(upsertArg).toHaveProperty('privacy_content')
+  })
+
+  it('guarda redes sociales con url y enabled', async () => {
+    const socialConfig = {
+      ...fullConfig,
+      instagram_url: 'https://instagram.com/vpscoffee',
+      instagram_enabled: true,
+      facebook_url: 'https://facebook.com/vpscoffee',
+      facebook_enabled: false,
+      tiktok_url: null,
+      tiktok_enabled: true,
+    }
+    mockUpsertChain.mockResolvedValueOnce({ data: socialConfig, error: null })
+
+    const result = await updateStoreConfig({
+      instagram_url: 'https://instagram.com/vpscoffee',
+      instagram_enabled: true,
+      facebook_url: 'https://facebook.com/vpscoffee',
+      facebook_enabled: false,
+    })
+
+    expect(result.instagram_url).toBe('https://instagram.com/vpscoffee')
+    expect(result.facebook_enabled).toBe(false)
+    expect(result.tiktok_url).toBeNull()
   })
 })

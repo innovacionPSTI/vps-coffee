@@ -9,7 +9,18 @@ export default async function PublicLayout({ children }: { children: React.React
     <>
       <Navbar logoUrl={config?.logo_url} />
       <main>{children}</main>
-      <Footer logoUrl={config?.logo_url} whatsapp={config?.whatsapp_number} />
+      <Footer
+        logoUrl={config?.logo_url}
+        whatsapp={config?.whatsapp_number}
+        social={{
+          instagramUrl:     config?.instagram_url,
+          instagramEnabled: config?.instagram_enabled,
+          facebookUrl:      config?.facebook_url,
+          facebookEnabled:  config?.facebook_enabled,
+          tiktokUrl:        config?.tiktok_url,
+          tiktokEnabled:    config?.tiktok_enabled,
+        }}
+      />
     </>
   )
 }

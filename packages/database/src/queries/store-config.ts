@@ -8,6 +8,14 @@ export type StoreConfig = {
   logo_url: string | null
   resend_api_key: string | null
   resend_from_email: string | null
+  terms_content: string | null
+  privacy_content: string | null
+  instagram_url: string | null
+  instagram_enabled: boolean
+  facebook_url: string | null
+  facebook_enabled: boolean
+  tiktok_url: string | null
+  tiktok_enabled: boolean
   updated_at: string
 }
 
@@ -21,6 +29,14 @@ const DEFAULT_CONFIG: StoreConfig = {
   logo_url: null,
   resend_api_key: null,
   resend_from_email: 'pedidos@vpscoffee.com',
+  terms_content: null,
+  privacy_content: null,
+  instagram_url: null,
+  instagram_enabled: true,
+  facebook_url: null,
+  facebook_enabled: true,
+  tiktok_url: null,
+  tiktok_enabled: true,
   updated_at: new Date().toISOString(),
 }
 

@@ -14,6 +14,14 @@ export default function StoreConfigForm({ initialConfig }: Props) {
   const [storeName, setStoreName] = useState(initialConfig?.store_name   ?? 'VPS Coffee')
   const [storeEmail, setStoreEmail] = useState(initialConfig?.store_email ?? '')
 
+  // Redes sociales
+  const [igUrl, setIgUrl]         = useState(initialConfig?.instagram_url ?? '')
+  const [igEnabled, setIgEnabled] = useState(initialConfig?.instagram_enabled ?? true)
+  const [fbUrl, setFbUrl]         = useState(initialConfig?.facebook_url ?? '')
+  const [fbEnabled, setFbEnabled] = useState(initialConfig?.facebook_enabled ?? true)
+  const [ttUrl, setTtUrl]         = useState(initialConfig?.tiktok_url ?? '')
+  const [ttEnabled, setTtEnabled] = useState(initialConfig?.tiktok_enabled ?? true)
+
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [, startTransition] = useTransition()
@@ -27,10 +35,16 @@ export default function StoreConfigForm({ initialConfig }: Props) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          logo_url:        logoUrl        || null,
-          whatsapp_number: whatsapp       || null,
-          store_name:      storeName      || 'VPS Coffee',
-          store_email:     storeEmail     || null,
+          logo_url:           logoUrl    || null,
+          whatsapp_number:    whatsapp   || null,
+          store_name:         storeName  || 'VPS Coffee',
+          store_email:        storeEmail || null,
+          instagram_url:      igUrl      || null,
+          instagram_enabled:  igEnabled,
+          facebook_url:       fbUrl      || null,
+          facebook_enabled:   fbEnabled,
+          tiktok_url:         ttUrl      || null,
+          tiktok_enabled:     ttEnabled,
         }),
       })
       const data = await res.json()
@@ -115,6 +129,72 @@ export default function StoreConfigForm({ initialConfig }: Props) {
             className="w-64 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
           />
         </div>
+      </div>
+
+      {/* Redes sociales */}
+      <div className="border-t border-gray-100 pt-5 space-y-4">
+        <div>
+          <p className="font-brand text-xs font-semibold text-brand-primary mb-0.5">Redes sociales</p>
+          <p className="font-brand text-xs text-brand-primary/40">
+            Los iconos aparecen en el footer solo si están habilitados y tienen URL.
+          </p>
+        </div>
+
+        {[
+          {
+            key: 'instagram',
+            label: 'Instagram',
+            placeholder: 'https://instagram.com/vpscoffee',
+            url: igUrl, setUrl: setIgUrl,
+            enabled: igEnabled, setEnabled: setIgEnabled,
+          },
+          {
+            key: 'facebook',
+            label: 'Facebook',
+            placeholder: 'https://facebook.com/vpscoffee',
+            url: fbUrl, setUrl: setFbUrl,
+            enabled: fbEnabled, setEnabled: setFbEnabled,
+          },
+          {
+            key: 'tiktok',
+            label: 'TikTok',
+            placeholder: 'https://tiktok.com/@vpscoffee',
+            url: ttUrl, setUrl: setTtUrl,
+            enabled: ttEnabled, setEnabled: setTtEnabled,
+          },
+        ].map((sn) => (
+          <div key={sn.key} className="flex items-center gap-3">
+            {/* Toggle */}
+            <button
+              type="button"
+              role="switch"
+              aria-checked={sn.enabled}
+              onClick={() => sn.setEnabled((v: boolean) => !v)}
+              className={`relative flex-shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                sn.enabled ? 'bg-brand-primary' : 'bg-brand-primary/20'
+              }`}
+            >
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                sn.enabled ? 'translate-x-4' : 'translate-x-0.5'
+              }`} />
+            </button>
+
+            {/* Label */}
+            <span className={`font-brand text-xs font-semibold w-20 ${sn.enabled ? 'text-brand-primary' : 'text-brand-primary/30'}`}>
+              {sn.label}
+            </span>
+
+            {/* URL input */}
+            <input
+              type="url"
+              value={sn.url}
+              onChange={(e) => sn.setUrl(e.target.value)}
+              placeholder={sn.placeholder}
+              disabled={!sn.enabled}
+              className="flex-1 border border-gray-200 rounded-xl px-4 py-2 font-brand text-sm focus:outline-none focus:border-brand-primary disabled:opacity-30 disabled:cursor-not-allowed"
+            />
+          </div>
+        ))}
       </div>
 
       {/* Actions */}

@@ -391,6 +391,8 @@ export type Database = {
           id: number
           provider: 'fixed' | 'skydropx'
           fixed_rate: number
+          free_shipping_enabled: boolean
+          free_shipping_min_amount: number
           skydropx_client_id: string | null
           skydropx_client_secret: string | null
           skydropx_address_from_id: string | null
@@ -401,6 +403,8 @@ export type Database = {
           id?: number
           provider?: 'fixed' | 'skydropx'
           fixed_rate?: number
+          free_shipping_enabled?: boolean
+          free_shipping_min_amount?: number
           skydropx_client_id?: string | null
           skydropx_client_secret?: string | null
           skydropx_address_from_id?: string | null
@@ -411,6 +415,8 @@ export type Database = {
           id?: number
           provider?: 'fixed' | 'skydropx'
           fixed_rate?: number
+          free_shipping_enabled?: boolean
+          free_shipping_min_amount?: number
           skydropx_client_id?: string | null
           skydropx_client_secret?: string | null
           skydropx_address_from_id?: string | null
@@ -428,6 +434,14 @@ export type Database = {
           logo_url: string | null
           resend_api_key: string | null
           resend_from_email: string | null
+          terms_content: string | null
+          privacy_content: string | null
+          instagram_url: string | null
+          instagram_enabled: boolean
+          facebook_url: string | null
+          facebook_enabled: boolean
+          tiktok_url: string | null
+          tiktok_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -438,6 +452,14 @@ export type Database = {
           logo_url?: string | null
           resend_api_key?: string | null
           resend_from_email?: string | null
+          terms_content?: string | null
+          privacy_content?: string | null
+          instagram_url?: string | null
+          instagram_enabled?: boolean
+          facebook_url?: string | null
+          facebook_enabled?: boolean
+          tiktok_url?: string | null
+          tiktok_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -448,6 +470,14 @@ export type Database = {
           logo_url?: string | null
           resend_api_key?: string | null
           resend_from_email?: string | null
+          terms_content?: string | null
+          privacy_content?: string | null
+          instagram_url?: string | null
+          instagram_enabled?: boolean
+          facebook_url?: string | null
+          facebook_enabled?: boolean
+          tiktok_url?: string | null
+          tiktok_enabled?: boolean
           updated_at?: string
         }
         Relationships: []

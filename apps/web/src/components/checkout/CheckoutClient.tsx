@@ -21,6 +21,20 @@ interface ShippingInfo {
   postal_code: string
 }
 
+interface ShippingPublicConfig {
+  provider: 'fixed' | 'skydropx'
+  fixed_rate: number
+  free_shipping_enabled: boolean
+  free_shipping_min_amount: number
+}
+
+const FALLBACK_SHIPPING_CFG: ShippingPublicConfig = {
+  provider: 'fixed',
+  fixed_rate: 8000,
+  free_shipping_enabled: true,
+  free_shipping_min_amount: 100000,
+}
+
 export default function CheckoutClient() {
   const { items, subtotal, clearCart } = useCartStore()
   const user = useUser({ or: 'return-null' })
@@ -32,26 +46,88 @@ export default function CheckoutClient() {
   const [profileLoaded, setProfileLoaded] = useState(false)
   const [paymentMethod, setPaymentMethod] = useState<'wompi' | 'mercadopago'>('wompi')
   const [loading, setLoading] = useState(false)
-  const [shippingCost] = useState(8_000)
+  const [shippingCfg, setShippingCfg] = useState<ShippingPublicConfig>(FALLBACK_SHIPPING_CFG)
+  const [shippingRates, setShippingRates] = useState<{ rate: number; label: string } | null>(null)
+  const [ratesLoading, setRatesLoading] = useState(false)
 
-  // Auto-fill desde el perfil cuando el usuario está logueado
+  // Cargar config de envío al montar
+  useEffect(() => {
+    fetch('/api/shipping/config')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => { if (data) setShippingCfg(data) })
+      .catch(() => {})
+  }, [])
+
+  // Cuando el proveedor es skydropx y se completa la dirección (paso 2 → 3),
+  // llamar a /api/shipping/rates para obtener la tarifa real
+  const fetchSkydropxRates = async () => {
+    if (shippingCfg.provider !== 'skydropx') return
+    setRatesLoading(true)
+    try {
+      const res = await fetch('/api/shipping/rates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          destination: {
+            city: shipping.city,
+            state: shipping.department,
+            postal_code: shipping.postal_code,
+            country: 'MX',
+          },
+          parcel: { weight: 1, height: 10, width: 15, length: 20 },
+        }),
+      })
+      if (res.ok) {
+        const data = await res.json()
+        // Tomar el primer rate disponible
+        if (data.rates?.length) {
+          const cheapest = data.rates.reduce((a: { total_pricing: number }, b: { total_pricing: number }) =>
+            a.total_pricing <= b.total_pricing ? a : b
+          )
+          setShippingRates({ rate: cheapest.total_pricing, label: cheapest.service_level_name ?? 'Estándar' })
+        }
+      }
+    } catch {
+      // Fallback a tarifa fija si Skydropx falla
+    } finally {
+      setRatesLoading(false)
+    }
+  }
+
+  // Auto-fill desde el perfil y direcciones guardadas cuando el usuario está logueado
   useEffect(() => {
     if (!user || profileLoaded) return
+
     const email = user.primaryEmail ?? ''
     if (email) setContact({ email })
 
-    fetch('/api/shipping-profile')
+    // Pre-llenar dirección con la dirección predeterminada guardada en customer_addresses
+    fetch('/api/account/addresses')
       .then((r) => r.ok ? r.json() : null)
-      .then((p) => {
-        if (!p) return
+      .then((data: { addresses?: Array<{
+        full_name: string
+        phone: string | null
+        address: string
+        city: string
+        department: string | null
+        postal_code: string | null
+        is_default: boolean
+      }> } | null) => {
+        if (!data?.addresses?.length) return
+        // Usar la predeterminada; si ninguna lo es, usar la primera
+        const addr =
+          data.addresses.find((a) => a.is_default) ?? data.addresses[0]
+        const nameParts = addr.full_name.trim().split(/\s+/)
+        const firstname = nameParts[0] ?? ''
+        const lastname  = nameParts.slice(1).join(' ')
         setShipping({
-          name: p.first_name ?? '',
-          lastname: p.last_name ?? '',
-          phone: p.phone ?? '',
-          address: p.address ?? '',
-          city: p.city ?? '',
-          department: p.department ?? '',
-          postal_code: p.postal_code ?? '',
+          name:        firstname,
+          lastname:    lastname,
+          phone:       addr.phone       ?? '',
+          address:     addr.address,
+          city:        addr.city,
+          department:  addr.department  ?? '',
+          postal_code: addr.postal_code ?? '',
         })
       })
       .catch(() => {})
@@ -61,7 +137,14 @@ export default function CheckoutClient() {
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
-  const total = subtotal() + shippingCost
+  const sub = subtotal()
+  const isFreeShipping = shippingCfg.free_shipping_enabled && sub >= shippingCfg.free_shipping_min_amount
+  const shippingCost = isFreeShipping
+    ? 0
+    : shippingCfg.provider === 'skydropx' && shippingRates
+      ? shippingRates.rate
+      : shippingCfg.fixed_rate
+  const total = sub + shippingCost
 
   if (items.length === 0) {
     return (
@@ -222,13 +305,20 @@ export default function CheckoutClient() {
                       ← Atrás
                     </button>
                     <button
-                      onClick={() => {
+                      onClick={async () => {
                         const { name, lastname, address, city, department, phone } = shipping
-                        if (name && lastname && address && city && department && phone) setStep(3)
+                        if (name && lastname && address && city && department && phone) {
+                          // Si el proveedor es Skydropx, calcular tarifas antes de avanzar
+                          if (shippingCfg.provider === 'skydropx' && !isFreeShipping) {
+                            await fetchSkydropxRates()
+                          }
+                          setStep(3)
+                        }
                       }}
-                      className="flex-1 bg-brand-primary text-brand-cream rounded-full py-3 font-brand font-medium hover:bg-brand-dark transition-colors"
+                      disabled={ratesLoading}
+                      className="flex-1 bg-brand-primary text-brand-cream rounded-full py-3 font-brand font-medium hover:bg-brand-dark transition-colors disabled:opacity-50"
                     >
-                      Continuar al pago →
+                      {ratesLoading ? 'Calculando envío...' : 'Continuar al pago →'}
                     </button>
                   </div>
                 </div>
@@ -315,12 +405,28 @@ export default function CheckoutClient() {
               <div className="space-y-2 text-sm font-brand">
                 <div className="flex justify-between">
                   <span className="text-brand-primary/60">Subtotal</span>
-                  <span className="text-brand-primary">{fmt(subtotal())}</span>
+                  <span className="text-brand-primary">{fmt(sub)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-brand-primary/60">Envío</span>
-                  <span className="text-brand-primary">{fmt(shippingCost)}</span>
+                  <span className="text-brand-primary">
+                    {isFreeShipping ? (
+                      <span className="text-green-600">Gratis</span>
+                    ) : ratesLoading ? (
+                      <span className="text-brand-primary/40">Calculando...</span>
+                    ) : shippingCfg.provider === 'skydropx' && !shippingRates ? (
+                      <span className="text-brand-primary/50">
+                        ~{fmt(shippingCfg.fixed_rate)}
+                        <span className="block text-xs font-normal text-brand-primary/40">Se confirma al ingresar dirección</span>
+                      </span>
+                    ) : (
+                      fmt(shippingCost)
+                    )}
+                  </span>
                 </div>
+                {shippingCfg.provider === 'skydropx' && shippingRates && !isFreeShipping && (
+                  <p className="text-xs text-brand-primary/40">Servicio: {shippingRates.label}</p>
+                )}
                 <hr className="border-brand-primary/10" />
                 <div className="flex justify-between font-bold text-brand-primary text-base">
                   <span>Total</span>

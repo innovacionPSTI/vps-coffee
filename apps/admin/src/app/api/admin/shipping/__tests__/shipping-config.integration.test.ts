@@ -28,6 +28,8 @@ const baseConfig = {
   id: 1,
   provider: 'fixed' as const,
   fixed_rate: 8000,
+  free_shipping_enabled: true,
+  free_shipping_min_amount: 100000,
   skydropx_client_id: null,
   skydropx_client_secret: null,
   skydropx_address_from_id: null,
@@ -192,6 +194,44 @@ describe('PATCH /api/admin/shipping — happy path', () => {
     const data = await res.json()
     expect(data.skydropx_client_secret).not.toBe('super-secret-1234')
     expect(data.skydropx_client_secret).toContain('••••')
+  })
+})
+
+// ─────────────────────────────────────────────
+// PATCH — envío gratis configurable
+// ─────────────────────────────────────────────
+describe('PATCH /api/admin/shipping — envío gratis', () => {
+  it('guarda free_shipping_enabled = false correctamente', async () => {
+    const updated = { ...baseConfig, free_shipping_enabled: false }
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    const req = makePatchRequest({ free_shipping_enabled: false })
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    expect(mockUpdate).toHaveBeenCalledWith(
+      expect.objectContaining({ free_shipping_enabled: false })
+    )
+  })
+
+  it('guarda free_shipping_min_amount correctamente', async () => {
+    const updated = { ...baseConfig, free_shipping_min_amount: 150000 }
+    mockUpdate.mockResolvedValueOnce(updated)
+
+    const req = makePatchRequest({ free_shipping_min_amount: 150000 })
+    const res = await PATCH(req)
+
+    expect(res.status).toBe(200)
+    const data = await res.json()
+    expect(data.free_shipping_min_amount).toBe(150000)
+  })
+
+  it('retorna free_shipping_enabled en el GET', async () => {
+    mockGet.mockResolvedValueOnce({ ...baseConfig, free_shipping_enabled: true, free_shipping_min_amount: 80000 })
+    const res = await GET()
+    const data = await res.json()
+    expect(data.free_shipping_enabled).toBe(true)
+    expect(data.free_shipping_min_amount).toBe(80000)
   })
 })
 

@@ -5,6 +5,8 @@ export type ShippingConfig = {
   id: number
   provider: ShippingProviderType
   fixed_rate: number
+  free_shipping_enabled: boolean
+  free_shipping_min_amount: number
   skydropx_client_id: string | null
   skydropx_client_secret: string | null
   skydropx_address_from_id: string | null
@@ -32,6 +34,8 @@ export async function getShippingConfig(): Promise<ShippingConfig> {
       id: 0,
       provider: 'fixed',
       fixed_rate: 8000,
+      free_shipping_enabled: true,
+      free_shipping_min_amount: 100000,
       skydropx_client_id: null,
       skydropx_client_secret: null,
       skydropx_address_from_id: null,

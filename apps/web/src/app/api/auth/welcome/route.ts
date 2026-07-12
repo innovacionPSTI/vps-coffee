@@ -28,15 +28,22 @@ import { sendWelcomeEmail } from '@/lib/email'
  */
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json() as {
-      name?: string
-      email?: string
-      stackId?: string
+    let body: { name?: string; email?: string; stackId?: string } = {}
+    try {
+      body = await request.json()
+    } catch {
+      // Body vacío o inválido — continuar con sesión de Stack Auth
     }
 
     // ── Obtener datos del usuario ─────────────────────────────────────────────
-    // Intento 1: sesión de Stack Auth en el request (puede fallar por race condition)
-    const sessionUser = await stackServerApp.getUser()
+    // getUser() puede lanzar excepción (credenciales no configuradas, race condition, etc.)
+    // Se aísla para que un fallo aquí no impida el upsert en customers.
+    let sessionUser = null
+    try {
+      sessionUser = await stackServerApp.getUser()
+    } catch {
+      // Continuar con datos del body
+    }
 
     // Fuente de verdad: sesión si existe, body como fallback
     const stackId = sessionUser?.id ?? body.stackId ?? null
@@ -53,6 +60,8 @@ export async function POST(request: NextRequest) {
     // ── 1. Upsert en customers ────────────────────────────────────────────────
     // onConflict: 'email' garantiza idempotencia.
     // Si el email ya existe como guest (stack_id null), el upsert actualiza su stack_id.
+    console.log('[welcome] upserting customer:', { email, stackId, displayName })
+
     const { data: customer, error: upsertError } = await supabase
       .from('customers')
       .upsert(
@@ -67,7 +76,9 @@ export async function POST(request: NextRequest) {
       .single()
 
     if (upsertError) {
-      console.error('[welcome] customers upsert error:', upsertError.message)
+      console.error('[welcome] customers upsert error:', JSON.stringify(upsertError))
+    } else {
+      console.log('[welcome] customer upserted:', customer?.id)
     }
 
     // ── 2. Vincular pedidos previos del mismo email ───────────────────────────

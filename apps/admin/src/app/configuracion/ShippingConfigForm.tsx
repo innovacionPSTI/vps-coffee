@@ -24,6 +24,12 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
   const [fixedRate, setFixedRate] = useState(
     String(initialConfig?.fixed_rate ?? 8000)
   )
+  const [freeShippingEnabled, setFreeShippingEnabled] = useState(
+    initialConfig?.free_shipping_enabled ?? true
+  )
+  const [freeShippingMin, setFreeShippingMin] = useState(
+    String(initialConfig?.free_shipping_min_amount ?? 100000)
+  )
   const [clientId, setClientId] = useState(initialConfig?.skydropx_client_id ?? '')
   const [clientSecret, setClientSecret] = useState('')  // never pre-fill secret
   const [addressFromId, setAddressFromId] = useState(
@@ -45,7 +51,12 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
     setStatus('saving')
     setErrorMsg('')
 
-    const body: Record<string, unknown> = { provider, fixed_rate: Number(fixedRate) }
+    const body: Record<string, unknown> = {
+      provider,
+      fixed_rate: Number(fixedRate),
+      free_shipping_enabled: freeShippingEnabled,
+      free_shipping_min_amount: Number(freeShippingMin),
+    }
 
     if (provider === 'skydropx') {
       body.skydropx_client_id = clientId || undefined
@@ -128,6 +139,56 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
           onChange={(e) => setFixedRate(e.target.value)}
           className="w-48 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
         />
+      </div>
+
+      {/* ── Envío gratis ───────────────────────────────────────── */}
+      <div className="border border-brand-primary/10 rounded-2xl p-5 space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <p className="font-brand text-sm font-semibold text-brand-primary">Envío gratis</p>
+            <p className="font-brand text-xs text-brand-primary/40 mt-0.5">
+              Cuando el subtotal supera el monto mínimo, el envío es gratis automáticamente.
+            </p>
+          </div>
+          <button
+            type="button"
+            role="switch"
+            aria-checked={freeShippingEnabled}
+            onClick={() => setFreeShippingEnabled((v) => !v)}
+            className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
+              freeShippingEnabled ? 'bg-brand-primary' : 'bg-brand-primary/20'
+            }`}
+          >
+            <span
+              className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                freeShippingEnabled ? 'translate-x-6' : 'translate-x-1'
+              }`}
+            />
+          </button>
+        </div>
+
+        {freeShippingEnabled && (
+          <div>
+            <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">
+              Monto mínimo para envío gratis (COP)
+            </label>
+            <input
+              type="number"
+              min={0}
+              step={1000}
+              value={freeShippingMin}
+              onChange={(e) => setFreeShippingMin(e.target.value)}
+              className="w-48 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
+            />
+            <p className="font-brand text-xs text-brand-primary/40 mt-1">
+              Pedidos de{' '}
+              {new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(
+                Number(freeShippingMin) || 0
+              )}{' '}
+              o más tendrán envío gratis.
+            </p>
+          </div>
+        )}
       </div>
 
       {/* ── Skydropx credentials (visible only when selected) ────── */}

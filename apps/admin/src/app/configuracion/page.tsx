@@ -7,6 +7,7 @@ import ShippingConfigForm from './ShippingConfigForm'
 import StoreConfigForm from './StoreConfigForm'
 import PaymentConfigForm from './PaymentConfigForm'
 import EmailConfigForm from './EmailConfigForm'
+import LegalConfigForm from './LegalConfigForm'
 
 export const metadata: Metadata = { title: 'Configuración' }
 export const dynamic = 'force-dynamic'
@@ -103,6 +104,21 @@ export default async function ConfiguracionPage() {
             </section>
           </>
         )}
+
+        {/* ── Contenido legal — visible para todos con acceso ── */}
+        <section className="bg-white rounded-2xl p-6 shadow-sm">
+          <h2 className="font-brand font-semibold text-brand-primary text-lg mb-1">
+            Contenido legal
+          </h2>
+          <p className="font-brand text-xs text-brand-primary/50 mb-6">
+            Edita los términos y condiciones y la política de privacidad que se muestran en el sitio web.
+            Escribe en Markdown.
+          </p>
+          <LegalConfigForm
+            initialTerms={storeConfig?.terms_content ?? null}
+            initialPrivacy={storeConfig?.privacy_content ?? null}
+          />
+        </section>
       </div>
     </div>
   )

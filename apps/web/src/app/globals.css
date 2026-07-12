@@ -43,6 +43,18 @@
     border-radius: 50% 50% 0 0 / 30% 30% 0 0;
   }
 
+  /* Contenido legal renderizado desde Markdown */
+  .prose-legal h1 { @apply font-display text-brand-primary text-3xl mt-10 mb-4; }
+  .prose-legal h2 { @apply font-display text-brand-primary text-2xl mt-8 mb-3; }
+  .prose-legal h3 { @apply font-brand font-semibold text-brand-primary text-lg mt-6 mb-2; }
+  .prose-legal p  { @apply font-brand text-brand-primary/75 mb-4 leading-relaxed; }
+  .prose-legal ul { @apply list-disc list-inside space-y-1 mb-4 font-brand text-brand-primary/75; }
+  .prose-legal li { @apply leading-relaxed; }
+  .prose-legal strong { @apply font-semibold text-brand-primary; }
+  .prose-legal em { @apply italic; }
+  .prose-legal code { @apply bg-brand-primary/5 px-1.5 py-0.5 rounded text-sm font-mono; }
+  .prose-legal a { @apply text-brand-primary underline hover:text-brand-dark transition-colors; }
+
   /* Scrollbar personalizado */
   .scrollbar-thin::-webkit-scrollbar {
     width: 6px;

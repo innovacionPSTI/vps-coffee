@@ -1,5 +1,5 @@
 # VPS Coffee — Estado del Proyecto
-> **Última actualización:** Julio 2026 · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
+> **Última actualización:** Julio 2026 (v2) · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
 
 ---
 
@@ -17,7 +17,7 @@
 - `tsconfig.json` compartido
 
 ### `packages/database`
-- `src/types.ts` — tipos TypeScript completos de todas las tablas (incluye `payment_config`, campos Resend)
+- `src/types.ts` — tipos TypeScript completos de todas las tablas (incluye `payment_config`; campos Resend; `free_shipping_*` en `shipping_config`; `terms_content`, `privacy_content`, `instagram/facebook/tiktok_url/enabled` en `store_config`)
 - `src/client.ts` — `createBrowserClient()` y `createServerClient()`
 - `src/queries/` — products, orders, blog, banners, shipping-config, store-config, **payment-config**
 - `supabase/migrations/1_initial_schema.sql` — schema completo para Stack Auth (sin FK a auth.users, sin trigger on_auth_user_created); RLS solo con políticas válidas; roles correctos incluido `miembro`
@@ -29,6 +29,9 @@
 - `supabase/migrations/7_shipping_profiles.sql` — tabla `shipping_profiles` para perfiles de envío; RLS habilitado
 - `supabase/migrations/8_customers.sql` — tabla `customers` (mirror de compradores web desde Stack Auth); FK `orders.customer_id → customers.id`; RLS habilitado (solo service_role)
 - `supabase/migrations/9_customer_addresses.sql` — tabla `customer_addresses` (1 cliente → N direcciones guardadas para pre-llenar checkout); RLS habilitado
+- `supabase/migrations/10_shipping_free_threshold.sql` — añade `free_shipping_enabled` (boolean) y `free_shipping_min_amount` (numeric) a `shipping_config`; configurable desde el admin sin código
+- `supabase/migrations/11_legal_content.sql` — añade `terms_content` y `privacy_content` (TEXT nullable) a `store_config`; editor Markdown en admin
+- `supabase/migrations/12_social_links.sql` — añade `instagram_url/enabled`, `facebook_url/enabled`, `tiktok_url/enabled` a `store_config`; iconos SVG en footer
 
 ### `packages/ui`
 - `Button`, `Badge`, `ProductCard`, `Spinner` — componentes base con variantes VPS
@@ -72,8 +75,10 @@
 | `/blog` | `app/(public)/blog/page.tsx` | ISR 60s |
 | `/blog/[slug]` | `app/(public)/blog/[slug]/page.tsx` | SSG+ISR |
 | `/nosotros` | `app/(public)/nosotros/page.tsx` | Estático |
-| `/carrito` | `app/carrito/page.tsx` | Client |
-| `/checkout` | `app/checkout/page.tsx` | 3 pasos |
+| `/carrito` | `app/carrito/page.tsx` | Client — tarifa y umbral de envío gratis desde BD vía `/api/shipping/config`; barra de progreso hacia envío gratis |
+| `/checkout` | `app/checkout/page.tsx` | 3 pasos — envío desde config real; si provider=skydropx llama `/api/shipping/rates` al completar dirección |
+| `/terminos` | `app/(public)/terminos/page.tsx` | `force-dynamic` — renderiza `store_config.terms_content` (Markdown→HTML) |
+| `/privacidad` | `app/(public)/privacidad/page.tsx` | `force-dynamic` — renderiza `store_config.privacy_content` (Markdown→HTML) |
 | `/checkout/confirmacion` | `app/checkout/confirmacion/page.tsx` | async, WhatsApp desde BD |
 | `/mi-cuenta` | `app/(account)/mi-cuenta/page.tsx` | SSR · user real |
 | `/mi-cuenta/pedidos` | `app/(account)/mi-cuenta/pedidos/page.tsx` | ✅ |
@@ -89,12 +94,14 @@
 | `POST /api/webhooks/wompi` | Verifica firma SHA256, actualiza estado de pago, envía email de confirmación |
 | `POST /api/webhooks/mercadopago` | Consulta pago real en API de MP, actualiza estado, envía email |
 | `POST /api/shipping/rates` | Cotiza envío multi-proveedor |
-| `POST /api/auth/welcome` | Upsert en `customers` + vincula pedidos previos + email de bienvenida |
+| `POST /api/auth/welcome` | Upsert en `customers` + vincula pedidos previos + email de bienvenida; body parsing con fallback a `{}` para evitar crash con body vacío; `stackServerApp.getUser()` aislado en try-catch propio |
 | `GET /api/account/addresses` | Devuelve direcciones guardadas del cliente logueado (para pre-llenar checkout) |
 | `POST /api/account/addresses` | Guarda nueva dirección del cliente; maneja `is_default` de forma exclusiva |
 
 **Componentes:**
 - `HeroCarousel` — autoplay 5s, fade, dots, flechas; usa `<picture>` + `<source media="(max-width: 768px)">` para mostrar imagen mobile en móvil e imagen desktop en escritorio
+- `Footer` — iconos SVG oficiales de Instagram, Facebook y TikTok; se muestran solo si están `enabled: true` y tienen URL configurada; recibe prop `social` desde el layout servidor
+- `LegalPage` — componente compartido para `/terminos` y `/privacidad`; converter Markdown→HTML sin dependencias externas (h1/h2/h3, **bold**, *italic*, listas, links); muestra aviso si el contenido está vacío
 - `FeaturedProducts` — grid 3 col, add to cart
 - `ServicesSection` — async, llama `Promise.all` para URLs de WhatsApp desde BD
 - `NewsletterSection` — POST a API route
@@ -142,9 +149,11 @@
 | `/banners` | Vista previa de slides; cada banner soporta imagen web + imagen mobile |
 | `/categorias` | CRUD de categorías |
 | `/blog` | Tabla artículos con estado publicado/borrador |
-| `/clientes` | Tabla unificada: usuarios registrados (Stack Auth, badge "Con cuenta") + compradores sin cuenta (solo en orders, badge "Sin cuenta"); búsqueda y filtros |
+| `/clientes` | Tabla unificada: lee desde `customers` (Supabase) en lugar de Stack Auth API; compradores sin cuenta desde `orders`; búsqueda y filtros |
 | `/usuarios` | CRUD de usuarios del panel: invitar (crea en Stack Auth con rol `miembro` + envía email de contraseña), cambiar rol, eliminar |
-| `/configuracion` | `ShippingConfigForm`, `PaymentConfigForm` (Wompi+MP con SecretInput + toggle), `EmailConfigForm` (Resend), `StoreConfigForm` (WhatsApp, logo) |
+| `/blog/nuevo` | Formulario de creación de artículo: título, slug auto-generado, imagen de portada, categoría, toggle publicado/borrador, extracto, contenido Markdown, SEO |
+| `/blog/[id]` | Formulario de edición de artículo; botón eliminar; botón "Vista previa ↗" al sitio público |
+| `/configuracion` | `ShippingConfigForm` (tarifa fija + toggle envío gratis + monto mínimo + credenciales Skydropx), `PaymentConfigForm` (Wompi+MP), `EmailConfigForm` (Resend), `StoreConfigForm` (WhatsApp, logo, **redes sociales con toggle + URL por red**), `LegalConfigForm` (editor Markdown con tabs Términos/Privacidad) |
 
 **API Admin:**
 | Ruta | Función |
@@ -153,16 +162,20 @@
 | `GET/PATCH /api/admin/products/[id]` | Edita producto y variantes |
 | `DELETE /api/admin/products/[id]` | Elimina producto y variantes (FK) |
 | `PATCH /api/admin/orders/[id]/status` | Actualiza estado de orden |
+| `GET /api/shipping/config` | Config pública de envío sin credenciales (provider, fixed_rate, free_shipping_enabled, free_shipping_min_amount) — usada por carrito y checkout |
 | `GET /api/admin/shipping` | Lee config de envíos (client_secret enmascarado) |
-| `PATCH /api/admin/shipping` | Guarda config de envíos con validación |
-| `GET /api/admin/config` | Lee `store_config` (WhatsApp, nombre, email, logo, Resend); enmascara `resend_api_key` |
-| `PATCH /api/admin/config` | Guarda `store_config`; valida que WhatsApp tenga 10–15 dígitos; acepta campos Resend |
+| `PATCH /api/admin/shipping` | Guarda config de envíos con validación; acepta `free_shipping_enabled` y `free_shipping_min_amount` |
+| `GET /api/admin/config` | Lee `store_config` (WhatsApp, nombre, email, logo, Resend, legal, redes sociales); enmascara `resend_api_key` |
+| `PATCH /api/admin/config` | Guarda `store_config`; valida WhatsApp (10–15 dígitos); acepta Resend, `terms_content`, `privacy_content`, `instagram/facebook/tiktok_url/enabled` |
 | `GET /api/admin/payment-config` | Lee `payment_config`; devuelve secrets enmascarados + flags `has_*` |
 | `PATCH /api/admin/payment-config` | Guarda credenciales Wompi/MP; valida prefijo `pub_`; no sobreescribe secrets vacíos |
 | `GET /api/admin/usuarios` | Lista usuarios del panel (roles `super_admin`, `admin`, `vendedor`, `gestor_tienda`, `miembro`) desde Supabase |
-| `POST /api/admin/usuarios` | Crea usuario: `stackServerApp.createUser()` → upsert en `profiles` con rol `miembro` → envía email "Establece tu contraseña" vía Stack Auth REST API |
+| `POST /api/admin/usuarios` | Crea usuario: `stackServerApp.createUser()` → insert en `profiles` con UUID generado en servidor → envía email "Establece tu contraseña" vía Stack Auth REST API con `secret-server-key` |
 | `PATCH /api/admin/usuarios/[id]` | Cambia rol (`AssignableRole`); solo super_admin puede asignar super_admin |
 | `DELETE /api/admin/usuarios/[id]` | Elimina usuario del panel |
+| `POST /api/admin/blog` | Crea artículo del blog; detecta slug duplicado (409) |
+| `PATCH /api/admin/blog/[id]` | Edita artículo; gestiona `published_at` automáticamente |
+| `DELETE /api/admin/blog/[id]` | Elimina artículo |
 | `POST /api/admin/upload` | Sube archivo a Supabase Storage; **auto-crea el bucket** si no existe |
 | `DELETE /api/admin/upload` | Elimina archivo de Storage |
 
@@ -171,10 +184,14 @@
 ## 🔧 Pendiente de implementar
 
 ### Prioridad alta
-- [ ] **Formulario CRUD de blog** (`/admin/blog/nuevo` y `/admin/blog/[id]`) — editor Markdown/rich text
-- [ ] **Editor de banners** — formulario de edición de slide con imagen web + imagen mobile; drag & drop para reordenar
+- [x] **Formulario CRUD de blog** (`/admin/blog/nuevo` y `/admin/blog/[id]`) — editor Markdown con imagen, categoría, SEO ✅
+- [x] **Editor de banners** — modal con imagen web + imagen mobile, CTA, color de fondo, activo/inactivo ✅
 
 ### Prioridad media
+- [x] **Pre-llenado de checkout** desde `customer_addresses` — dirección predeterminada rellena el formulario de envío automáticamente ✅
+- [x] **Envío configurable desde admin** — tarifa fija y umbral de envío gratis se leen desde BD; toggle enable/disable; carrito muestra barra de progreso; checkout usa Skydropx API cuando está configurado ✅
+- [x] **Páginas legales editables** — `/terminos` y `/privacidad` renderizan Markdown almacenado en `store_config`; editor en admin con tabs y contador de caracteres ✅
+- [x] **Redes sociales en footer** — iconos SVG de Instagram, Facebook, TikTok; habilitables individualmente con URL desde admin → Configuración general ✅
 - [ ] **Creación de shipment Skydropx** tras pago confirmado (`lib/skydropx/shipments.ts`)
 - [ ] **Modal de despacho masivo** en admin (pickups Skydropx)
 - [ ] **SEO:** `sitemap.xml`, `robots.txt`, Open Graph por página
