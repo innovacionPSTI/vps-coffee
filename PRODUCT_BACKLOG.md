@@ -98,7 +98,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | N-03 | Iconos de cuenta y carrito con badge numérico | Alta | ✅ |
 | N-04 | Footer con links, WhatsApp y redes sociales (Instagram, Facebook, TikTok) con iconos SVG — habilitables y configurables desde admin | Alta | ✅ |
 | N-05 | Página 404 personalizada con estilo VPS | Media | ✅ |
-| N-06 | Página de mantenimiento con logo VPS | Baja | 🔲 |
+| N-06 | Página de mantenimiento con logo VPS | Baja | ✅ |
 | N-07 | Breadcrumb dinámico en páginas internas | Media | ✅ |
 
 ---
@@ -146,8 +146,8 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | C-03 | Agregar/eliminar/actualizar cantidad desde el drawer | Alta | ✅ |
 | C-04 | Página de carrito completa con resumen de pedido | Alta | ✅ |
 | C-05 | Envío gratis configurable desde admin: toggle habilitar/deshabilitar + monto mínimo editable; barra de progreso en carrito | Media | ✅ |
-| C-06 | Campo de cupón de descuento | Media | 🔲 |
-| C-07 | Sincronización del carrito con BD para usuarios logueados | Media | 🔲 |
+| C-06 | Campo de cupón de descuento | Media | ✅ |
+| C-07 | Sincronización del carrito con BD para usuarios logueados | Media | ✅ |
 | C-08 | Cierre del drawer con tecla Escape y bloqueo de scroll | Alta | ✅ |
 
 ---
@@ -178,7 +178,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | S-01 | Autenticación OAuth 2.0 con Skydropx y cache de token | Alta | ✅ |
 | S-02 | Cotización de tarifas en tiempo real al ingresar dirección | Alta | ✅ |
 | S-03 | Cálculo automático de dimensiones del paquete según el carrito | Alta | ✅ |
-| S-04 | Mostrar opciones de transportadora y tarifa al cliente | Alta | 🔲 |
+| S-04 | Mostrar opciones de transportadora y tarifa al cliente | Alta | ✅ |
 | S-05 | Generar guía de envío automáticamente tras pago confirmado | Alta | ✅ |
 | S-06 | Guardar tracking_number y label_url en la orden | Alta | ✅ |
 | S-07 | Webhook Skydropx — actualizar estado de pedido automáticamente | Alta | ✅ |
@@ -195,7 +195,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | SV-03 | Página Asesorías con hero, servicios y formulario | Alta | ✅ |
 | SV-04 | Botón WhatsApp con mensaje pre-cargado para asesorías | Alta | ✅ |
 | SV-05 | Acordeón de preguntas frecuentes en Maquila | Media | ✅ |
-| SV-06 | Carrusel de testimonios en Asesorías | Baja | 🔲 |
+| SV-06 | Carrusel de testimonios en Asesorías | Baja | ✅ |
 
 ---
 
@@ -263,6 +263,11 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | AD-26 | Redes sociales configurables (Instagram, Facebook, TikTok): URL + toggle habilitado por red | Alta | ✅ |
 | AD-27 | Editor de contenido legal (Términos y Política de privacidad) en Markdown con tabs | Alta | ✅ |
 | AD-28 | Envío gratis configurable: toggle habilitar + monto mínimo editable desde admin | Alta | ✅ |
+| AD-29 | Hub de secciones web: toggles enable/disable para cada sección del home; CRUD inline de servicios dinámicos | Alta | ✅ |
+| AD-30 | Dashboard adaptado por rol: admin (ventas/métricas), vendedor (urgencias/stock), gestor_tienda (contenido/cupones) | Alta | ✅ |
+| AD-31 | Sidebar con grupos colapsables y navegación rol-aware; auto-expande el grupo activo | Media | ✅ |
+| AD-32 | Sistema de temas: crear y activar perfiles de colores y tipografía; preview en tiempo real; aplicado al sitio sin redeploy | Alta | ✅ |
+| AD-33 | Gestión de newsletter desde admin: lista de suscriptores con estado activo/inactivo y exportación CSV; formulario de campaña con Markdown + broadcast vía Resend; confirmar antes de enviar | Alta | ✅ |
 
 ---
 
@@ -289,8 +294,8 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | SEO-05 | sitemap.xml dinámico | Media | ✅ |
 | SEO-06 | robots.txt | Media | ✅ |
 | SEO-07 | Open Graph y Twitter Card por página | Media | ✅ |
-| SEO-08 | Optimización de imágenes con next/image + Supabase CDN | Alta | 🔲 |
-| SEO-09 | Vercel Analytics o Plausible | Baja | 🔲 |
+| SEO-08 | Optimización de imágenes con next/image + Supabase CDN | Alta | ✅ |
+| SEO-09 | Vercel Analytics o Plausible | Baja | ✅ |
 
 ---
 
@@ -735,6 +740,69 @@ Cada historia incluye sus criterios de aceptación y el estado de implementació
 
 ---
 
+**HU-030 — Controlar qué secciones aparecen en el sitio**
+> Como gestor de tienda, quiero habilitar o deshabilitar secciones del home desde el panel para ajustar el contenido sin tocar código.
+
+**Criterios de aceptación:**
+- La página `/secciones` lista todas las secciones configurables con su estado actual.
+- Cada sección tiene un toggle que persiste en `section_settings`.
+- El sitio público respeta los flags: si una sección está deshabilitada, no se renderiza.
+- Si la tabla no existe aún, el sitio muestra todas las secciones (fail-open).
+- Los servicios dinámicos se gestionan con CRUD inline en la misma página.
+
+**Estado:** ✅ Implementado
+
+---
+
+**HU-031 — Dashboard adaptado a mi rol**
+> Como usuario del panel, quiero ver en el dashboard solo la información relevante para mi función para no distraerme con datos que no gestiono.
+
+**Criterios de aceptación:**
+- `admin`/`super_admin`: ve ventas hoy/semana/mes, stock crítico, pedidos recientes y top productos.
+- `vendedor`: ve conteo de órdenes por estado, pedidos urgentes (resaltados si llevan >2 días pendientes) y productos con stock bajo.
+- `gestor_tienda`: ve secciones activas, artículos en borrador, banners hero y cupones próximos a vencer.
+- El rol se lee del usuario autenticado; no hay lógica manual de selección.
+
+**Estado:** ✅ Implementado
+
+---
+
+**HU-032 — Crear y activar temas de marca**
+> Como administrador, quiero crear perfiles de colores y fuentes y activar el que quiero usar en el sitio, para mantener coherencia visual y probar variaciones de paleta sin redesplegar.
+
+**Criterios de aceptación:**
+- Se pueden crear múltiples temas con nombres descriptivos.
+- Cada tema configura 7 colores (primary, dark, cream, cream-warm, yellow, yellow-pale, text) y 2 fuentes (display, body).
+- Un preview en tiempo real muestra cómo se verá el tema antes de guardarlo.
+- Al activar un tema, el sitio público lo refleja en la siguiente carga sin redeploy.
+- Solo puede haber un tema activo; activar uno desactiva automáticamente el anterior.
+- El tema "VPS Coffee (Por defecto)" no se puede eliminar.
+- Los colores se almacenan en hex; el sitio los convierte a canales RGB para soporte de opacidad de Tailwind.
+
+**Estado:** ✅ Implementado
+
+---
+
+**HU-033 — Gestionar suscriptores y enviar campañas de newsletter**
+> Como gestor de tienda, quiero ver la lista de personas suscritas al newsletter y enviarles un correo desde el panel admin para comunicarme con mi audiencia sin herramientas externas.
+
+**Criterios de aceptación:**
+- La página `/newsletter` es accesible para `gestor_tienda`, `admin` y `super_admin`.
+- La pestaña "Suscriptores" muestra una tabla con email, fecha de suscripción y estado (Activo / Inactivo).
+- Las tarjetas de estadísticas muestran el total, cantidad de activos e inactivos.
+- El botón "Exportar CSV" descarga un archivo con todos los suscriptores.
+- La pestaña "Enviar campaña" tiene campos de asunto y cuerpo en Markdown.
+- El sistema indica cuántos destinatarios activos recibirán el correo antes de enviar.
+- Al pulsar "Enviar campaña" aparece un diálogo de confirmación antes de ejecutar el envío.
+- El envío usa las credenciales Resend guardadas en `store_config`; si no están configuradas, muestra error claro.
+- Se envía en lotes de 50 para respetar los límites de Resend.
+- Tras enviar, se muestra el resultado: cuántos recibieron el email y cuántos fallaron.
+- El formulario acepta Markdown básico (##, **negrita**, *cursiva*, listas) convertido a HTML en el email.
+
+**Estado:** ✅ Implementado
+
+---
+
 ## 4. Historias de Usuario — Versión Refinada (con edge cases y story points)
 
 > Esta sección refina las historias más críticas para el negocio agregando: escenarios de borde, criterios de rechazo, estimación de esfuerzo y cobertura de testing.  
@@ -1074,16 +1142,16 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 | Navegación | 7 | 7 | 0 | 100% |
 | Home | 8 | 8 | 0 | 100% |
 | Tienda y Catálogo | 12 | 12 | 0 | 100% |
-| Carrito | 8 | 6 | 2 | 75% |
+| Carrito | 8 | 8 | 0 | 100% |
 | Checkout y Pagos | 12 | 12 | 0 | 100% |
-| Envíos (Skydropx) | 8 | 7 | 1 | 87% |
-| Servicios | 6 | 5 | 1 | 83% |
+| Envíos (Skydropx) | 8 | 8 | 0 | 100% |
+| Servicios | 6 | 6 | 0 | 100% |
 | Blog | 8 | 8 | 0 | 100% |
 | Autenticación y Mi Cuenta | 10 | 10 | 0 | 100% |
-| Panel de Administración | 28 | 28 | 0 | 100% |
+| Panel de Administración | 33 | 33 | 0 | 100% |
 | Emails Transaccionales | 5 | 5 | 0 | 100% |
-| SEO y Rendimiento | 9 | 8 | 1 | 89% |
-| **TOTAL** | **134** | **126** | **8** | **94%** |
+| SEO y Rendimiento | 9 | 9 | 0 | 100% |
+| **TOTAL** | **136** | **136** | **0** | **100%** |
 
 ---
 
@@ -1147,7 +1215,14 @@ cd apps/web && pnpm test:watch
 | `apps/admin/src/app/api/admin/usuarios/__tests__/usuarios.integration.test.ts` | Integración | 12 | GET/POST/PATCH/DELETE /api/admin/usuarios (Stack Auth mock, roles, invite email) |
 | `apps/web/src/app/api/auth/__tests__/welcome.integration.test.ts` | Integración | 10 | POST /api/auth/welcome (upsert customers, vincular pedidos previos, email) |
 | `apps/web/src/app/api/account/__tests__/addresses.integration.test.ts` | Integración | 12 | GET/POST /api/account/addresses (auth, is_default exclusivo, customer lookup) |
-| **TOTAL** | | **249** | |
+| `packages/database/src/queries/__tests__/coupons.test.ts` | Unitaria | 14 | `validateCoupon` — porcentaje, fijo, inactivo, expirado, usos, mínimo pedido, edge cases |
+| `apps/web/src/app/api/__tests__/coupon.test.ts` | Integración | 4 | POST /api/checkout/coupon — not found, inválido, válido, trim+uppercase |
+| `apps/web/src/app/api/__tests__/maintenance.test.ts` | Integración | 3 | GET /api/maintenance-status — false, true, propagación de error |
+| `apps/admin/src/app/api/admin/testimonios/__tests__/testimonios.integration.test.ts` | Integración | 11 | GET/POST/PATCH/DELETE /api/admin/testimonios — autorización, validación, trim |
+| `packages/database/src/queries/__tests__/themes.test.ts` | Unitaria | 14 | getThemes, getActiveTheme, createTheme, updateTheme, setActiveTheme, deleteTheme — guards activo/default |
+| `apps/admin/src/app/api/admin/themes/__tests__/themes.integration.test.ts` | Integración | 14 | GET/POST/PATCH/DELETE /api/admin/themes — autorización, setActive (dos ops), guards delete |
+| `apps/admin/src/app/api/admin/sections/__tests__/sections.integration.test.ts` | Integración | 10 | PATCH /api/admin/sections/[key] — autorización (solo admin/super_admin), validación enabled, multi-key |
+| **TOTAL** | | **319** | |
 
 ---
 

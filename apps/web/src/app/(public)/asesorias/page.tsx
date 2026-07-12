@@ -1,6 +1,8 @@
 import type { Metadata } from 'next'
 import Link from 'next/link'
 import { getWhatsAppURL } from '@/lib/whatsapp'
+import { getTestimonials } from '@vps/database'
+import TestimonialsCarousel from '@/components/testimonials/TestimonialsCarousel'
 
 export const metadata: Metadata = {
   title: 'Asesorías Profesionales',
@@ -15,7 +17,10 @@ const services = [
 ]
 
 export default async function AsesoriasPage() {
-  const waUrl = await getWhatsAppURL('asesoria')
+  const [waUrl, testimonials] = await Promise.all([
+    getWhatsAppURL('asesoria'),
+    getTestimonials(true).catch(() => []),
+  ])
 
   return (
     <div className="bg-brand-cream min-h-screen pt-16">
@@ -63,6 +68,18 @@ export default async function AsesoriasPage() {
           </div>
         </div>
       </section>
+
+      {/* Testimonios */}
+      {testimonials.length > 0 && (
+        <section className="py-24 bg-brand-primary overflow-hidden">
+          <div className="max-w-7xl mx-auto px-6">
+            <h2 className="font-display text-brand-cream text-section text-center mb-14">
+              Lo que dicen nuestros clientes
+            </h2>
+            <TestimonialsCarousel testimonials={testimonials} />
+          </div>
+        </section>
+      )}
 
       {/* Formulario de consulta */}
       <section className="py-24 bg-brand-cream-warm">

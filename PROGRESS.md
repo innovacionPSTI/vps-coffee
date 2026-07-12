@@ -1,5 +1,5 @@
 # VPS Coffee — Estado del Proyecto
-> **Última actualización:** Julio 2026 (v3) · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
+> **Última actualización:** Julio 2026 (v6) · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
 
 ---
 
@@ -13,7 +13,7 @@
 - `.env.example` con todas las variables documentadas
 
 ### `packages/config`
-- `tailwind.config.ts` — paleta VPS completa (colores, fuentes, sombras, borderRadius arch)
+- `tailwind.config.ts` — paleta VPS completa (colores hardcoded para admin, fuentes, sombras, borderRadius arch)
 - `tsconfig.json` compartido
 
 ### `packages/database`
@@ -33,6 +33,17 @@
 - `supabase/migrations/11_legal_content.sql` — añade `terms_content` y `privacy_content` (TEXT nullable) a `store_config`; editor Markdown en admin
 - `supabase/migrations/12_social_links.sql` — añade `instagram_url/enabled`, `facebook_url/enabled`, `tiktok_url/enabled` a `store_config`; iconos SVG en footer
 - `supabase/migrations/13_skydropx_origin_address.sql` — añade 8 campos de dirección de origen a `shipping_config` (origin_name, origin_street, origin_neighborhood, origin_city, origin_department, origin_postal_code, origin_phone, origin_email) — **ejecutar manualmente en Supabase SQL Editor**
+- `supabase/migrations/14_maintenance_mode.sql` — añade `maintenance_mode` y `analytics_enabled` (boolean) a `store_config`
+- `supabase/migrations/15_coupons.sql` — tabla `coupons` con código, tipo (percentage/fixed), valor, mínimo de pedido, usos máximos, contador de usos, expiración, estado activo
+- `supabase/migrations/16_testimonials.sql` — tabla `testimonials` con autor, cargo, contenido, avatar, rating (1-5), orden, estado activo
+- `supabase/migrations/17_cart_items.sql` — tabla `cart_items` para sincronizar carrito de usuarios logueados (FK a `customers`)
+- `src/queries/coupons.ts` — `getCoupons`, `getCouponByCode`, **`validateCoupon` (función pura)**, `createCoupon`, `updateCoupon`, `deleteCoupon`, `incrementCouponUsage`
+- `src/queries/testimonials.ts` — `getTestimonials(onlyActive)`, `createTestimonial`, `updateTestimonial`, `deleteTestimonial`
+- `src/queries/cart.ts` — `getCartItems`, `upsertCartItem`, `removeCartItem`, `clearCart`, `replaceCart`
+- `src/queries/sections.ts` — `getSectionSettings()` (lista todas ordenadas por `order_index`), `isSectionEnabled(key)` (fail-open: devuelve `true` si la tabla no existe)
+- `src/queries/themes.ts` — `getThemes()`, `getActiveTheme()`, `createTheme()`, `updateTheme()`, `setActiveTheme()`, `deleteTheme()` (protege activo y predeterminado)
+- `supabase/migrations/18_themes.sql` — tabla `themes` con paleta hex completa (`color_primary`, `color_dark`, `color_cream`, `color_cream_warm`, `color_yellow`, `color_yellow_pale`, `color_text`) y selección de fuentes (`font_display`, `font_body`); seed con tema VPS Coffee original; unique index parcial `WHERE is_active = true`
+- `src/types.ts` — añadidas tablas `order_items` (con `image_url`), `section_settings`, `themes`; añadida función `increment_coupon_usage` en `Database['public']['Functions']`
 
 ### `packages/ui`
 - `Button`, `Badge`, `ProductCard`, `Spinner` — componentes base con variantes VPS
@@ -41,8 +52,9 @@
 ### `apps/web` — Sitio público
 **Setup:**
 - `package.json`, `next.config.ts`, `tailwind.config.ts`, `postcss.config.js`, `tsconfig.json`
-- `globals.css` con fuentes Ahsing/Geeeki, variables CSS, utilidades arch/scrollbar
-- `app/layout.tsx` con metadata SEO global
+- `globals.css` — fuentes Ahsing/Geeeki, utilidades arch/scrollbar; **valores por defecto de CSS custom properties** para colores brand (`--brand-primary`, `--brand-cream`, etc. como canales RGB) y fuentes (`--font-display`, `--font-body`)
+- `tailwind.config.ts` — **overrides de colores** usando `rgb(var(--brand-xxx) / <alpha-value>)` para soporte de modificadores de opacidad en runtime; fontFamily apunta a `--font-display` y `--font-body`
+- `app/layout.tsx` — **carga tema activo** con `getActiveTheme()` e **inyecta `<style>`** en el `<head>` con CSS vars sobreescritas; pre-carga Playfair Display e Inter como alternativas de fuente
 
 **Auth (Stack Auth):**
 - `src/stack.ts` — `StackServerApp` (tokenStore: nextjs-cookie, urls custom: /login, /registro, /mi-cuenta)
@@ -63,7 +75,7 @@
 - `(account)/layout.tsx` — idem, misma configuración
 
 **Store:**
-- `store/cart.ts` — Zustand + localStorage, addItem/removeItem/updateQty/subtotal
+- `store/cart.ts` — Zustand + localStorage, addItem/removeItem/updateQty/subtotal; **`syncToServer` + `loadFromServer`** para usuarios logueados
 
 **Páginas:**
 | Ruta | Archivo | Modo |
@@ -111,6 +123,11 @@
 | `POST /api/webhooks/wompi` | Verifica firma SHA256, actualiza estado de pago → `createShipmentForOrder()` → email de tracking |
 | `POST /api/webhooks/mercadopago` | Consulta pago en API MP, actualiza estado → `createShipmentForOrder()` → email de tracking |
 | `POST /api/webhooks/skydropx` | Mapea `workflow_status` / eventos PRO a estado de orden; envía email de tracking al entrar en tránsito |
+| `GET /api/maintenance-status` | Retorna `{maintenance_mode}` desde `store_config`; ISR 60s |
+| `POST /api/checkout/coupon` | Valida cupón (código + subtotal); retorna `{code, type, value, discount}` o error |
+| `GET /api/account/cart` | Retorna items del carrito en BD para el usuario logueado |
+| `POST /api/account/cart` | Reemplaza todo el carrito en BD (sincronización completa) |
+| `DELETE /api/account/cart` | Limpia el carrito en BD |
 
 **Componentes:**
 - `HeroCarousel` — autoplay 5s, fade, dots, flechas; usa `<picture>` + `<source media="(max-width: 768px)">` para mostrar imagen mobile en móvil e imagen desktop en escritorio
@@ -125,10 +142,13 @@
 - `components/account/ProfileForm` — editar nombre y teléfono del cliente; PATCH a `/api/account/profile`
 - `components/account/AddressesForm` — lista y agregar direcciones guardadas con modal inline
 - `components/pedidos/PickupModal` — modal para seleccionar órdenes y programar recolección Skydropx
+- `components/testimonials/TestimonialsCarousel` — carrusel automático (5s), 3 cards visibles, dots + flechas, pausa en hover; usa datos de BD
+- `components/auth/CartSyncOnLogin` — componente invisible montado en root layout; detecta login y sincroniza carrito localStorage ↔ BD
 - `lib/whatsapp.ts` — async, lee número desde `getStoreConfig()` en BD; fallback `573XXXXXXXXX`
 - `lib/wompi.ts` — `buildWompiCheckoutUrl` (firma SHA256), `verifyWompiWebhook`, `mapWompiStatus`; sin process.env
 - `lib/mercadopago.ts` — `createMercadoPagoPreference`, `getMercadoPagoPayment`, `mapMercadoPagoStatus`, `isMercadoPagoSandbox`; sin process.env
 - `lib/email.ts` — `sendOrderConfirmation`, `sendShippingNotification`, `sendWelcomeEmail`, `sendNewsletterConfirmation` vía Resend (fetch directo); credenciales como parámetros
+- `lib/markdown.ts` — **conversor Markdown→HTML sin dependencias externas**, compartido entre blog y páginas legales; soporta h1/h2/h3 (con o sin espacio tras `#`), **bold**, *italic*, `code`, links y listas; extraído de `LegalPage.tsx`; aplicado en `/blog/[slug]/page.tsx`
 - `lib/shipping/types.ts` — interfaces `ShippingAddress`, `ShippingRate`, `Parcel`, `calculateParcel()`
 - `lib/shipping/index.ts` — factory `getShippingProvider()` + exports de providers
 - `lib/shipping/providers/fixed/index.ts` — `FixedRateProvider`: devuelve tarifa fija desde config
@@ -152,7 +172,7 @@
 - Roles disponibles: `super_admin`, `admin`, `vendedor`, `gestor_tienda`, `miembro` (sin acceso al panel), `customer`
 
 **Layout:**
-- `AdminSidebar` — sidebar `#614A2A`, nav activo, Configuración al final de la lista
+- `AdminSidebar` — sidebar `#614A2A`; **grupos colapsables** (Catálogo, Ventas, Contenido, Administración); visibilidad filtrada por rol; auto-expande el grupo activo; sub-ítems de Configuración (General, Temas, Envíos, Pagos, Emails, Legal); **Newsletter** añadido al grupo Contenido (visible para gestor_tienda, admin, super_admin)
 - `AdminTopbar` — barra superior con búsqueda y avatar
 
 **Componentes:**
@@ -161,7 +181,7 @@
 **Páginas implementadas:**
 | Ruta | Contenido |
 |------|-----------|
-| `/dashboard` | Stats (ventas hoy, pedidos pendientes, productos), tabla pedidos recientes |
+| `/dashboard` | **Dashboard adaptado por rol**: admin ve ventas/métricas/stock; vendedor ve estado de órdenes urgentes y stock bajo; gestor_tienda ve secciones web, blog, banners y cupones próximos a vencer |
 | `/productos` | Tabla CRUD con precio rango, stock badge, estado |
 | `/productos/nuevo` | Formulario de creación con variantes, imágenes, SEO |
 | `/productos/[id]` | Formulario de edición |
@@ -174,7 +194,17 @@
 | `/usuarios` | CRUD de usuarios del panel: invitar (crea en Stack Auth con rol `miembro` + envía email de contraseña), cambiar rol, eliminar |
 | `/blog/nuevo` | Formulario de creación de artículo: título, slug auto-generado, imagen de portada, categoría, toggle publicado/borrador, extracto, contenido Markdown, SEO |
 | `/blog/[id]` | Formulario de edición de artículo; botón eliminar; botón "Previsualizar ↗" — activa Draft Mode mediante cookie |
-| `/configuracion` | `ShippingConfigForm` (tarifa fija + toggle envío gratis + monto mínimo + credenciales Skydropx), `PaymentConfigForm` (Wompi+MP), `EmailConfigForm` (Resend), `StoreConfigForm` (WhatsApp, logo, **redes sociales con toggle + URL por red**), `LegalConfigForm` (editor Markdown con tabs Términos/Privacidad) |
+| `/configuracion` | → redirige a `/configuracion/general` |
+| `/configuracion/general` | `StoreConfigForm` — WhatsApp, logo, nombre, email, redes sociales, **modo mantenimiento**, **analytics toggle** |
+| `/configuracion/envios` | `ShippingConfigForm` — tarifa fija, envío gratis, Skydropx, dirección de origen (solo admin/super_admin) |
+| `/configuracion/pagos` | `PaymentConfigForm` — Wompi + MercadoPago (solo admin/super_admin) |
+| `/configuracion/emails` | `EmailConfigForm` — Resend (solo admin/super_admin) |
+| `/configuracion/legal` | `LegalConfigForm` — editor Markdown Términos/Privacidad |
+| `/cupones` | CRUD de cupones — código (uppercase), tipo (%), valor, mínimo de pedido, usos máximos, expiración, estado activo; badges Activo/Inactivo/Expirado/Agotado |
+| `/testimonios` | CRUD de testimonios — nombre, cargo, contenido, avatar, rating estrellas, orden, toggle visible; vista en tarjetas |
+| `/secciones` | **Hub central de contenido configurable**: toggles para habilitar/deshabilitar secciones del home (hero, productos destacados, servicios, más vendidos, blog preview, newsletter); CRUD inline de servicios (banners de tipo `services`) |
+| `/configuracion/temas` | **Editor de temas** — crear/editar perfiles de colores y tipografía; color pickers por campo brand; selector fuente display (Cormorant / Playfair) y body (DM Sans / Inter); preview en tiempo real; activar tema → se aplica al sitio inmediatamente |
+| `/newsletter` | **Gestión de newsletter** — pestaña Suscriptores (tabla con email, fecha, estado activo/inactivo + exportar CSV) y pestaña Enviar campaña (formulario asunto + cuerpo Markdown, preview destinatarios activos, confirmación, feedback de resultado) |
 
 **API Admin:**
 | Ruta | Función |
@@ -201,6 +231,22 @@
 | `DELETE /api/admin/upload` | Elimina archivo de Storage |
 | `POST /api/admin/pickups` | Programa recolección en Skydropx PRO (fecha + ventana horaria + lista de shipment_ids) |
 | `GET /api/admin/pickups` | Lista recolecciones programadas (paginado) |
+| `GET /api/admin/coupons` | Lista todos los cupones |
+| `POST /api/admin/coupons` | Crea cupón (código → uppercase); detecta duplicado (409) |
+| `PATCH /api/admin/coupons` | Edita cupón o cambia estado activo/inactivo |
+| `DELETE /api/admin/coupons` | Elimina cupón |
+| `GET /api/admin/testimonios` | Lista todos los testimonios (incluyendo inactivos) |
+| `POST /api/admin/testimonios` | Crea testimonio |
+| `PATCH /api/admin/testimonios` | Edita testimonio o cambia visibilidad |
+| `DELETE /api/admin/testimonios` | Elimina testimonio |
+| `GET /api/admin/sections` | Lista todas las secciones web con estado `enabled` |
+| `PATCH /api/admin/sections/[key]` | Habilita o deshabilita una sección del sitio |
+| `GET /api/admin/themes` | Lista todos los temas de color/tipografía |
+| `POST /api/admin/themes` | Crea un nuevo tema (inactivo por defecto) |
+| `PATCH /api/admin/themes/[id]` | Edita campos del tema; `{ setActive: true }` lo activa globalmente |
+| `DELETE /api/admin/themes/[id]` | Elimina tema (no permite borrar activo ni predeterminado) |
+| `GET /api/admin/newsletter` | Lista todos los suscriptores de newsletter ordenados por fecha descendente |
+| `POST /api/admin/newsletter/send` | Broadcast de email a todos los suscriptores activos vía Resend; lee credenciales desde `store_config`; envío en lotes de 50; retorna `{total, sent, failed}` |
 
 ---
 
@@ -215,14 +261,35 @@
 - [x] **Modal de despacho masivo** — `PickupModal` en `/pedidos` para seleccionar órdenes con guía y programar recolección Skydropx ✅
 - [x] **Blog Draft Mode** — botón "Previsualizar" en el editor activa cookie `__vps_draft` por 1h; artículo se renderiza con banner de borrador ✅
 
+### Completado en v4
+- [x] **Sub-navegación de Configuración** — sidebar con grupo expandible y 5 sub-rutas (General, Envíos, Pagos, Emails, Legal) ✅
+- [x] **Modo mantenimiento** — toggle en admin → middleware Next.js redirige todo el sitio; caché 60s; página `/maintenance` con WhatsApp ✅
+- [x] **Cupones de descuento** (C-06) — tabla `coupons`, `validateCoupon` (función pura), API checkout `/coupon`, campo con "Aplicar" en resumen del checkout, CRUD en `/cupones` del admin ✅
+- [x] **Selección de transportadora** (S-04) — checkout muestra radio buttons con tarifas Skydropx disponibles; el cliente elige su opción de envío ✅
+- [x] **Carrusel de testimonios** (SV-06) — CRUD en `/testimonios` del admin; carrusel automático con 3 cards en `/asesorias`; solo se muestra si hay testimonios activos ✅
+- [x] **Sincronización carrito con BD** (C-07) — `cart_items` en Supabase; `CartSyncOnLogin` detecta login, fusiona localStorage + BD; mutations fire-and-forget hacia `/api/account/cart` ✅
+- [x] **Vercel Analytics** (SEO-09) — `<Analytics />` condicional según `store_config.analytics_enabled`; toggle en `/configuracion/general` ✅
+- [x] **next/image con Supabase CDN** (SEO-08) — `next.config.ts` con `remotePatterns` para `supabase.co`; imágenes optimizadas con `<Image>` ✅
+
+### Completado en v5
+- [x] **Secciones web configurables** — tabla `section_settings`; página `/secciones` en admin con toggles enable/disable; home respeta flags; fail-open (si no existe la tabla, todas las secciones se muestran) ✅
+- [x] **Servicios dinámicos** — servicios separados de banners; CRUD inline en `/secciones`; `ServicesSection.tsx` renderiza N paneles desde BD; auto-detección de WhatsApp en CTA ✅
+- [x] **Dashboard por rol** — `admin/super_admin`: ventas hoy/semana/mes, stock crítico, pedidos recientes, top productos; `vendedor`: conteo por estado, órdenes urgentes (rojo si >2 días), stock bajo; `gestor_tienda`: secciones activas, blog borradores, banners hero, testimonios inactivos, cupones por vencer ✅
+- [x] **Sidebar con grupos colapsables** — NavGroup/NavLeaf/NavLeafWithSubs; grupos: Catálogo, Ventas, Contenido, Administración; visibility filtrada por rol; auto-expande grupo activo ✅
+- [x] **Roles actualizados** — `secciones` añadida a AdminSection; vendedor acotado a ventas; gestor_tienda incluye secciones/testimonios/cupones/configuracion ✅
+- [x] **Sistema de temas** — tabla `themes`; CSS custom properties en web (`rgb(var(--brand-xxx) / <alpha-value>)`) para soporte de opacidad; layout inyecta tema activo como `<style>` en `<head>`; fuentes opcionales Playfair Display e Inter pre-cargadas; editor en `/configuracion/temas` con color pickers, selectores de fuente y preview en vivo ✅
+- [x] **Corrección de tipos Database** — `order_items`, `section_settings`, `themes` añadidas a `Database['public']['Tables']`; `increment_coupon_usage` añadida a `Functions`; ambas apps pasan `tsc --noEmit` sin errores ✅
+
+### Completado en v6
+- [x] **Gestión de newsletter desde admin** — página `/newsletter` bajo grupo Contenido (accessible para gestor_tienda+); pestaña suscriptores con tabla y exportación CSV; pestaña composición con formulario Markdown + broadcast vía Resend en lotes; confirmación antes de enviar ✅
+- [x] **Conversor Markdown compartido** — `lib/markdown.ts` extraído a librería compartida; `/blog/[slug]` y `LegalPage.tsx` lo usan; corregida detección de títulos sin espacio tras `#` (ej. `##texto`) ✅
+- [x] **`'newsletter'` en roles y sidebar** — `AdminSection` extendido; `ROLE_CONFIG` actualizado para super_admin, admin y gestor_tienda; ítem 📧 Newsletter añadido al grupo Contenido ✅
+
 ### Pendiente
-- [ ] **Cupones de descuento** — tabla `coupons` + validación en checkout + campo en carrito (C-06)
-- [ ] **Sincronización carrito con BD** para usuarios logueados (C-07)
+- [ ] **Tests newsletter** — API routes GET /api/admin/newsletter y POST /api/admin/newsletter/send
 - [ ] **Tracking en Mi Cuenta** — timeline visual del estado del pedido / Skydropx
-- [ ] **Carrusel de testimonios** en Asesorías (SV-06)
-- [ ] **Vercel Analytics** — integración en `apps/web/app/layout.tsx` (SEO-09)
-- [ ] **Optimización de imágenes** con `next/image` + dominios Supabase (SEO-08)
 - [ ] **Responsive audit** mobile-first completo
+- [ ] **Fuentes adicionales de tema** — ampliar opciones de display y body en el editor de temas
 
 ---
 
@@ -258,6 +325,15 @@ packages/database/supabase/migrations/6_email_config.sql
 packages/database/supabase/migrations/7_shipping_profiles.sql
 packages/database/supabase/migrations/8_customers.sql
 packages/database/supabase/migrations/9_customer_addresses.sql
+packages/database/supabase/migrations/10_shipping_free_threshold.sql
+packages/database/supabase/migrations/11_legal_content.sql
+packages/database/supabase/migrations/12_social_links.sql
+packages/database/supabase/migrations/13_skydropx_origin_address.sql
+packages/database/supabase/migrations/14_maintenance_mode.sql
+packages/database/supabase/migrations/15_coupons.sql
+packages/database/supabase/migrations/16_testimonials.sql
+packages/database/supabase/migrations/17_cart_items.sql
+packages/database/supabase/migrations/18_themes.sql
 ```
 
 ### 5. Levantar el proyecto
@@ -316,6 +392,7 @@ vps-coffee/
 │   │       ├── wompi.ts                — buildWompiCheckoutUrl, verifyWompiWebhook, mapWompiStatus
 │   │       ├── mercadopago.ts          — createMercadoPagoPreference, getMercadoPagoPayment, etc.
 │   │       ├── email.ts                — sendOrderConfirmation, sendShippingNotification, sendWelcomeEmail
+│   │       ├── markdown.ts             — markdownToHtml(); h1/h2/h3, bold, italic, code, links, listas
 │   │       └── skydropx/
 │   │
 │   └── admin/src/
@@ -335,21 +412,46 @@ vps-coffee/
 │       │   │   └── ClientesClient.tsx  — búsqueda, filtros con/sin cuenta, tabla con badge de tipo
 │       │   ├── usuarios/
 │       │   │   └── UsuariosClient.tsx  — invitar (siempre como miembro), cambiar rol, eliminar
+│       │   ├── cupones/
+│       │   ├── testimonios/
+│       │   ├── secciones/
+│       │   │   ├── page.tsx            — Server Component: carga section_settings + services banners
+│       │   │   └── SeccionesClient.tsx — toggles enable/disable + CRUD inline de servicios
+│       │   ├── newsletter/
+│       │   │   ├── page.tsx            — Server Component: auth guard (gestor_tienda+) + carga suscriptores
+│       │   │   └── NewsletterClient.tsx — tabs: Suscriptores (tabla + CSV) y Enviar campaña (Markdown + broadcast)
 │       │   ├── configuracion/
-│       │   │   ├── page.tsx            — carga shipping + store_config + payment_config
-│       │   │   ├── ShippingConfigForm.tsx
-│       │   │   ├── StoreConfigForm.tsx — WhatsApp, logo, nombre, email
-│       │   │   ├── PaymentConfigForm.tsx — Wompi + MP con SecretInput + toggles
-│       │   │   └── EmailConfigForm.tsx — Resend API key + from email
+│       │   │   ├── page.tsx            — redirige a /configuracion/general
+│       │   │   ├── general/
+│       │   │   │   └── page.tsx        — StoreConfigForm (WhatsApp, logo, nombre, email, redes, mantenimiento, analytics)
+│       │   │   ├── envios/
+│       │   │   │   └── page.tsx        — ShippingConfigForm (proveedor, tarifa fija, envío gratis, Skydropx, origen)
+│       │   │   ├── pagos/
+│       │   │   │   └── page.tsx        — PaymentConfigForm (Wompi + MP)
+│       │   │   ├── emails/
+│       │   │   │   └── page.tsx        — EmailConfigForm (Resend API key + from email)
+│       │   │   ├── legal/
+│       │   │   │   └── page.tsx        — LegalConfigForm (Markdown Términos + Privacidad)
+│       │   │   └── temas/
+│       │   │       ├── page.tsx        — Server Component: auth guard + getThemes()
+│       │   │       └── TemasClient.tsx — ThemeCard, ThemeModal, ThemePreview; color pickers, font selectors, live preview
 │       │   └── api/admin/
 │       │       ├── products/           — POST (crea con imágenes), GET/PATCH/DELETE [id]
 │       │       ├── orders/[id]/status/
 │       │       ├── shipping/           — GET+PATCH con validación y secret masking
 │       │       ├── config/             — GET+PATCH store_config + Resend; enmascara resend_api_key
 │       │       ├── payment-config/     — GET+PATCH payment_config; secrets ••••last4 + has_* flags
-│       │       └── upload/             — POST/DELETE con auto-create de bucket
+│       │       ├── upload/             — POST/DELETE con auto-create de bucket
+│       │       ├── sections/
+│       │       │   └── [key]/route.ts  — PATCH: habilita/deshabilita sección
+│       │       ├── themes/
+│       │       │   ├── route.ts        — GET (listar) + POST (crear)
+│       │       │   └── [id]/route.ts   — PATCH (editar o setActive) + DELETE (guarda activo/default)
+│       │       └── newsletter/
+│       │           ├── route.ts        — GET: lista newsletter_subscribers ordenados por fecha
+│       │           └── send/route.ts   — POST: broadcast a suscriptores activos vía Resend (lotes 50); Markdown→HTML inline
 │       └── components/
-│           ├── layout/                 — AdminSidebar, AdminTopbar
+│           ├── layout/                 — AdminSidebar (grupos colapsables, rol-aware), AdminTopbar
 │           └── ImageUpload.tsx         — drag & drop; onUploadStateChange callback
 │
 ├── packages/
@@ -361,7 +463,12 @@ vps-coffee/
 │   │   │   ├── blog.ts
 │   │   │   ├── banners.ts
 │   │   │   ├── shipping-config.ts
-│   │   │   └── store-config.ts         — getStoreConfig / updateStoreConfig
+│   │   │   ├── store-config.ts         — getStoreConfig / updateStoreConfig
+│   │   │   ├── coupons.ts              — getCoupons, validateCoupon (pura), CRUD, incrementCouponUsage
+│   │   │   ├── testimonials.ts         — getTestimonials(onlyActive), CRUD
+│   │   │   ├── cart.ts                 — getCartItems, upsertCartItem, removeCartItem, clearCart, replaceCart
+│   │   │   ├── sections.ts             — getSectionSettings(), isSectionEnabled() (fail-open)
+│   │   │   └── themes.ts               — getThemes(), getActiveTheme(), createTheme(), updateTheme(), setActiveTheme(), deleteTheme()
 │   │   └── supabase/migrations/
 │   │       ├── 1_initial_schema.sql        — Stack Auth-native: sin FK auth.users, sin triggers
 │   │       ├── 2_shipping_config.sql
@@ -369,7 +476,18 @@ vps-coffee/
 │   │       ├── 4_store_config.sql
 │   │       ├── 5_payment_config.sql
 │   │       ├── 6_email_config.sql
-│   │       └── 7_shipping_profiles.sql
+│   │       ├── 7_shipping_profiles.sql
+│   │       ├── 8_customers.sql
+│   │       ├── 9_customer_addresses.sql
+│   │       ├── 10_shipping_free_threshold.sql
+│   │       ├── 11_legal_content.sql
+│   │       ├── 12_social_links.sql
+│   │       ├── 13_skydropx_origin_address.sql
+│   │       ├── 14_maintenance_mode.sql
+│   │       ├── 15_coupons.sql
+│   │       ├── 16_testimonials.sql
+│   │       ├── 17_cart_items.sql
+│   │       └── 18_themes.sql
 │   └── config/
 │
 ├── .env.example

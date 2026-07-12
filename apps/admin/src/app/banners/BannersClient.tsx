@@ -19,10 +19,9 @@ interface Banner {
 
 interface Props {
   heroBanners: Banner[]
-  servicesBanners: Banner[]
 }
 
-export default function BannersClient({ heroBanners, servicesBanners }: Props) {
+export default function BannersClient({ heroBanners }: Props) {
   const [modal, setModal] = useState<{
     open: boolean
     banner?: Banner
@@ -88,37 +87,6 @@ export default function BannersClient({ heroBanners, servicesBanners }: Props) {
           )}
         </section>
 
-        {/* Servicios */}
-        <section className="bg-white rounded-2xl p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="font-brand font-semibold text-brand-primary">Sección Servicios</h2>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {(['maquila', 'asesorias'] as const).map((section) => {
-              const existing = servicesBanners.find((b) => b.section === section)
-              const label = section === 'maquila' ? 'Maquila' : 'Asesorías'
-
-              return existing ? (
-                <BannerCard
-                  key={existing.id}
-                  banner={existing}
-                  onEdit={() => setModal({ open: true, banner: existing })}
-                />
-              ) : (
-                <div
-                  key={section}
-                  onClick={() => setModal({ open: true, defaultSection: section })}
-                  className="border-2 border-dashed border-gray-100 rounded-xl p-6 flex flex-col items-center justify-center gap-2 cursor-pointer hover:border-brand-primary/30 hover:bg-gray-50 transition-colors min-h-[140px]"
-                >
-                  <span className="text-2xl">🖼️</span>
-                  <p className="font-brand text-sm text-brand-primary/50">Imagen {label}</p>
-                  <p className="font-brand text-xs text-brand-primary/30">Haz clic para agregar</p>
-                </div>
-              )
-            })}
-          </div>
-        </section>
       </div>
     </>
   )

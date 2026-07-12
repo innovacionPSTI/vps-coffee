@@ -1,11 +1,78 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createOrder, getPaymentConfig } from '@vps/database'
+import { createOrder, getPaymentConfig, createServerClient } from '@vps/database'
+import { stackServerApp } from '@/stack'
 import { buildWompiCheckoutUrl } from '@/lib/wompi'
 import {
   createMercadoPagoPreference,
   isMercadoPagoSandbox,
   type MPItem,
 } from '@/lib/mercadopago'
+
+/**
+ * Auto-guarda la dirección de envío en customer_addresses para el usuario logueado.
+ * Se llama silenciosamente después de crear la orden — nunca bloquea el checkout.
+ */
+async function saveAddressForUser(
+  stackUserId: string,
+  userEmail: string,
+  shipping: { name: string; phone: string | null; address: string; city: string; department: string | null; postal_code: string | null }
+) {
+  try {
+    const supabase = createServerClient()
+
+    // Buscar el customer
+    let { data: customer } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('stack_id', stackUserId)
+      .maybeSingle()
+
+    if (!customer) {
+      const { data: byEmail } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', userEmail)
+        .maybeSingle()
+      customer = byEmail
+    }
+
+    if (!customer?.id) return
+
+    // Verificar si ya existe una dirección igual para no duplicar
+    const { data: existing } = await supabase
+      .from('customer_addresses')
+      .select('id')
+      .eq('customer_id', customer.id)
+      .eq('address', shipping.address)
+      .eq('city', shipping.city)
+      .maybeSingle()
+
+    if (existing) return // Ya guardada, no duplicar
+
+    // Si no tiene dirección default, esta será la default
+    const { data: hasDefault } = await supabase
+      .from('customer_addresses')
+      .select('id')
+      .eq('customer_id', customer.id)
+      .eq('is_default', true)
+      .maybeSingle()
+
+    const isDefault = !hasDefault
+
+    await supabase.from('customer_addresses').insert({
+      customer_id: customer.id,
+      full_name: shipping.name,
+      phone: shipping.phone,
+      address: shipping.address,
+      city: shipping.city,
+      department: shipping.department,
+      postal_code: shipping.postal_code,
+      is_default: isDefault,
+    })
+  } catch {
+    // Non-critical — never block the checkout
+  }
+}
 
 export async function POST(req: NextRequest) {
   try {
@@ -21,6 +88,9 @@ export async function POST(req: NextRequest) {
       shipping_cost,
       total,
       payment_method,
+      discount,
+      coupon_code,
+      skydropx_rate_id,
     } = body
 
     if (!email || !name || !address || !items?.length) {
@@ -75,6 +145,21 @@ export async function POST(req: NextRequest) {
       total,
       payment_method: method,
     })
+
+    // Auto-guardar dirección para el usuario logueado (silencioso, no bloquea)
+    try {
+      const sessionUser = await stackServerApp.getUser()
+      if (sessionUser?.id && sessionUser?.primaryEmail) {
+        saveAddressForUser(sessionUser.id, sessionUser.primaryEmail, {
+          name,
+          phone: phone ?? null,
+          address: address.address,
+          city: address.city,
+          department: address.department ?? null,
+          postal_code: address.postal_code ?? null,
+        })
+      }
+    } catch { /* non-critical */ }
 
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vpscoffee.com').replace(/\/$/, '')
     const confirmUrl = `${siteUrl}/checkout/confirmacion?order=${order.order_number}`

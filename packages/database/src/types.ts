@@ -466,6 +466,8 @@ export type Database = {
           facebook_enabled: boolean
           tiktok_url: string | null
           tiktok_enabled: boolean
+          maintenance_mode: boolean
+          analytics_enabled: boolean
           updated_at: string
         }
         Insert: {
@@ -484,6 +486,8 @@ export type Database = {
           facebook_enabled?: boolean
           tiktok_url?: string | null
           tiktok_enabled?: boolean
+          maintenance_mode?: boolean
+          analytics_enabled?: boolean
           updated_at?: string
         }
         Update: {
@@ -502,9 +506,133 @@ export type Database = {
           facebook_enabled?: boolean
           tiktok_url?: string | null
           tiktok_enabled?: boolean
+          maintenance_mode?: boolean
+          analytics_enabled?: boolean
           updated_at?: string
         }
         Relationships: []
+      }
+      coupons: {
+        Row: {
+          id: number
+          code: string
+          type: 'percentage' | 'fixed'
+          value: number
+          min_order_amount: number
+          max_uses: number | null
+          used_count: number
+          expires_at: string | null
+          active: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          code: string
+          type: 'percentage' | 'fixed'
+          value: number
+          min_order_amount?: number
+          max_uses?: number | null
+          used_count?: number
+          expires_at?: string | null
+          active?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          code?: string
+          type?: 'percentage' | 'fixed'
+          value?: number
+          min_order_amount?: number
+          max_uses?: number | null
+          used_count?: number
+          expires_at?: string | null
+          active?: boolean
+          created_at?: string
+        }
+        Relationships: []
+      }
+      testimonials: {
+        Row: {
+          id: number
+          author_name: string
+          author_role: string | null
+          content: string
+          avatar_url: string | null
+          rating: number
+          active: boolean
+          order_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          author_name: string
+          author_role?: string | null
+          content: string
+          avatar_url?: string | null
+          rating?: number
+          active?: boolean
+          order_index?: number
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          author_name?: string
+          author_role?: string | null
+          content?: string
+          avatar_url?: string | null
+          rating?: number
+          active?: boolean
+          order_index?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      cart_items: {
+        Row: {
+          id: number
+          customer_id: string
+          variant_id: number
+          product_id: number
+          product_name: string
+          variant_label: string
+          qty: number
+          price: number
+          image_url: string | null
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          customer_id: string
+          variant_id: number
+          product_id: number
+          product_name: string
+          variant_label: string
+          qty?: number
+          price: number
+          image_url?: string | null
+          created_at?: string
+        }
+        Update: {
+          id?: number
+          customer_id?: string
+          variant_id?: number
+          product_id?: number
+          product_name?: string
+          variant_label?: string
+          qty?: number
+          price?: number
+          image_url?: string | null
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'cart_items_customer_id_fkey'
+            columns: ['customer_id']
+            isOneToOne: false
+            referencedRelation: 'customers'
+            referencedColumns: ['id']
+          }
+        ]
       }
       payment_config: {
         Row: {
@@ -664,12 +792,135 @@ export type Database = {
           }
         ]
       }
+      order_items: {
+        Row: {
+          id: number
+          order_id: string | null
+          product_id: number
+          variant_id: number
+          product_name: string
+          variant_label: string
+          image_url: string | null
+          qty: number
+          price: number
+        }
+        Insert: {
+          id?: number
+          order_id?: string | null
+          product_id: number
+          variant_id: number
+          product_name: string
+          variant_label: string
+          image_url?: string | null
+          qty?: number
+          price: number
+        }
+        Update: {
+          id?: number
+          order_id?: string | null
+          product_id?: number
+          variant_id?: number
+          product_name?: string
+          variant_label?: string
+          image_url?: string | null
+          qty?: number
+          price?: number
+        }
+        Relationships: []
+      }
+      section_settings: {
+        Row: {
+          key: string
+          label: string
+          description: string | null
+          enabled: boolean
+          order_index: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          label: string
+          description?: string | null
+          enabled?: boolean
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          label?: string
+          description?: string | null
+          enabled?: boolean
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      themes: {
+        Row: {
+          id: number
+          name: string
+          is_active: boolean
+          is_default: boolean
+          color_primary: string
+          color_dark: string
+          color_cream: string
+          color_cream_warm: string
+          color_yellow: string
+          color_yellow_pale: string
+          color_text: string
+          font_display: string
+          font_body: string
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          is_active?: boolean
+          is_default?: boolean
+          color_primary?: string
+          color_dark?: string
+          color_cream?: string
+          color_cream_warm?: string
+          color_yellow?: string
+          color_yellow_pale?: string
+          color_text?: string
+          font_display?: string
+          font_body?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          is_active?: boolean
+          is_default?: boolean
+          color_primary?: string
+          color_dark?: string
+          color_cream?: string
+          color_cream_warm?: string
+          color_yellow?: string
+          color_yellow_pale?: string
+          color_text?: string
+          font_display?: string
+          font_body?: string
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      increment_coupon_usage: {
+        Args: { coupon_code: string }
+        Returns: undefined
+      }
     }
     Enums: {
       order_status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'exception'
@@ -749,3 +1000,7 @@ export type OrderWithItems = Order & {
 export type CustomerWithAddresses = Customer & {
   addresses: CustomerAddress[]
 }
+
+export type Coupon = Database['public']['Tables']['coupons']['Row']
+export type Testimonial = Database['public']['Tables']['testimonials']['Row']
+export type CartItem = Database['public']['Tables']['cart_items']['Row']

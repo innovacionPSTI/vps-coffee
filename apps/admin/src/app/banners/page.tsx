@@ -10,7 +10,6 @@ export default async function BannersPage() {
   const { data: allBanners } = await supabase.from('banners').select('*').order('order_index')
 
   const heroBanners = allBanners?.filter((b) => b.section === 'hero') ?? []
-  const servicesBanners = allBanners?.filter((b) => b.section !== 'hero') ?? []
 
-  return <BannersClient heroBanners={heroBanners} servicesBanners={servicesBanners} />
+  return <BannersClient heroBanners={heroBanners} />
 }

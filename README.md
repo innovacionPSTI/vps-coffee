@@ -51,7 +51,7 @@ El proyecto se compone de **dos aplicaciones Next.js** en un monorepo Turborepo:
 | Monorepo | Turborepo + pnpm workspaces | 2.0 / 9.0 |
 | Base de datos | Supabase (PostgreSQL) | — |
 | ORM / cliente | @supabase/supabase-js + @supabase/ssr | 2.x |
-| Autenticación | Stack Auth *(pendiente de integrar)* | — |
+| Autenticación | Stack Auth | — |
 | Estado global | Zustand (+ persist middleware) | 4.5 |
 | Estilos | Tailwind CSS | 3.4 |
 | Formularios | React Hook Form + Zod | 7.x / 3.x |
@@ -160,14 +160,12 @@ vps-coffee/
     │   ├── types.ts                        ← Tipos de todas las tablas
     │   ├── client.ts                       ← createBrowserClient / createServerClient
     │   ├── queries/
-    │   │   ├── products.ts
-    │   │   ├── orders.ts
-    │   │   ├── blog.ts
-    │   │   ├── banners.ts
-    │   │   └── shipping-config.ts          ← getShippingConfig / updateShippingConfig
-    │   └── supabase/migrations/
-    │       ├── 001_initial_schema.sql
-    │       └── 002_shipping_config.sql
+    │   │   ├── products.ts, orders.ts, blog.ts, banners.ts
+    │   │   ├── shipping-config.ts, store-config.ts, payment-config.ts
+    │   │   ├── coupons.ts, testimonials.ts, cart.ts
+    │   │   ├── sections.ts                 ← isSectionEnabled (fail-open)
+    │   │   └── themes.ts                   ← getActiveTheme, setActiveTheme, etc.
+    │   └── supabase/migrations/            ← 1_initial_schema.sql … 18_themes.sql
     └── config/
         ├── tailwind.config.ts              ← Design system VPS (colores, fuentes, etc.)
         └── tsconfig.json                   ← Configuración TypeScript base
@@ -220,21 +218,27 @@ Ver sección [7. Variables de entorno](#7-variables-de-entorno) para el detalle 
 
 En el **SQL Editor** de tu proyecto Supabase, ejecutar en orden:
 
-```sql
--- 1. Schema inicial
--- Contenido de: packages/database/supabase/migrations/001_initial_schema.sql
+Abrir el **SQL Editor** de Supabase y ejecutar los archivos en este orden:
 
--- 2. Configuración de envíos
--- Contenido de: packages/database/supabase/migrations/002_shipping_config.sql
-
--- 3. Banners con imagen web/mobile
--- Contenido de: packages/database/supabase/migrations/003_banners.sql
-
--- 4. Configuración general de la tienda
--- Contenido de: packages/database/supabase/migrations/004_store_config.sql
-
--- 5. Columna logo_url (idempotente, por si ya se aplicó la 004)
--- Contenido de: packages/database/supabase/migrations/005_store_config_logo.sql
+```
+packages/database/supabase/migrations/1_initial_schema.sql
+packages/database/supabase/migrations/2_shipping_config.sql
+packages/database/supabase/migrations/3_banner_mobile_image.sql
+packages/database/supabase/migrations/4_store_config.sql
+packages/database/supabase/migrations/5_payment_config.sql
+packages/database/supabase/migrations/6_email_config.sql
+packages/database/supabase/migrations/7_shipping_profiles.sql
+packages/database/supabase/migrations/8_customers.sql
+packages/database/supabase/migrations/9_customer_addresses.sql
+packages/database/supabase/migrations/10_shipping_free_threshold.sql
+packages/database/supabase/migrations/11_legal_content.sql
+packages/database/supabase/migrations/12_social_links.sql
+packages/database/supabase/migrations/13_skydropx_origin_address.sql
+packages/database/supabase/migrations/14_maintenance_mode.sql
+packages/database/supabase/migrations/15_coupons.sql
+packages/database/supabase/migrations/16_testimonials.sql
+packages/database/supabase/migrations/17_cart_items.sql
+packages/database/supabase/migrations/18_themes.sql
 ```
 
 ### Paso 5 — Levantar el proyecto

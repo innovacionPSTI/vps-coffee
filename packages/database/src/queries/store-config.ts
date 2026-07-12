@@ -16,6 +16,8 @@ export type StoreConfig = {
   facebook_enabled: boolean
   tiktok_url: string | null
   tiktok_enabled: boolean
+  maintenance_mode: boolean
+  analytics_enabled: boolean
   updated_at: string
 }
 
@@ -37,6 +39,8 @@ const DEFAULT_CONFIG: StoreConfig = {
   facebook_enabled: true,
   tiktok_url: null,
   tiktok_enabled: true,
+  maintenance_mode: false,
+  analytics_enabled: false,
   updated_at: new Date().toISOString(),
 }
 

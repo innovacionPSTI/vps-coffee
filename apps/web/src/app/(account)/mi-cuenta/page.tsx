@@ -1,10 +1,53 @@
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import { stackServerApp } from '@/stack'
-import { getShippingProfile } from '@vps/database'
-import ShippingProfileForm from '@/components/account/ShippingProfileForm'
+import { createServerClient } from '@vps/database'
 
 export const metadata: Metadata = { title: 'Mi perfil — VPS Coffee' }
+
+interface DefaultAddress {
+  full_name: string
+  phone: string | null
+  address: string
+  city: string
+  department: string | null
+  postal_code: string | null
+}
+
+async function getDefaultAddress(stackUserId: string, email: string): Promise<DefaultAddress | null> {
+  try {
+    const supabase = createServerClient()
+
+    let { data: customer } = await supabase
+      .from('customers')
+      .select('id')
+      .eq('stack_id', stackUserId)
+      .maybeSingle()
+
+    if (!customer) {
+      const { data: byEmail } = await supabase
+        .from('customers')
+        .select('id')
+        .eq('email', email)
+        .maybeSingle()
+      customer = byEmail
+    }
+
+    if (!customer?.id) return null
+
+    const { data: addresses } = await supabase
+      .from('customer_addresses')
+      .select('full_name, phone, address, city, department, postal_code, is_default')
+      .eq('customer_id', customer.id)
+      .order('is_default', { ascending: false })
+      .order('created_at', { ascending: false })
+
+    if (!addresses?.length) return null
+    return (addresses.find((a) => a.is_default) ?? addresses[0]) as DefaultAddress
+  } catch {
+    return null
+  }
+}
 
 export default async function MiCuentaPage() {
   const user = await stackServerApp.getUser()
@@ -12,8 +55,8 @@ export default async function MiCuentaPage() {
   const displayName = user?.displayName ?? ''
   const email = user?.primaryEmail ?? ''
   const firstName = displayName.split(' ')[0] || 'Bienvenido'
-  const shippingProfile = email
-    ? await getShippingProfile(email).catch(() => null)
+  const defaultAddress = user
+    ? await getDefaultAddress(user.id, email).catch(() => null)
     : null
 
   return (
@@ -109,8 +152,53 @@ export default async function MiCuentaPage() {
         </div>
       </div>
 
-      {/* Datos de envío */}
-      <ShippingProfileForm initial={shippingProfile} />
+      {/* Dirección de envío predeterminada */}
+      <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
+        <div className="flex items-center justify-between px-6 py-4 border-b border-brand-primary/8">
+          <div>
+            <h2 className="font-brand font-semibold text-brand-primary">Dirección de envío</h2>
+            <p className="font-brand text-xs text-brand-primary/40 mt-0.5">
+              Dirección predeterminada para tus compras
+            </p>
+          </div>
+          <Link
+            href="/mi-cuenta/perfil"
+            className="font-brand text-xs text-brand-primary/50 hover:text-brand-primary transition-colors flex items-center gap-1"
+          >
+            Gestionar
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+            </svg>
+          </Link>
+        </div>
+        <div className="px-6 py-5">
+          {defaultAddress ? (
+            <div className="space-y-1">
+              <p className="font-brand text-sm font-medium text-brand-primary">{defaultAddress.full_name}</p>
+              <p className="font-brand text-sm text-brand-primary/70">{defaultAddress.address}</p>
+              <p className="font-brand text-sm text-brand-primary/70">
+                {defaultAddress.city}{defaultAddress.department ? `, ${defaultAddress.department}` : ''}
+                {defaultAddress.postal_code ? ` · ${defaultAddress.postal_code}` : ''}
+              </p>
+              {defaultAddress.phone && (
+                <p className="font-brand text-sm text-brand-primary/70">{defaultAddress.phone}</p>
+              )}
+            </div>
+          ) : (
+            <div className="text-center py-4">
+              <p className="font-brand text-sm text-brand-primary/40 mb-3">
+                No tienes ninguna dirección guardada
+              </p>
+              <Link
+                href="/mi-cuenta/perfil"
+                className="font-brand text-sm text-brand-primary border border-brand-primary/20 rounded-full px-4 py-2 hover:bg-brand-cream transition-colors"
+              >
+                Agregar dirección
+              </Link>
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   )
 }

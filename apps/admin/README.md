@@ -35,7 +35,7 @@ Sin signup: los usuarios admin los crea únicamente el super_admin desde `/usuar
 | `super_admin` | Todo + gestión de usuarios y roles |
 | `admin` | Todo (sin gestión de usuarios) |
 | `vendedor` | Productos, Categorías, Pedidos, Clientes |
-| `gestor_tienda` | Banners, Blog, Configuración General |
+| `gestor_tienda` | Banners, Blog, Testimonios, Cupones, Secciones, Configuración (General, Temas, Legal) |
 
 ### Crear el primer super_admin
 
@@ -73,7 +73,21 @@ src/app/
 ├── blog/
 │   ├── page.tsx                  → /blog (lista de artículos)
 │   └── [id]/page.tsx             → /blog/[id] (editor + "Previsualizar ↗")
-├── configuracion/page.tsx        → /configuracion (secciones según rol)
+├── cupones/page.tsx              → /cupones (CRUD; gestor_tienda+)
+├── testimonios/page.tsx          → /testimonios (CRUD; gestor_tienda+)
+├── secciones/
+│   ├── page.tsx                  → /secciones (toggles home + CRUD servicios)
+│   └── SeccionesClient.tsx
+├── configuracion/
+│   ├── page.tsx                  → redirige a /configuracion/general
+│   ├── general/page.tsx          → identidad + redes + mantenimiento + analytics
+│   ├── envios/page.tsx           → proveedor de envíos + Skydropx + envío gratis
+│   ├── pagos/page.tsx            → Wompi + MercadoPago
+│   ├── emails/page.tsx           → Resend
+│   ├── legal/page.tsx            → Términos + Privacidad (Markdown)
+│   └── temas/
+│       ├── page.tsx              → /configuracion/temas (lista de temas)
+│       └── TemasClient.tsx       ← ThemeCard, ThemeModal, ThemePreview; live preview
 └── usuarios/
     ├── page.tsx                  → /usuarios (solo super_admin)
     └── UsuariosClient.tsx        ← UI de invitación y cambio de roles
@@ -90,7 +104,13 @@ src/app/
     ├── payment-config/route.ts
     ├── shipping/route.ts         ← Guarda credenciales Skydropx + dirección de origen
     ├── pickups/route.ts          ← Programar recolección masiva Skydropx
-    └── upload/route.ts
+    ├── upload/route.ts
+    ├── sections/[key]/route.ts   ← PATCH: habilitar/deshabilitar sección del home
+    ├── coupons/route.ts          ← CRUD de cupones
+    ├── testimonios/route.ts      ← CRUD de testimonios
+    └── themes/
+        ├── route.ts              ← GET lista + POST crear
+        └── [id]/route.ts         ← PATCH editar/setActive + DELETE
 ```
 
 ---
@@ -188,3 +208,7 @@ Tests de integración disponibles:
 - `api/admin/config/__tests__/` — configuración de tienda
 - `api/admin/payment-config/__tests__/` — credenciales de pasarelas
 - `api/admin/shipping/__tests__/` — configuración de envíos
+- `api/admin/usuarios/__tests__/` — gestión de usuarios y roles
+- `api/admin/testimonios/__tests__/` — CRUD de testimonios
+- `api/admin/themes/__tests__/` — CRUD de temas + setActive + guards delete
+- `api/admin/sections/__tests__/` — toggle secciones del home

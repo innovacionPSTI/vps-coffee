@@ -4,6 +4,7 @@ import { cookies } from 'next/headers'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import ShareWhatsApp from '@/components/blog/ShareWhatsApp'
+import { markdownToHtml } from '@/lib/markdown'
 
 const DRAFT_COOKIE = '__vps_draft'
 
@@ -121,7 +122,7 @@ export default async function BlogPostPage({ params, searchParams }: Props) {
           {post.content && (
             <div
               className="prose prose-stone max-w-none font-brand text-brand-primary/80 leading-relaxed"
-              dangerouslySetInnerHTML={{ __html: post.content }}
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(post.content) }}
             />
           )}
         </article>

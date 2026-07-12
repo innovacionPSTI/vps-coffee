@@ -1,72 +1,100 @@
-import { getBanners } from '@vps/database'
-import { getFeaturedProducts } from '@vps/database'
-import { getBlogPosts } from '@vps/database'
+import { getBanners, getFeaturedProducts, getBlogPosts, getBestSellingProducts, getSectionSettings } from '@vps/database'
 import HeroCarousel from '@/components/home/HeroCarousel'
 import FeaturedProducts from '@/components/home/FeaturedProducts'
 import ServicesSection from '@/components/home/ServicesSection'
 import NewsletterSection from '@/components/home/NewsletterSection'
 import Link from 'next/link'
+import Image from 'next/image'
 
 export const revalidate = 60 // ISR cada 60 segundos
 
 export default async function HomePage() {
-  const [banners, products, posts] = await Promise.all([
+  const [banners, products, posts, bestSellers, sectionSettings] = await Promise.all([
     getBanners('hero').catch(() => []),
     getFeaturedProducts(3).catch(() => []),
     getBlogPosts({ limit: 2 }).catch(() => []),
+    getBestSellingProducts(4).catch(() => []),
+    getSectionSettings().catch(() => []),
   ])
+
+  // Mapa rápido: key → enabled (fail-open si no existe)
+  const enabled = (key: string) => {
+    const s = sectionSettings.find((s) => s.key === key)
+    return s ? s.enabled : true
+  }
 
   return (
     <>
       {/* 1. Hero */}
-      <HeroCarousel banners={banners} />
+      {enabled('hero') && <HeroCarousel banners={banners} />}
 
       {/* 2. Productos destacados */}
-      <FeaturedProducts products={products} />
+      {enabled('featured_products') && <FeaturedProducts products={products} />}
 
       {/* 3. Servicios */}
-      <ServicesSection />
+      {enabled('services') && <ServicesSection />}
 
-      {/* 4. Preview tienda */}
-      <section className="bg-brand-cream-warm py-24">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col lg:flex-row gap-16 items-center">
-            <div className="flex-1">
-              <h2 className="font-display text-brand-primary leading-none mb-8"
-                  style={{ fontSize: 'clamp(2.5rem, 6vw, 5rem)' }}>
-                Tienda
-              </h2>
-              <div className="space-y-4">
-                {['Café Claro', 'Café Medio', 'Café Oscuro'].map((cat) => (
-                  <div key={cat} className="border-b border-brand-primary/15 pb-4">
-                    <Link
-                      href={`/tienda?tueste=${cat.split(' ')[1].toLowerCase()}`}
-                      className="font-brand text-brand-primary hover:text-brand-dark transition-colors flex items-center gap-2"
-                    >
-                      → {cat}
-                    </Link>
-                  </div>
+      {/* 4. Más vendidos / Preview tienda */}
+      {enabled('best_sellers') && (
+        <section className="bg-brand-cream-warm py-24">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="flex flex-col lg:flex-row gap-16 items-center">
+              <div className="flex-1">
+                <h2 className="font-display text-brand-primary leading-none mb-8"
+                    style={{ fontSize: 'clamp(2.5rem, 6vw, 5rem)' }}>
+                  Tienda
+                </h2>
+                <div className="space-y-4">
+                  {['Café Claro', 'Café Medio', 'Café Oscuro'].map((cat) => (
+                    <div key={cat} className="border-b border-brand-primary/15 pb-4">
+                      <Link
+                        href={`/tienda?tueste=${cat.split(' ')[1].toLowerCase()}`}
+                        className="font-brand text-brand-primary hover:text-brand-dark transition-colors flex items-center gap-2"
+                      >
+                        → {cat}
+                      </Link>
+                    </div>
+                  ))}
+                </div>
+                <Link
+                  href="/tienda"
+                  className="inline-block mt-8 bg-brand-primary text-brand-cream rounded-full px-8 py-3 font-brand font-medium hover:bg-brand-dark transition-colors"
+                >
+                  Ver todos los productos →
+                </Link>
+              </div>
+              <div className="flex-1 grid grid-cols-2 gap-3">
+                {bestSellers.map((product) => (
+                  <Link
+                    key={product.product_id}
+                    href={product.slug ? `/tienda/${product.slug}` : '/tienda'}
+                    className="group aspect-square rounded-2xl bg-brand-yellow/30 overflow-hidden relative"
+                  >
+                    {product.image_url ? (
+                      <Image
+                        src={product.image_url}
+                        alt={product.product_name}
+                        fill
+                        className="object-cover transition-transform duration-500 group-hover:scale-105"
+                        sizes="(max-width: 768px) 45vw, 20vw"
+                      />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-brand-primary/10 font-display text-4xl">
+                        ☕
+                      </div>
+                    )}
+                    <div className="absolute inset-x-0 bottom-0 bg-gradient-to-t from-brand-primary/70 to-transparent p-3 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
+                      <p className="font-brand text-brand-cream text-xs font-medium truncate">
+                        {product.product_name}
+                      </p>
+                    </div>
+                  </Link>
                 ))}
               </div>
-              <Link
-                href="/tienda"
-                className="inline-block mt-8 bg-brand-primary text-brand-cream rounded-full px-8 py-3 font-brand font-medium hover:bg-brand-dark transition-colors"
-              >
-                Ver todos los productos →
-              </Link>
-            </div>
-            <div className="flex-1 grid grid-cols-2 gap-3">
-              {[1, 2, 3, 4].map((i) => (
-                <div key={i} className="aspect-square rounded-2xl bg-brand-yellow/30 overflow-hidden">
-                  <div className="w-full h-full flex items-center justify-center text-brand-primary/10 font-display text-4xl">
-                    ☕
-                  </div>
-                </div>
-              ))}
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* 5. Historia */}
       <section className="relative py-40 overflow-hidden bg-brand-dark">
@@ -90,11 +118,10 @@ export default async function HomePage() {
       </section>
 
       {/* 6. Blog preview */}
-      {posts.length > 0 && (
+      {enabled('blog_preview') && posts.length > 0 && (
         <section className="py-24 bg-brand-yellow-pale">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex flex-col lg:flex-row gap-12 items-start">
-              {/* Panel izquierdo */}
               <div className="lg:w-2/5 bg-brand-yellow rounded-3xl p-10 flex flex-col justify-between min-h-64">
                 <h2 className="font-display text-brand-primary leading-none"
                     style={{ fontSize: 'clamp(2.5rem, 5vw, 4.5rem)' }}>
@@ -107,7 +134,6 @@ export default async function HomePage() {
                   Ver más →
                 </Link>
               </div>
-              {/* Listado */}
               <div className="flex-1 space-y-6">
                 {posts.map((post) => (
                   <article key={post.id} className="border-b border-brand-primary/15 pb-6 last:border-0">
@@ -141,7 +167,7 @@ export default async function HomePage() {
       )}
 
       {/* 7. Newsletter */}
-      <NewsletterSection />
+      {enabled('newsletter') && <NewsletterSection />}
     </>
   )
 }

@@ -22,6 +22,10 @@ export default function StoreConfigForm({ initialConfig }: Props) {
   const [ttUrl, setTtUrl]         = useState(initialConfig?.tiktok_url ?? '')
   const [ttEnabled, setTtEnabled] = useState(initialConfig?.tiktok_enabled ?? true)
 
+  // Operaciones
+  const [maintenanceMode, setMaintenanceMode] = useState(initialConfig?.maintenance_mode ?? false)
+  const [analyticsEnabled, setAnalyticsEnabled] = useState(initialConfig?.analytics_enabled ?? false)
+
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
   const [, startTransition] = useTransition()
@@ -45,6 +49,8 @@ export default function StoreConfigForm({ initialConfig }: Props) {
           facebook_enabled:   fbEnabled,
           tiktok_url:         ttUrl      || null,
           tiktok_enabled:     ttEnabled,
+          maintenance_mode:   maintenanceMode,
+          analytics_enabled:  analyticsEnabled,
         }),
       })
       const data = await res.json()
@@ -195,6 +201,67 @@ export default function StoreConfigForm({ initialConfig }: Props) {
             />
           </div>
         ))}
+      </div>
+
+      {/* Operaciones del sitio */}
+      <div className="border-t border-gray-100 pt-5 space-y-4">
+        <div>
+          <p className="font-brand text-xs font-semibold text-brand-primary mb-0.5">Operaciones</p>
+          <p className="font-brand text-xs text-brand-primary/40">
+            Ajustes que afectan la disponibilidad y el comportamiento global del sitio.
+          </p>
+        </div>
+
+        {/* Modo mantenimiento */}
+        <div className="flex items-start gap-4 p-4 rounded-xl border border-gray-100">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={maintenanceMode}
+            onClick={() => setMaintenanceMode((v) => !v)}
+            className={`mt-0.5 relative flex-shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              maintenanceMode ? 'bg-red-500' : 'bg-brand-primary/20'
+            }`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+              maintenanceMode ? 'translate-x-4' : 'translate-x-0.5'
+            }`} />
+          </button>
+          <div>
+            <p className={`font-brand text-sm font-semibold ${maintenanceMode ? 'text-red-600' : 'text-brand-primary'}`}>
+              Modo mantenimiento
+              {maintenanceMode && (
+                <span className="ml-2 text-xs font-normal bg-red-100 text-red-600 px-2 py-0.5 rounded-full">Activo</span>
+              )}
+            </p>
+            <p className="font-brand text-xs text-brand-primary/40 mt-0.5">
+              Muestra una página de &quot;sitio en mantenimiento&quot; a los visitantes. Las APIs y el panel admin siguen funcionando.
+            </p>
+          </div>
+        </div>
+
+        {/* Analytics */}
+        <div className="flex items-start gap-4 p-4 rounded-xl border border-gray-100">
+          <button
+            type="button"
+            role="switch"
+            aria-checked={analyticsEnabled}
+            onClick={() => setAnalyticsEnabled((v) => !v)}
+            className={`mt-0.5 relative flex-shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+              analyticsEnabled ? 'bg-brand-primary' : 'bg-brand-primary/20'
+            }`}
+          >
+            <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+              analyticsEnabled ? 'translate-x-4' : 'translate-x-0.5'
+            }`} />
+          </button>
+          <div>
+            <p className="font-brand text-sm font-semibold text-brand-primary">Vercel Analytics</p>
+            <p className="font-brand text-xs text-brand-primary/40 mt-0.5">
+              Activa el seguimiento de visitas con Vercel Analytics. No requiere cookies ni afecta la privacidad del usuario.
+            </p>
+          </div>
+        </div>
       </div>
 
       {/* Actions */}

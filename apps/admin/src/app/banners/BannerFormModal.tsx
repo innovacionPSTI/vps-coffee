@@ -5,16 +5,12 @@ import { useRouter } from 'next/navigation'
 import ImageUpload from '@/components/ImageUpload'
 
 const SECTIONS = [
-  { value: 'hero',      label: 'Hero (carrusel principal)' },
-  { value: 'maquila',   label: 'Sección Maquila' },
-  { value: 'asesorias', label: 'Sección Asesorías' },
+  { value: 'hero', label: 'Hero (carrusel principal)' },
 ]
 
 // Dimensiones recomendadas por sección
 const DIMENSIONS: Record<string, { web: string; mobile: string }> = {
-  hero:      { web: '1920 × 600 px',  mobile: '750 × 1000 px' },
-  maquila:   { web: '1440 × 700 px',  mobile: '750 × 900 px' },
-  asesorias: { web: '1440 × 700 px',  mobile: '750 × 900 px' },
+  hero: { web: '1920 × 600 px', mobile: '750 × 1000 px' },
 }
 
 interface Banner {

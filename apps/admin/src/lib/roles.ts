@@ -4,8 +4,9 @@
  * Roles con acceso al panel:
  *  - super_admin   : Acceso total + gestión de usuarios y asignación de roles
  *  - admin         : Acceso total (sin gestión de usuarios)
- *  - vendedor      : Productos, Categorías, Pedidos, Clientes
- *  - gestor_tienda : Banners, Blog, Configuración General
+ *  - vendedor      : Ventas — productos, categorías, pedidos, clientes, cupones
+ *  - gestor_tienda : Contenido/marketing — banners, secciones, blog, newsletter,
+ *                    testimonios, cupones, configuración general y legal
  *
  * Roles sin acceso al panel:
  *  - miembro       : Sin permisos. Rol predeterminado al crear un usuario.
@@ -30,7 +31,11 @@ export type AdminSection =
   | 'pedidos'
   | 'clientes'
   | 'banners'
+  | 'secciones'
   | 'blog'
+  | 'newsletter'
+  | 'cupones'
+  | 'testimonios'
   | 'configuracion'
   | 'usuarios'
 
@@ -46,30 +51,32 @@ export const ROLE_CONFIG: Record<AdminRole, RoleConfig> = {
   super_admin: {
     label: 'Super Admin',
     color: 'bg-red-100 text-red-700',
-    sections: ['dashboard', 'productos', 'categorias', 'pedidos', 'clientes', 'banners', 'blog', 'configuracion', 'usuarios'],
+    sections: ['dashboard', 'productos', 'categorias', 'pedidos', 'clientes', 'banners', 'secciones', 'blog', 'newsletter', 'cupones', 'testimonios', 'configuracion', 'usuarios'],
     canManageUsers: true,
     canAccessFullConfig: true,
   },
   admin: {
     label: 'Admin',
     color: 'bg-brand-primary/10 text-brand-primary',
-    sections: ['dashboard', 'productos', 'categorias', 'pedidos', 'clientes', 'banners', 'blog', 'configuracion'],
+    sections: ['dashboard', 'productos', 'categorias', 'pedidos', 'clientes', 'banners', 'secciones', 'blog', 'newsletter', 'cupones', 'testimonios', 'configuracion'],
     canManageUsers: false,
     canAccessFullConfig: true,
   },
   vendedor: {
     label: 'Vendedor',
     color: 'bg-green-100 text-green-700',
-    sections: ['dashboard', 'productos', 'categorias', 'pedidos', 'clientes'],
+    // Enfoque ventas: gestión de catálogo, órdenes, clientes y descuentos
+    sections: ['dashboard', 'productos', 'categorias', 'pedidos', 'clientes', 'cupones'],
     canManageUsers: false,
     canAccessFullConfig: false,
   },
   gestor_tienda: {
     label: 'Gestor de Tienda',
     color: 'bg-blue-100 text-blue-700',
-    sections: ['dashboard', 'banners', 'blog', 'configuracion'],
+    // Enfoque contenido/marketing: visual, publicaciones, promociones y config básica
+    sections: ['dashboard', 'banners', 'secciones', 'blog', 'newsletter', 'testimonios', 'cupones', 'configuracion'],
     canManageUsers: false,
-    canAccessFullConfig: false,
+    canAccessFullConfig: false, // Solo ve config general y legal (no pagos ni envíos)
   },
 }
 

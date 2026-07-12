@@ -2,6 +2,32 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── CSS Custom Properties: Tema por defecto (VPS Coffee) ───────────────── */
+/*
+ * Los valores de --brand-* son canales RGB separados por espacios (sin comas).
+ * Formato requerido por Tailwind para soportar modificadores de opacidad:
+ *   bg-brand-primary/50  →  rgb(var(--brand-primary) / 0.5)
+ *
+ * El layout.tsx sobreescribe estas variables con el tema activo de la DB.
+ * Si no hay tema en DB o falla la conexión, estos defaults se aplican.
+ *
+ * --font-display y --font-body apuntan a variables de next/font/google
+ * que el layout.tsx inyecta como clases en <html>.
+ */
+:root {
+  /* Paleta VPS Coffee */
+  --brand-primary:     97 74 42;    /* #614A2A */
+  --brand-dark:        96 75 48;    /* #604B30 */
+  --brand-cream:       255 240 209; /* #FFF0D1 */
+  --brand-cream-warm:  255 241 211; /* #FFF1D3 */
+  --brand-yellow:      255 246 184; /* #FFF6B8 */
+  --brand-yellow-pale: 253 248 185; /* #FDF8B9 */
+  --brand-text:        45 26 10;    /* #2D1A0A */
+
+  /* Tipografía (resuelta por el tema activo en layout.tsx) */
+  --font-display: var(--font-ahsing), Georgia, serif;
+  --font-body:    var(--font-geeeki), system-ui, sans-serif;
+}
 
 /* ─── Base ────────────────────────────────────────────────────────────────── */
 @layer base {

@@ -13,23 +13,42 @@ import type { Product, Order } from '@vps/database'
 
 ```
 packages/database/src/
-├── client.ts           ← Factories de cliente Supabase (browser / server)
-├── types.ts            ← Tipos de todas las tablas (Row, Insert, Update)
+├── client.ts               ← Factories de cliente Supabase (browser / server)
+├── types.ts                ← Tipos de todas las tablas (Row, Insert, Update)
 ├── queries/
-│   ├── index.ts        ← Re-exporta todos los módulos de queries
-│   ├── products.ts     ← Funciones de lectura/escritura de productos
-│   ├── orders.ts       ← Funciones de órdenes
-│   ├── blog.ts         ← Funciones de artículos del blog
-│   ├── banners.ts      ← Funciones de banners
-│   ├── shipping-config.ts ← Configuración de proveedor de envíos (singleton)
-│   └── store-config.ts    ← Configuración de la tienda: logo, WhatsApp, nombre (singleton)
+│   ├── index.ts            ← Re-exporta todos los módulos de queries
+│   ├── products.ts         ← Catálogo, variantes, slugs, featured
+│   ├── orders.ts           ← createOrder, getAllOrders, updateOrderStatus, etc.
+│   ├── blog.ts             ← Artículos, slugs, draft mode
+│   ├── banners.ts          ← Banners por sección (hero, maquila, asesorias, services)
+│   ├── shipping-config.ts  ← Proveedor de envíos + credenciales Skydropx (singleton)
+│   ├── store-config.ts     ← Logo, WhatsApp, nombre, Resend, redes, mantenimiento (singleton)
+│   ├── payment-config.ts   ← Wompi + MercadoPago (singleton)
+│   ├── coupons.ts          ← getCoupons, validateCoupon (pura), CRUD, incrementCouponUsage
+│   ├── testimonials.ts     ← getTestimonials(onlyActive), CRUD
+│   ├── cart.ts             ← getCartItems, upsertCartItem, removeCartItem, clearCart, replaceCart
+│   ├── sections.ts         ← getSectionSettings(), isSectionEnabled() (fail-open)
+│   └── themes.ts           ← getThemes(), getActiveTheme(), createTheme(), updateTheme(), setActiveTheme(), deleteTheme()
 └── supabase/
-    └── migrations/
-        ├── 001_initial_schema.sql   ← Schema base + RLS + buckets + seed
-        ├── 002_shipping_config.sql  ← Tabla shipping_config
-        ├── 003_banners.sql          ← Tabla banners con imagen_url_mobile
-        ├── 004_store_config.sql     ← Tabla store_config (singleton id=1)
-        └── 005_store_config_logo.sql ← ADD COLUMN logo_url (idempotente)
+    └── migrations/         ← Ejecutar en orden en el SQL Editor de Supabase
+        ├── 1_initial_schema.sql
+        ├── 2_shipping_config.sql
+        ├── 3_banner_mobile_image.sql
+        ├── 4_store_config.sql
+        ├── 5_payment_config.sql
+        ├── 6_email_config.sql
+        ├── 7_shipping_profiles.sql
+        ├── 8_customers.sql
+        ├── 9_customer_addresses.sql
+        ├── 10_shipping_free_threshold.sql
+        ├── 11_legal_content.sql
+        ├── 12_social_links.sql
+        ├── 13_skydropx_origin_address.sql
+        ├── 14_maintenance_mode.sql
+        ├── 15_coupons.sql
+        ├── 16_testimonials.sql
+        ├── 17_cart_items.sql
+        └── 18_themes.sql
 ```
 
 ---
@@ -296,6 +315,8 @@ Archivos de test:
 | `queries/__tests__/orders.test.ts` | 12 | Número correlativo, discount default, updateOrderStatus |
 | `queries/__tests__/blog.test.ts` | 10 | Filtro categoría, limit, getFeaturedPost null-safe |
 | `queries/__tests__/store-config.test.ts` | 10 | getStoreConfig: fallback DEFAULT_CONFIG, datos reales; updateStoreConfig: upsert id=1, errores |
+| `queries/__tests__/coupons.test.ts` | 14 | validateCoupon: porcentaje, fijo, inactivo, expirado, usos, mínimo pedido |
+| `queries/__tests__/themes.test.ts` | 14 | getThemes, getActiveTheme, createTheme (is_active=false forzado), setActiveTheme (dos ops), deleteTheme (guards) |
 
 ---
 
