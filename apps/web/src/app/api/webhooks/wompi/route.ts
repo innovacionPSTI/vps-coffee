@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient, getPaymentConfig, getStoreConfig } from '@vps/database'
 import { verifyWompiWebhook, mapWompiStatus } from '@/lib/wompi'
-import { sendOrderConfirmation } from '@/lib/email'
+import { sendOrderConfirmation, sendShippingNotification } from '@/lib/email'
+import { createShipmentForOrder } from '@/lib/shipping/shipments'
 import type { Order, Database } from '@vps/database'
 
 type OrderUpdate = Database['public']['Tables']['orders']['Update']
@@ -80,18 +81,41 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ ok: true, warning: 'order_not_updated' })
   }
 
-  // Enviar email de confirmación cuando el pago es aprobado
+  // Pago aprobado: confirmación + guía de envío
   if (paymentStatus === 'approved' && updatedOrder) {
-    try {
-      const storeConfig = await getStoreConfig()
-      if (storeConfig?.resend_api_key && storeConfig?.resend_from_email) {
-        await sendOrderConfirmation(updatedOrder as unknown as Order, {
-          apiKey: storeConfig.resend_api_key,
-          fromEmail: storeConfig.resend_from_email,
-        })
+    const storeConfig = await getStoreConfig().catch(() => null)
+    const emailConfig = storeConfig?.resend_api_key && storeConfig?.resend_from_email
+      ? { apiKey: storeConfig.resend_api_key, fromEmail: storeConfig.resend_from_email }
+      : null
+
+    // Email de confirmación de pago
+    if (emailConfig) {
+      try {
+        await sendOrderConfirmation(updatedOrder as unknown as Order, emailConfig)
+      } catch (err) {
+        console.error('[webhook/wompi] Error email confirmación:', err)
       }
-    } catch (emailErr) {
-      console.error('[webhook/wompi] Error enviando email:', emailErr)
+    }
+
+    // Generar guía Skydropx (no bloquea — falla silenciosa)
+    const shipment = await createShipmentForOrder(reference)
+    if (shipment && emailConfig) {
+      // Reload order para tener tracking_number actualizado
+      const { data: shippedOrder } = await supabase
+        .from('orders')
+        .select('*')
+        .eq('order_number', reference)
+        .single()
+      if (shippedOrder?.tracking_number) {
+        try {
+          await sendShippingNotification(
+            shippedOrder as unknown as Order & { tracking_number: string; carrier_name: string | null; label_url: string | null },
+            emailConfig,
+          )
+        } catch (err) {
+          console.error('[webhook/wompi] Error email tracking:', err)
+        }
+      }
     }
   }
 

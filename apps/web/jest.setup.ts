@@ -1,24 +1,27 @@
-import '@testing-library/jest-dom'
+// Only import DOM matchers when running in a browser-like environment
+if (typeof window !== 'undefined') {
+  require('@testing-library/jest-dom')
 
-// Mock localStorage for Zustand persist middleware
-const localStorageMock = (() => {
-  let store: Record<string, string> = {}
-  return {
-    getItem: (key: string) => store[key] ?? null,
-    setItem: (key: string, value: string) => { store[key] = value },
-    removeItem: (key: string) => { delete store[key] },
-    clear: () => { store = {} },
-  }
-})()
+  // Mock localStorage for Zustand persist middleware
+  const localStorageMock = (() => {
+    let store: Record<string, string> = {}
+    return {
+      getItem: (key: string) => store[key] ?? null,
+      setItem: (key: string, value: string) => { store[key] = value },
+      removeItem: (key: string) => { delete store[key] },
+      clear: () => { store = {} },
+    }
+  })()
 
-Object.defineProperty(window, 'localStorage', { value: localStorageMock })
+  Object.defineProperty(window, 'localStorage', { value: localStorageMock })
 
-// Silence Next.js router warnings in tests
-jest.mock('next/navigation', () => ({
-  useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
-  usePathname: () => '/',
-  useSearchParams: () => new URLSearchParams(),
-}))
+  // Silence Next.js router warnings in tests
+  jest.mock('next/navigation', () => ({
+    useRouter: () => ({ push: jest.fn(), replace: jest.fn(), prefetch: jest.fn() }),
+    usePathname: () => '/',
+    useSearchParams: () => new URLSearchParams(),
+  }))
+}
 
 // Suppress console.error for expected error boundaries in tests
 const originalError = console.error

@@ -11,6 +11,14 @@ export type ShippingConfig = {
   skydropx_client_secret: string | null
   skydropx_address_from_id: string | null
   skydropx_base_url: string
+  origin_name: string | null
+  origin_street: string | null
+  origin_neighborhood: string | null
+  origin_city: string | null
+  origin_department: string | null
+  origin_postal_code: string | null
+  origin_phone: string | null
+  origin_email: string | null
   updated_at: string
 }
 
@@ -39,7 +47,15 @@ export async function getShippingConfig(): Promise<ShippingConfig> {
       skydropx_client_id: null,
       skydropx_client_secret: null,
       skydropx_address_from_id: null,
-      skydropx_base_url: 'https://api-pro.skydropx.com',
+      skydropx_base_url: 'https://app.skydropx.com',
+      origin_name: null,
+      origin_street: null,
+      origin_neighborhood: null,
+      origin_city: null,
+      origin_department: null,
+      origin_postal_code: null,
+      origin_phone: null,
+      origin_email: null,
       updated_at: new Date().toISOString(),
     }
   }

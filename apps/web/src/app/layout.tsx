@@ -19,6 +19,8 @@ const dmSans = DM_Sans({
   display: 'swap',
 })
 
+const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vpscoffee.com').replace(/\/$/, '')
+
 export const metadata: Metadata = {
   title: {
     default: 'VPS Coffee Roasting House',
@@ -27,10 +29,28 @@ export const metadata: Metadata = {
   description:
     'Café de especialidad colombiano con trazabilidad completa. Tueste artesanal, maquila y asesorías profesionales.',
   keywords: ['café de especialidad', 'café colombiano', 'tueste artesanal', 'maquila de café', 'VPS Coffee'],
+  metadataBase: new URL(BASE_URL),
   openGraph: {
     siteName: 'VPS Coffee Roasting House',
     locale: 'es_CO',
     type: 'website',
+    url: BASE_URL,
+    title: 'VPS Coffee Roasting House',
+    description: 'Café de especialidad colombiano con trazabilidad completa. Tueste artesanal, maquila y asesorías.',
+    images: [
+      {
+        url: '/og-default.jpg',
+        width: 1200,
+        height: 630,
+        alt: 'VPS Coffee Roasting House',
+      },
+    ],
+  },
+  twitter: {
+    card: 'summary_large_image',
+    title: 'VPS Coffee Roasting House',
+    description: 'Café de especialidad colombiano. Tueste artesanal, maquila y asesorías.',
+    images: ['/og-default.jpg'],
   },
   robots: {
     index: true,

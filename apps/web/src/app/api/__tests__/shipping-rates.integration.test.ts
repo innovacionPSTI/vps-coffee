@@ -1,4 +1,7 @@
 /**
+ * @jest-environment node
+ */
+/**
  * Integration tests — POST /api/shipping/rates (v2 — multi-provider)
  *
  * The route now uses getShippingProvider() factory instead of calling

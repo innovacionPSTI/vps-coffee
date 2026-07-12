@@ -96,14 +96,21 @@ export default function CheckoutClient() {
 
   // Auto-fill desde el perfil y direcciones guardadas cuando el usuario está logueado
   useEffect(() => {
-    if (!user || profileLoaded) return
+    if (!user?.primaryEmail || profileLoaded) return
 
-    const email = user.primaryEmail ?? ''
-    if (email) setContact({ email })
+    // Pre-llenar email de inmediato (sin esperar la red)
+    setContact({ email: user.primaryEmail })
+    setProfileLoaded(true)   // prevenir re-ejecución
 
-    // Pre-llenar dirección con la dirección predeterminada guardada en customer_addresses
+    // Intentar pre-llenar dirección con la guardada en customer_addresses
     fetch('/api/account/addresses')
-      .then((r) => r.ok ? r.json() : null)
+      .then((r) => {
+        if (!r.ok) {
+          console.warn('[checkout] /api/account/addresses returned', r.status)
+          return null
+        }
+        return r.json()
+      })
       .then((data: { addresses?: Array<{
         full_name: string
         phone: string | null
@@ -130,8 +137,7 @@ export default function CheckoutClient() {
           postal_code: addr.postal_code ?? '',
         })
       })
-      .catch(() => {})
-      .finally(() => setProfileLoaded(true))
+      .catch((err) => console.warn('[checkout] addresses fetch failed', err))
   }, [user, profileLoaded])
 
   const fmt = (n: number) =>

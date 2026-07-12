@@ -181,6 +181,39 @@ export async function sendShippingNotification(
   })
 }
 
+/** Email de confirmación de suscripción al newsletter */
+export async function sendNewsletterConfirmation(
+  to: string,
+  config: EmailConfig,
+): Promise<void> {
+  const siteUrl = process.env.NEXT_PUBLIC_SITE_URL ?? 'https://vpscoffee.com'
+  const content = `
+    <h2 style="margin: 0 0 8px; color: #614a2a; font-size: 20px; font-family: sans-serif;">¡Ya eres parte de la familia VPS Coffee!</h2>
+    <p style="margin: 0 0 16px; color: #8a6a4a; font-size: 14px; font-family: sans-serif;">
+      Gracias por suscribirte a nuestro boletín. Te mantendremos al tanto de nuevos
+      orígenes, temporadas de cosecha y contenido exclusivo sobre café de especialidad.
+    </p>
+    <p style="margin: 0 0 24px; color: #8a6a4a; font-size: 14px; font-family: sans-serif;">
+      Mientras tanto, te invitamos a explorar nuestra tienda y descubrir los cafés
+      que seleccionamos esta temporada.
+    </p>
+    <div style="text-align: center;">
+      <a href="${siteUrl}/tienda" style="display: inline-block; background: #614a2a; color: #fff8ec; text-decoration: none; padding: 12px 28px; border-radius: 50px; font-size: 14px; font-weight: 600; font-family: sans-serif;">
+        Ver la tienda
+      </a>
+    </div>
+    <p style="margin: 24px 0 0; color: #8a6a4a; font-size: 12px; font-family: sans-serif; text-align: center;">
+      Si no solicitaste esta suscripción, puedes ignorar este correo.
+    </p>`
+
+  await sendEmail(config, {
+    from: `VPS Coffee <${config.fromEmail}>`,
+    to: [to],
+    subject: '¡Bienvenido al boletín de VPS Coffee! ☕',
+    html: baseTemplate(content),
+  })
+}
+
 /** Email de bienvenida al registrarse */
 export async function sendWelcomeEmail(
   to: string,

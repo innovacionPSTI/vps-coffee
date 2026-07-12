@@ -1,6 +1,6 @@
 # apps/web — Sitio público VPS Coffee
 
-Aplicación Next.js 14 (App Router) que implementa el sitio público de VPS Coffee Roasting House: e-commerce, servicios B2B (maquila y asesorías) y blog.
+Aplicación Next.js (App Router) que implementa el sitio público de VPS Coffee Roasting House: e-commerce, servicios B2B (maquila y asesorías) y blog.
 
 **URL local:** `http://localhost:3000`
 
@@ -34,20 +34,28 @@ src/app/
 │   ├── asesorias/page.tsx  → /asesorias
 │   ├── blog/
 │   │   ├── page.tsx        → /blog
-│   │   └── [slug]/page.tsx → /blog/[slug]
+│   │   └── [slug]/page.tsx → /blog/[slug]  (soporta Draft Mode)
 │   └── nosotros/page.tsx   → /nosotros
 ├── (account)/         ← Layout protegido (requiere auth)
 │   └── mi-cuenta/
-│       ├── page.tsx        → /mi-cuenta
-│       └── pedidos/page.tsx→ /mi-cuenta/pedidos
+│       ├── page.tsx        → /mi-cuenta (resumen + pedidos recientes)
+│       ├── pedidos/page.tsx→ /mi-cuenta/pedidos
+│       └── perfil/page.tsx → /mi-cuenta/perfil (editar nombre, teléfono, direcciones)
 ├── carrito/page.tsx        → /carrito
 ├── checkout/
 │   ├── page.tsx            → /checkout
 │   └── confirmacion/page.tsx→ /checkout/confirmacion
+├── not-found.tsx           → Página 404 ("Esta taza está vacía")
+├── sitemap.ts              → /sitemap.xml (dinámico: productos + blog)
+├── robots.ts               → /robots.txt
 └── api/
     ├── checkout/route.ts
     ├── newsletter/route.ts
     ├── shipping/rates/route.ts
+    ├── account/
+    │   ├── profile/route.ts   ← GET/PATCH perfil del cliente
+    │   └── addresses/route.ts ← GET/POST direcciones guardadas
+    ├── draft/enable/route.ts  ← Blog Draft Mode (cookie __vps_draft)
     └── webhooks/skydropx/route.ts
 ```
 
@@ -57,12 +65,13 @@ src/app/
 |--------|--------|-------|
 | `/` | ISR (`revalidate = 60`) | Home con productos destacados y banners |
 | `/tienda` | ISR (`revalidate = 60`) | Catálogo con filtros |
-| `/tienda/[slug]` | SSG + ISR (`generateStaticParams`) | SEO, precarga de slugs activos |
+| `/tienda/[slug]` | SSG + ISR + OG | SEO, precarga de slugs activos, Open Graph por producto |
 | `/blog` | ISR (`revalidate = 60`) | Listado de artículos |
-| `/blog/[slug]` | SSG + ISR (`generateStaticParams`) | SEO de artículos |
+| `/blog/[slug]` | SSG + ISR + Draft Mode + OG | SEO, Open Graph por artículo, preview de borradores |
 | `/maquila`, `/asesorias`, `/nosotros` | Estático | Contenido que no cambia |
 | `/carrito`, `/checkout` | Client-side | Estado local del carrito |
-| `/mi-cuenta` | Server + auth guard | Datos del usuario autenticado |
+| `/mi-cuenta` | SSR + auth guard | Datos del usuario autenticado |
+| `/mi-cuenta/perfil` | SSR + auth guard | Edición de nombre, teléfono y direcciones |
 
 ---
 
@@ -74,30 +83,14 @@ El carrito usa **Zustand** con `persist` middleware (clave `vps-cart` en `localS
 // src/store/cart.ts
 import { useCartStore } from '@/store/cart'
 
-// Dentro de un componente
 const { items, addItem, removeItem, updateQty, clearCart, subtotal } = useCartStore()
-
-// addItem hace upsert: si la variante ya existe, suma qty
-addItem({
-  variantId: 10,
-  productName: 'Geisha Natural',
-  variantLabel: '250g · Tueste claro · Grano entero',
-  price: 45000,
-  qty: 1,
-  weight: '250g',
-  image: '/images/geisha.jpg',
-})
 ```
-
-**Persistencia:** El carrito sobrevive recargas y cierre del navegador. Se limpia llamando a `clearCart()` tras una compra exitosa.
 
 ---
 
 ## Capa de envíos
 
-Documentada completamente en el [README raíz](../../README.md#12-arquitectura-de-proveedores-de-envío).
-
-Resumen de la estructura de archivos:
+Documentada en el [README raíz](../../README.md#12-arquitectura-de-proveedores-de-envío).
 
 ```
 src/lib/shipping/
@@ -107,85 +100,98 @@ src/lib/shipping/
     ├── fixed-rate.ts ← Tarifa plana, responde instantáneamente
     └── skydropx/
         ├── auth.ts   ← OAuth 2.0 con caché de token keyed por clientId
-        └── index.ts  ← SkydropxProvider: crea quotation, polling 10×500ms
+        └── index.ts  ← SkydropxProvider: cotización → polling → label
 ```
 
-**Regla de oro:** `SkydropxProvider.getRates()` nunca lanza. Siempre devuelve `[]` en error para que el checkout pueda degradar gracefully a tarifa fija.
+`SkydropxProvider.getRates()` **nunca lanza** — siempre devuelve `[]` en error para que el checkout pueda degradar gracefully.
 
 ---
 
-## Componentes principales
+## Blog Draft Mode
 
-### Layout
+Permite al equipo admin previsualizar artículos borrador antes de publicarlos.
 
-| Componente | Archivo | Descripción |
-|-----------|---------|-------------|
-| `Navbar` | `components/layout/Navbar.tsx` | Logo, menú principal, ícono del carrito |
-| `Footer` | `components/layout/Footer.tsx` | Links, redes sociales, newsletter |
-| `CartDrawer` | `components/cart/CartDrawer.tsx` | Drawer lateral con items del carrito |
+**Flujo:**
+1. Admin hace clic en "Previsualizar ↗" en `apps/admin/src/app/blog/BlogPostForm.tsx`
+2. Redirige a `GET /api/draft/enable?slug=<slug>&secret=<DRAFT_SECRET>`
+3. El endpoint valida el secreto, setea una cookie `__vps_draft=1` (httpOnly, 1h) y redirige a `/blog/<slug>?draft=1`
+4. La página `/blog/[slug]` detecta la cookie y carga el artículo aunque `published = false`
+5. Se muestra un banner amarillo: _"Modo borrador — Este artículo no está publicado"_
 
-### Home
+**Variables de entorno:**
+```env
+# apps/web/.env.local
+DRAFT_SECRET=cambia-este-secreto
 
-| Componente | Archivo |
-|-----------|---------|
-| `HeroCarousel` | `components/home/HeroCarousel.tsx` |
-| `FeaturedProducts` | `components/home/FeaturedProducts.tsx` |
-| `ServicesSection` | `components/home/ServicesSection.tsx` |
-| `BlogPreview` | `components/home/BlogPreview.tsx` |
-| `NewsletterSection` | `components/home/NewsletterSection.tsx` |
+# apps/admin/.env.local
+NEXT_PUBLIC_DRAFT_SECRET=cambia-este-secreto  # mismo valor
+```
 
-### Tienda
+**Limpiar la cookie:**
+```
+DELETE /api/draft/enable
+```
 
-| Componente | Archivo | Descripción |
-|-----------|---------|-------------|
-| `ShopClient` | `components/shop/ShopClient.tsx` | Filtros + grid de productos (Client Component) |
-| `ProductDetail` | `components/shop/ProductDetail.tsx` | Selector de variantes, galería, add-to-cart |
+---
+
+## SEO
+
+| Feature | Implementación |
+|---------|---------------|
+| `sitemap.xml` | `src/app/sitemap.ts` — rutas estáticas + productos activos + posts publicados |
+| `robots.txt` | `src/app/robots.ts` — bloquea `/api/`, `/mi-cuenta/`, `/checkout/`, `/handler/` |
+| Open Graph | `generateMetadata()` en cada página pública con imagen, título y descripción |
+| Twitter Cards | `twitter: { card: 'summary_large_image' }` en cada página |
+| `metadataBase` | Configurado en `app/layout.tsx` con `NEXT_PUBLIC_SITE_URL` |
 
 ---
 
 ## API Routes
 
 ### `POST /api/checkout`
-
-Valida el body, crea la orden en Supabase y devuelve el número correlativo `VPS-XXXX`.
-
-**Validaciones:** `email` y `name` requeridos; al menos un item en el carrito; total ≥ 0.
+Valida el body, crea la orden en Supabase y devuelve `VPS-XXXX`.
 
 ### `POST /api/shipping/rates`
-
-Llama a `getShippingProvider()`, construye el `ShippingAddress` y el `ShippingParcel`, y devuelve las tarifas disponibles.
-
-**Fallback automático:** si el proveedor activo falla o devuelve `[]`, el checkout puede ofrecer la tarifa fija como alternativa.
+Llama a `getShippingProvider()` y devuelve tarifas disponibles.
 
 ### `POST /api/newsletter`
+Upsert del email en `newsletter_subscribers`. Envía email de confirmación **solo al primer registro** (no en re-suscripciones). Requiere Resend configurado en `/admin/configuracion`.
 
-Hace `upsert` del email en `newsletter_subscribers`. Devuelve `{ ok: true }` siempre (no revela si el email ya existía).
+### `GET /api/account/profile` · `PATCH /api/account/profile`
+Lee/actualiza `name` y `phone` del customer. El PATCH también actualiza `displayName` en Stack Auth.
+
+### `GET /api/draft/enable` · `DELETE /api/draft/enable`
+Activa/desactiva Blog Draft Mode mediante cookie `__vps_draft`.
 
 ### `POST /api/webhooks/skydropx`
+Mapea eventos PRO API → status de la orden:
 
-Recibe el webhook de Skydropx, mapea el evento a un status interno y llama a `updateOrderStatus()`.
-
-Mapeo de eventos:
-
-```
-shipment.in_transit       → shipped
-shipment.out_for_delivery → shipped
-shipment.delivered        → delivered
-shipment.exception        → exception
-```
+| Event / workflow_status | Status resultante |
+|------------------------|-------------------|
+| `shipment.delivered` / `delivered` | `delivered` |
+| `shipment.exception` / `exception` | `exception` |
+| `package.in_transit` / `in_transit` | `shipped` |
+| `package.out_for_delivery` / `out_for_delivery` | `shipped` |
 
 ---
 
 ## Variables de entorno requeridas
 
-Ver la plantilla completa en `.env.example` en la raíz del monorepo. Las mínimas para que el sitio arrange:
+Ver `.env.example` en la raíz del monorepo. Las mínimas:
 
 ```env
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
-NEXT_PUBLIC_WHATSAPP_NUMBER=573XXXXXXXXX
 NEXT_PUBLIC_SITE_URL=http://localhost:3000
+
+# Stack Auth
+NEXT_PUBLIC_HEXCLAVE_PROJECT_ID=
+NEXT_PUBLIC_HEXCLAVE_PUBLISHABLE_CLIENT_KEY=
+HEXCLAVE_SECRET_SERVER_KEY=
+
+# Blog Draft Mode
+DRAFT_SECRET=cambia-este-secreto
 ```
 
 ---
@@ -193,18 +199,25 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 ## Tests
 
 ```bash
-pnpm test              # Jest — 90 casos en 9 archivos
+pnpm test              # Jest — 209 casos en 19 archivos
 pnpm test:watch        # TDD
 pnpm test:coverage     # Con reporte HTML
 ```
 
-Ver tabla completa de cobertura en el [README raíz](../../README.md#14-testing).
+Nuevos archivos de test (v3):
+
+| Archivo | Cubre |
+|---------|-------|
+| `src/app/api/__tests__/newsletter.test.ts` | Suscripción, deduplicación, email de confirmación |
+| `src/app/api/__tests__/profile.test.ts` | GET/PATCH perfil, auth guard |
+| `src/app/api/__tests__/draft-enable.test.ts` | Validación de secret, cookie, redirect |
+| `src/__tests__/sitemap.test.ts` | Rutas estáticas, filtrado de productos/posts |
 
 ---
 
 ## Design system
 
-Las fuentes y colores se heredan de `packages/config/tailwind.config.ts`. Asegúrate de haber copiado los archivos `.otf` a `public/fonts/` antes de iniciar.
+Las fuentes y colores se heredan de `packages/config/tailwind.config.ts`.
 
 ```
 public/fonts/

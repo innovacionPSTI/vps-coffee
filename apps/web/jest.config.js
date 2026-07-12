@@ -1,16 +1,25 @@
-import type { Config } from 'jest'
-import nextJest from 'next/jest.js'
-
-const createJestConfig = nextJest({ dir: './' })
-
-const config: Config = {
+/** @type {import('jest').Config} */
+const config = {
   displayName: '@vps/web',
+  preset: 'ts-jest',
   testEnvironment: 'jsdom',
   setupFilesAfterEnv: ['<rootDir>/jest.setup.ts'],
   moduleNameMapper: {
+    // Static assets
+    '^.+\\.(jpg|jpeg|png|gif|webp|svg|ico)$': '<rootDir>/__mocks__/fileMock.js',
+    '^.+\\.(css|scss|sass)$': '<rootDir>/__mocks__/styleMock.js',
+    // Path aliases
     '^@/(.*)$': '<rootDir>/src/$1',
     '^@vps/database$': '<rootDir>/../../packages/database/src/index.ts',
     '^@vps/ui$': '<rootDir>/../../packages/ui/src/index.ts',
+  },
+  transform: {
+    '^.+\\.(ts|tsx)$': ['ts-jest', {
+      tsconfig: {
+        jsx: 'react-jsx',
+        esModuleInterop: true,
+      },
+    }],
   },
   testMatch: ['**/__tests__/**/*.test.{ts,tsx}', '**/*.test.{ts,tsx}'],
   collectCoverageFrom: [
@@ -20,7 +29,7 @@ const config: Config = {
     '!src/app/**/loading.tsx',
     '!src/app/**/not-found.tsx',
   ],
-  coverageThresholds: {
+  coverageThreshold: {
     global: {
       branches: 70,
       functions: 80,
@@ -30,4 +39,4 @@ const config: Config = {
   },
 }
 
-export default createJestConfig(config)
+module.exports = config

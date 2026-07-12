@@ -30,6 +30,19 @@ export async function getBlogPostBySlug(slug: string) {
   return data as BlogPost
 }
 
+/** Draft mode: fetch post regardless of published status (for preview) */
+export async function getBlogPostBySlugAny(slug: string) {
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('blog_posts')
+    .select('*')
+    .eq('slug', slug)
+    .single()
+
+  if (error) throw error
+  return data as BlogPost
+}
+
 export async function getFeaturedPost() {
   const supabase = createServerClient()
   const { data, error } = await supabase

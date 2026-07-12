@@ -932,25 +932,39 @@ pnpm format        # Código formateado con Prettier
 - API Routes: checkout, newsletter, webhooks Skydropx, shipping rates, config, upload
 - **Capa multi-proveedor de envíos** con FixedRateProvider y SkydropxProvider
 - **Configuración de proveedor de envíos desde el admin** (sin redespliegue)
-- 163 casos de prueba (unitarias + integración)
+- **Generación automática de guía Skydropx** tras pago confirmado (Wompi + MercadoPago)
+- **Modal de despacho masivo** (pickups Skydropx) desde `/admin/pedidos`
+- **Blog Draft Mode** — previsualización de borradores con cookie segura (`__vps_draft`)
+- **Edición de perfil** (`/mi-cuenta/perfil`) — nombre, teléfono, sincronización con Stack Auth
+- **Email de confirmación de newsletter** — solo al primer registro (sin duplicados)
+- **Página 404 personalizada** con diseño "taza de café vacía"
+- **SEO completo**: `sitemap.xml` dinámico, `robots.txt`, Open Graph y Twitter Cards por página
+- 209 casos de prueba (unitarias + integración)
+
+### Variables de entorno nuevas (v3)
+
+Además de las variables base, agrega en `apps/web/.env.local`:
+
+```env
+# Blog Draft Mode — previsualización de borradores
+DRAFT_SECRET=cambia-este-secreto
+```
+
+Y en `apps/admin/.env.local`:
+
+```env
+# URL pública del sitio web para generar el enlace de previsualización
+NEXT_PUBLIC_SITE_URL=https://vpscoffee.com
+NEXT_PUBLIC_DRAFT_SECRET=cambia-este-secreto  # debe coincidir con DRAFT_SECRET del web
+```
 
 ### Pendiente 🔲
 
 | Feature | Prioridad |
 |---------|-----------|
-| Integración Stack Auth (login, registro, middleware) | Alta |
-| Widget de pago Wompi + webhook | Alta |
-| Widget de pago MercadoPago + webhook | Alta |
-| CRUD de blog en admin (editor rich text) | Alta |
-| Formulario de edición de slides de banners | Alta |
-| Creación de guía Skydropx tras pago confirmado | Alta |
-| Emails transaccionales con Resend | Media |
-| sitemap.xml + robots.txt + Open Graph por página | Media |
 | Validación de cupones de descuento | Media |
-| Despacho masivo (pickups Skydropx) desde admin | Media |
-| Gestión de usuarios y roles en admin | Media |
-| Página 404 personalizada | Baja |
 | Integración analítica (Vercel Analytics / Plausible) | Baja |
+| Búsqueda de productos en la tienda | Baja |
 
 ---
 

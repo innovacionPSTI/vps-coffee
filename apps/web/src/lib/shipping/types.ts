@@ -13,10 +13,12 @@ export interface ShippingAddress {
   name: string
   street1: string
   postal_code: string
-  /** State / department */
+  /** Department / state (area_level1) */
   area_level1: string
-  /** City */
+  /** City / municipality (area_level2) */
   area_level2: string
+  /** Neighborhood / barrio (area_level3) — optional, used in Skydropx quotations */
+  area_level3?: string
   country_code: 'CO'
   phone: string
   email: string

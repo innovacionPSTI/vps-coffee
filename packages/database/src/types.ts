@@ -397,6 +397,14 @@ export type Database = {
           skydropx_client_secret: string | null
           skydropx_address_from_id: string | null
           skydropx_base_url: string
+          origin_name: string | null
+          origin_street: string | null
+          origin_neighborhood: string | null
+          origin_city: string | null
+          origin_department: string | null
+          origin_postal_code: string | null
+          origin_phone: string | null
+          origin_email: string | null
           updated_at: string
         }
         Insert: {
@@ -409,6 +417,14 @@ export type Database = {
           skydropx_client_secret?: string | null
           skydropx_address_from_id?: string | null
           skydropx_base_url?: string
+          origin_name?: string | null
+          origin_street?: string | null
+          origin_neighborhood?: string | null
+          origin_city?: string | null
+          origin_department?: string | null
+          origin_postal_code?: string | null
+          origin_phone?: string | null
+          origin_email?: string | null
           updated_at?: string
         }
         Update: {
@@ -421,6 +437,14 @@ export type Database = {
           skydropx_client_secret?: string | null
           skydropx_address_from_id?: string | null
           skydropx_base_url?: string
+          origin_name?: string | null
+          origin_street?: string | null
+          origin_neighborhood?: string | null
+          origin_city?: string | null
+          origin_department?: string | null
+          origin_postal_code?: string | null
+          origin_phone?: string | null
+          origin_email?: string | null
           updated_at?: string
         }
         Relationships: []

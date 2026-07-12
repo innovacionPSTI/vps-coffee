@@ -2,7 +2,7 @@
  * Unit tests for SkydropxProvider.
  *
  * Mocks the auth module so no real OAuth calls are made.
- * Tests: getRates happy path, polling, auth credential injection,
+ * Tests: getRates happy path, polling, credential/origin injection,
  * and graceful degradation on errors.
  */
 
@@ -18,11 +18,21 @@ jest.mock('../providers/skydropx/auth', () => ({
 import { skydropxFetch } from '../providers/skydropx/auth'
 const mockFetch = skydropxFetch as jest.Mock
 
+// Updated to use SkydropxConfig with `origin` (replaces legacy `addressFromId`)
 const CREDENTIALS = {
-  clientId: 'test-client-id',
+  clientId:     'test-client-id',
   clientSecret: 'test-secret',
-  addressFromId: 'warehouse-bta-01',
-  baseUrl: 'https://api-pro.skydropx.com',
+  baseUrl:      'https://app.skydropx.com',
+  origin: {
+    name:         'VPS Coffee',
+    street:       'Calle 10 # 5-20',
+    neighborhood: 'El Centro',
+    city:         'Medellín',
+    department:   'Antioquia',
+    postalCode:   '050001',
+    phone:        '3001234567',
+    email:        'envios@vpscoffee.com',
+  },
 }
 
 const dummyAddress: ShippingAddress = {
@@ -32,16 +42,48 @@ const dummyAddress: ShippingAddress = {
 }
 const dummyParcel: ShippingParcel = { length: 25, width: 20, height: 10, weight: 1.2 }
 
-const mockRates = [
-  { id: 'r1', carrier_name: 'Servientrega', service_name: 'Estándar', currency: 'COP', total_price: 18000, days: 2 },
-  { id: 'r2', carrier_name: 'Coordinadora', service_name: 'Económico', currency: 'COP', total_price: 14000, days: 3 },
+// ProRate format expected by SkydropxProvider
+const mockProRates = [
+  {
+    id: 'r1', success: true,
+    provider_name: 'Servientrega', provider_display_name: 'Servientrega',
+    provider_service_name: 'Estándar', currency_code: 'COP', total: 18000, days: 2,
+  },
+  {
+    id: 'r2', success: true,
+    provider_name: 'Coordinadora', provider_display_name: 'Coordinadora',
+    provider_service_name: 'Económico', currency_code: 'COP', total: 14000, days: 3,
+  },
 ]
+
+const quotationCreatedResponse = (id = 'quot-001') => ({
+  ok: true,
+  json: async () => ({ data: { id } }),
+})
+
+const ratesCompletedResponse = (rates = mockProRates) => ({
+  ok: true,
+  json: async () => ({ data: { attributes: { is_completed: true, rates } } }),
+})
+
+const pendingPollResponse = {
+  ok: true,
+  json: async () => ({ data: { attributes: { is_completed: false } } }),
+}
+
+/** Advance timers and flush microtask queue multiple times to drive async polling loops. */
+async function advanceAndFlush(ms: number, flushRounds = 3) {
+  jest.advanceTimersByTime(ms)
+  for (let i = 0; i < flushRounds; i++) {
+    await Promise.resolve()
+  }
+}
 
 beforeEach(() => {
   jest.clearAllMocks()
   jest.useFakeTimers()
 })
-afterEach(() => { jest.useRealTimers() })
+afterEach(() => jest.useRealTimers())
 
 // ─────────────────────────────────────────────
 // Happy path
@@ -51,13 +93,10 @@ describe('SkydropxProvider — happy path', () => {
     expect(new SkydropxProvider(CREDENTIALS).name).toBe('skydropx')
   })
 
-  it('retorna tarifas con provider = "skydropx" añadido', async () => {
+  it('retorna tarifas mapeadas con provider = "skydropx"', async () => {
     mockFetch
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { id: 'quot-001' } }) })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { attributes: { is_completed: true, rates: mockRates } } }),
-      })
+      .mockResolvedValueOnce(quotationCreatedResponse())
+      .mockResolvedValueOnce(ratesCompletedResponse())
 
     const provider = new SkydropxProvider(CREDENTIALS)
     const promise = provider.getRates(dummyAddress, dummyParcel)
@@ -67,15 +106,13 @@ describe('SkydropxProvider — happy path', () => {
     expect(rates).toHaveLength(2)
     expect(rates[0].provider).toBe('skydropx')
     expect(rates[0].carrier_name).toBe('Servientrega')
+    expect(rates[0].total_price).toBe(18000)
   })
 
-  it('incluye addressFromId en el body de createQuotation', async () => {
+  it('envía address_from como objeto (no address_from_id)', async () => {
     mockFetch
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { id: 'quot-002' } }) })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { attributes: { is_completed: true, rates: [] } } }),
-      })
+      .mockResolvedValueOnce(quotationCreatedResponse('quot-002'))
+      .mockResolvedValueOnce(ratesCompletedResponse([]))
 
     const provider = new SkydropxProvider(CREDENTIALS)
     const promise = provider.getRates(dummyAddress, dummyParcel)
@@ -84,16 +121,15 @@ describe('SkydropxProvider — happy path', () => {
 
     const [_path, _creds, options] = mockFetch.mock.calls[0]
     const body = JSON.parse(options.body)
-    expect(body.quotation.address_from_id).toBe('warehouse-bta-01')
+    expect(body.quotation.address_from).toBeDefined()
+    expect(body.quotation.address_from.postal_code).toBe('050001')
+    expect(body.quotation.address_from_id).toBeUndefined()
   })
 
   it('pasa las credenciales a skydropxFetch', async () => {
     mockFetch
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { id: 'quot-003' } }) })
-      .mockResolvedValueOnce({
-        ok: true,
-        json: async () => ({ data: { attributes: { is_completed: true, rates: [] } } }),
-      })
+      .mockResolvedValueOnce(quotationCreatedResponse('quot-003'))
+      .mockResolvedValueOnce(ratesCompletedResponse([]))
 
     const provider = new SkydropxProvider(CREDENTIALS)
     const promise = provider.getRates(dummyAddress, dummyParcel)
@@ -104,6 +140,24 @@ describe('SkydropxProvider — happy path', () => {
     expect(credentials.clientId).toBe('test-client-id')
     expect(credentials.clientSecret).toBe('test-secret')
   })
+
+  it('filtra tarifas donde success = false', async () => {
+    const mixedRates = [
+      { ...mockProRates[0], success: false },
+      { ...mockProRates[1], success: true },
+    ]
+    mockFetch
+      .mockResolvedValueOnce(quotationCreatedResponse())
+      .mockResolvedValueOnce(ratesCompletedResponse(mixedRates))
+
+    const provider = new SkydropxProvider(CREDENTIALS)
+    const promise = provider.getRates(dummyAddress, dummyParcel)
+    jest.runAllTimers()
+    const rates = await promise
+
+    expect(rates).toHaveLength(1)
+    expect(rates[0].carrier_name).toBe('Coordinadora')
+  })
 })
 
 // ─────────────────────────────────────────────
@@ -111,70 +165,56 @@ describe('SkydropxProvider — happy path', () => {
 // ─────────────────────────────────────────────
 describe('SkydropxProvider — polling', () => {
   it('reintenta hasta que is_completed = true', async () => {
-    const pendingResponse = { ok: true, json: async () => ({ data: { attributes: { is_completed: false } } }) }
-    const completedResponse = {
-      ok: true,
-      json: async () => ({ data: { attributes: { is_completed: true, rates: mockRates } } }),
-    }
-
     mockFetch
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { id: 'q-poll' } }) })
-      .mockResolvedValueOnce(pendingResponse)
-      .mockResolvedValueOnce(pendingResponse)
-      .mockResolvedValueOnce(completedResponse)
+      .mockResolvedValueOnce(quotationCreatedResponse('q-poll'))
+      .mockResolvedValueOnce(pendingPollResponse)
+      .mockResolvedValueOnce(pendingPollResponse)
+      .mockResolvedValueOnce(ratesCompletedResponse())
 
     const provider = new SkydropxProvider(CREDENTIALS)
     const promise = provider.getRates(dummyAddress, dummyParcel)
-    for (let i = 0; i < 10; i++) {
-      jest.advanceTimersByTime(500)
-      await Promise.resolve()
+    for (let i = 0; i < 12; i++) {
+      await advanceAndFlush(700)
     }
     const rates = await promise
+
     expect(rates).toHaveLength(2)
-    // 1 create + 3 poll attempts
-    expect(mockFetch).toHaveBeenCalledTimes(4)
+    expect(mockFetch).toHaveBeenCalledTimes(4) // 1 create + 3 polls
   })
+
+  it('retorna [] si el polling agota los reintentos (degradación graceful)', async () => {
+    mockFetch
+      .mockResolvedValueOnce(quotationCreatedResponse('q-timeout'))
+      .mockResolvedValue(pendingPollResponse)
+
+    const provider = new SkydropxProvider(CREDENTIALS)
+    const promise = provider.getRates(dummyAddress, dummyParcel)
+    // Advance enough to exhaust 15 retries × 600ms = 9000ms
+    for (let i = 0; i < 25; i++) {
+      await advanceAndFlush(700)
+    }
+    const rates = await promise
+    expect(rates).toEqual([])
+  }, 15000)
 })
 
 // ─────────────────────────────────────────────
 // Graceful degradation
 // ─────────────────────────────────────────────
 describe('SkydropxProvider — degradación graceful', () => {
-  it('retorna [] (no lanza) si createQuotation falla con HTTP error', async () => {
+  it('retorna [] si createQuotation falla con HTTP error', async () => {
     mockFetch.mockResolvedValueOnce({ ok: false, status: 503, json: async () => ({}) })
-
     const provider = new SkydropxProvider(CREDENTIALS)
     const promise = provider.getRates(dummyAddress, dummyParcel)
     jest.runAllTimers()
-    const rates = await promise
-
-    expect(rates).toEqual([])
+    expect(await promise).toEqual([])
   })
 
-  it('retorna [] (no lanza) si el polling agota los reintentos', async () => {
-    const pendingResponse = { ok: true, json: async () => ({ data: { attributes: { is_completed: false } } }) }
-    mockFetch
-      .mockResolvedValueOnce({ ok: true, json: async () => ({ data: { id: 'q-timeout' } }) })
-      .mockResolvedValue(pendingResponse)
-
-    const provider = new SkydropxProvider(CREDENTIALS)
-    const promise = provider.getRates(dummyAddress, dummyParcel)
-    for (let i = 0; i < 15; i++) {
-      jest.advanceTimersByTime(500)
-      await Promise.resolve()
-    }
-    const rates = await promise
-    expect(rates).toEqual([])
-  })
-
-  it('retorna [] (no lanza) si fetch lanza un error de red', async () => {
+  it('retorna [] si fetch lanza error de red', async () => {
     mockFetch.mockRejectedValueOnce(new Error('Network error'))
-
     const provider = new SkydropxProvider(CREDENTIALS)
     const promise = provider.getRates(dummyAddress, dummyParcel)
     jest.runAllTimers()
-    const rates = await promise
-
-    expect(rates).toEqual([])
+    expect(await promise).toEqual([])
   })
 })

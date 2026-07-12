@@ -2,6 +2,7 @@ import { createServerClient } from '@vps/database'
 import type { OrderStatus } from '@vps/database'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import PickupModal from '@/components/pedidos/PickupModal'
 
 export const metadata: Metadata = { title: 'Pedidos' }
 export const dynamic = 'force-dynamic'
@@ -33,6 +34,15 @@ export default async function PedidosAdminPage({
 
   const { data: orders } = await query
 
+  // For the pickup modal: load all shipped orders with a Skydropx shipment ID (not just current filter)
+  const { data: shippedOrders } = await supabase
+    .from('orders')
+    .select('id, order_number, customer_name, skydropx_shipment_id, tracking_number')
+    .eq('status', 'shipped')
+    .not('skydropx_shipment_id', 'is', null)
+    .order('created_at', { ascending: false })
+    .limit(100)
+
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
@@ -40,6 +50,7 @@ export default async function PedidosAdminPage({
     <div>
       <div className="flex items-center justify-between mb-8">
         <h1 className="font-display text-brand-primary text-3xl">Pedidos</h1>
+        <PickupModal shippedOrders={(shippedOrders ?? []) as unknown as Parameters<typeof PickupModal>[0]['shippedOrders']} />
       </div>
 
       {/* Filtros */}

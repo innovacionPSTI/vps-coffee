@@ -1,4 +1,7 @@
 /**
+ * @jest-environment node
+ */
+/**
  * Integration tests — POST /api/checkout
  *
  * Tests the full route handler in isolation:

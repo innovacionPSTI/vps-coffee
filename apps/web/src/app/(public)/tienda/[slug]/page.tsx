@@ -11,9 +11,27 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const product = await getProductBySlug(slug).catch(() => null)
   if (!product) return {}
+
+  const title       = product.seo_title ?? product.name
+  const description = product.seo_desc ?? product.description ?? undefined
+  const firstImage  = product.images?.[0]
+  const imageUrl    = firstImage?.url
+
   return {
-    title: product.seo_title ?? product.name,
-    description: product.seo_desc ?? product.description ?? undefined,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'website',
+      ...(imageUrl ? { images: [{ url: imageUrl, width: 1200, height: 630, alt: firstImage?.alt ?? title }] } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      ...(imageUrl ? { images: [imageUrl] } : {}),
+    },
   }
 }
 

@@ -3,7 +3,8 @@ import { stackServerApp } from '@/stack'
 import { getShippingProfile, upsertShippingProfile } from '@vps/database'
 
 export async function GET() {
-  const user = await stackServerApp.getUser()
+  let user = null
+  try { user = await stackServerApp.getUser() } catch { /* no session */ }
   if (!user?.primaryEmail) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }
@@ -13,7 +14,8 @@ export async function GET() {
 }
 
 export async function PUT(request: NextRequest) {
-  const user = await stackServerApp.getUser()
+  let user = null
+  try { user = await stackServerApp.getUser() } catch { /* no session */ }
   if (!user?.primaryEmail) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
   }

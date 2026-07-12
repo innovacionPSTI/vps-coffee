@@ -1,4 +1,7 @@
 /**
+ * @jest-environment node
+ */
+/**
  * Integration tests — POST /api/webhooks/mercadopago
  *
  * Escenarios cubiertos:

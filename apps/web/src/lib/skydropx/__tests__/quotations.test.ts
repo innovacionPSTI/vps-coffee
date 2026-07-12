@@ -1,4 +1,7 @@
 /**
+ * @jest-environment node
+ */
+/**
  * Unit tests for Skydropx quotation helpers.
  *
  * - calculateParcel: pure function — no mocks needed.
@@ -153,8 +156,15 @@ describe('getQuotationRates', () => {
     { id: 'rate-2', carrier_name: 'Coordinadora',  total_price: 15000, days: 3 },
   ]
 
+  /** Advance timers and flush microtask queue to drive async polling loops. */
+  async function advanceAndFlush(ms: number, rounds = 3) {
+    jest.advanceTimersByTime(ms)
+    for (let i = 0; i < rounds; i++) await Promise.resolve()
+  }
+
   beforeEach(() => {
-    // Silence the setTimeout delay in tests
+    // Reset (not just clear) so queued mockResolvedValueOnce calls don't leak between tests
+    mockFetch.mockReset()
     jest.useFakeTimers()
   })
 
@@ -178,7 +188,6 @@ describe('getQuotationRates', () => {
   })
 
   it('re-intenta hasta que is_completed es true', async () => {
-    // Primeros 2 intentos: no completado. Tercer intento: completado.
     const pendingResponse = {
       json: async () => ({ data: { attributes: { is_completed: false } } }),
     }
@@ -194,10 +203,8 @@ describe('getQuotationRates', () => {
       .mockResolvedValueOnce(completedResponse)
 
     const promise = getQuotationRates('quot-abc')
-    // Advance through retries
-    for (let i = 0; i < 5; i++) {
-      jest.advanceTimersByTime(500)
-      await Promise.resolve()
+    for (let i = 0; i < 8; i++) {
+      await advanceAndFlush(600)
     }
 
     const rates = await promise
@@ -213,15 +220,14 @@ describe('getQuotationRates', () => {
 
     const promise = getQuotationRates('quot-timeout')
 
-    // Advance all 10 retries
+    // 10 retries × 500ms delay = 5000ms total
     for (let i = 0; i < 15; i++) {
-      jest.advanceTimersByTime(500)
-      await Promise.resolve()
+      await advanceAndFlush(600)
     }
 
     await expect(promise).rejects.toThrow('Cotización no completada en tiempo esperado')
     expect(mockFetch).toHaveBeenCalledTimes(10)
-  })
+  }, 15000)
 
   it('usa el quotationId en el path de la petición', async () => {
     mockFetch.mockResolvedValueOnce({

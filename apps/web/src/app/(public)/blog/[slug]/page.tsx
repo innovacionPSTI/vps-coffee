@@ -1,20 +1,47 @@
-import { getBlogPostBySlug, getBlogPosts } from '@vps/database'
+import { getBlogPostBySlug, getBlogPostBySlugAny, getBlogPosts } from '@vps/database'
 import { notFound } from 'next/navigation'
+import { cookies } from 'next/headers'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import ShareWhatsApp from '@/components/blog/ShareWhatsApp'
 
+const DRAFT_COOKIE = '__vps_draft'
+
 interface Props {
-  params: Promise<{ slug: string }>
+  params:      Promise<{ slug: string }>
+  searchParams: Promise<{ draft?: string }>
+}
+
+async function isDraftMode(): Promise<boolean> {
+  const cookieStore = await cookies()
+  return cookieStore.get(DRAFT_COOKIE)?.value === '1'
 }
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params
   const post = await getBlogPostBySlug(slug).catch(() => null)
   if (!post) return {}
+
+  const title       = post.seo_title ?? post.title
+  const description = post.seo_desc ?? post.excerpt ?? undefined
+  const image       = post.cover_image ?? undefined
+
   return {
-    title: post.seo_title ?? post.title,
-    description: post.seo_desc ?? post.excerpt ?? undefined,
+    title,
+    description,
+    openGraph: {
+      title,
+      description,
+      type: 'article',
+      publishedTime: post.published_at ?? post.created_at,
+      ...(image ? { images: [{ url: image, width: 1200, height: 630, alt: title }] } : {}),
+    },
+    twitter: {
+      card: 'summary_large_image',
+      title,
+      description,
+      ...(image ? { images: [image] } : {}),
+    },
   }
 }
 
@@ -25,9 +52,16 @@ export async function generateStaticParams() {
 
 export const revalidate = 60
 
-export default async function BlogPostPage({ params }: Props) {
+export default async function BlogPostPage({ params, searchParams }: Props) {
   const { slug } = await params
-  const post = await getBlogPostBySlug(slug).catch(() => null)
+  const { draft } = await searchParams
+  const draftMode = (await isDraftMode()) || draft === '1'
+
+  // Draft mode: load any post regardless of published status
+  const post = draftMode
+    ? await getBlogPostBySlugAny(slug).catch(() => null)
+    : await getBlogPostBySlug(slug).catch(() => null)
+
   if (!post) notFound()
 
   const related = await getBlogPosts({ category: post.category ?? undefined, limit: 3 })
@@ -36,6 +70,13 @@ export default async function BlogPostPage({ params }: Props) {
 
   return (
     <div className="bg-brand-cream min-h-screen pt-16">
+      {/* Draft mode banner */}
+      {draftMode && !post.published && (
+        <div className="bg-amber-400 text-amber-900 text-center py-2.5 px-4 font-brand text-sm font-semibold">
+          ⚠️ Modo borrador — Este artículo no está publicado. Solo tú puedes verlo.
+        </div>
+      )}
+
       {/* Hero imagen */}
       {post.cover_image && (
         <div className="h-[50vh] min-h-80 overflow-hidden bg-brand-primary">
@@ -86,10 +127,12 @@ export default async function BlogPostPage({ params }: Props) {
         </article>
 
         {/* Compartir */}
-        <div className="mt-12 pt-8 border-t border-brand-primary/10 flex items-center gap-4">
-          <p className="font-brand text-sm text-brand-primary/50">Compartir:</p>
-          <ShareWhatsApp title={post.title} />
-        </div>
+        {post.published && (
+          <div className="mt-12 pt-8 border-t border-brand-primary/10 flex items-center gap-4">
+            <p className="font-brand text-sm text-brand-primary/50">Compartir:</p>
+            <ShareWhatsApp title={post.title} />
+          </div>
+        )}
 
         {/* Artículos relacionados */}
         {related.length > 0 && (

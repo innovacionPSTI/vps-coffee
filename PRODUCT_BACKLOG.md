@@ -97,7 +97,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | N-02 | Menú hamburger para móvil con drawer lateral | Alta | ✅ |
 | N-03 | Iconos de cuenta y carrito con badge numérico | Alta | ✅ |
 | N-04 | Footer con links, WhatsApp y redes sociales (Instagram, Facebook, TikTok) con iconos SVG — habilitables y configurables desde admin | Alta | ✅ |
-| N-05 | Página 404 personalizada con estilo VPS | Media | 🔲 |
+| N-05 | Página 404 personalizada con estilo VPS | Media | ✅ |
 | N-06 | Página de mantenimiento con logo VPS | Baja | 🔲 |
 | N-07 | Breadcrumb dinámico en páginas internas | Media | ✅ |
 
@@ -179,10 +179,10 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | S-02 | Cotización de tarifas en tiempo real al ingresar dirección | Alta | ✅ |
 | S-03 | Cálculo automático de dimensiones del paquete según el carrito | Alta | ✅ |
 | S-04 | Mostrar opciones de transportadora y tarifa al cliente | Alta | 🔲 |
-| S-05 | Generar guía de envío automáticamente tras pago confirmado | Alta | 🔲 |
-| S-06 | Guardar tracking_number y label_url en la orden | Alta | 🔲 |
+| S-05 | Generar guía de envío automáticamente tras pago confirmado | Alta | ✅ |
+| S-06 | Guardar tracking_number y label_url en la orden | Alta | ✅ |
 | S-07 | Webhook Skydropx — actualizar estado de pedido automáticamente | Alta | ✅ |
-| S-08 | Email automático al cliente con número de tracking | Media | 🔲 |
+| S-08 | Email automático al cliente con número de tracking | Media | ✅ |
 
 ---
 
@@ -223,7 +223,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | A-03 | Middleware de protección /mi-cuenta/* y /admin/* | Alta | ✅ |
 | A-04 | Dashboard de Mi Cuenta (stats de pedidos, datos personales) | Alta | ✅ |
 | A-05 | Historial de pedidos del cliente | Alta | ✅ |
-| A-06 | Editar datos personales del perfil | Media | 🔲 |
+| A-06 | Editar datos personales del perfil | Media | ✅ |
 | A-07 | Cerrar sesión (LogoutButton con useUser().signOut()) | Alta | ✅ |
 | A-08 | Creación de perfil en `profiles` al registrarse como admin | Alta | ✅ |
 | A-09 | Mirror de cliente web en `customers` al registrarse + vinculación de pedidos previos | Alta | ✅ |
@@ -246,13 +246,13 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | AD-09 | Detalle de pedido: cliente, items, timeline de estado | Alta | ✅ |
 | AD-10 | Actualizador de estado de pedido desde el admin | Alta | ✅ |
 | AD-11 | Vista de envío con tracking y botón descargar guía | Media | ✅ |
-| AD-12 | Modal de despacho masivo (pickups Skydropx) | Media | 🔲 |
+| AD-12 | Modal de despacho masivo (pickups Skydropx) | Media | ✅ |
 | AD-13 | Gestión de banners del hero (CRUD con drag & drop) | Alta | ✅ |
 | AD-14 | Formulario de edición de slide con imagen web + imagen mobile | Alta | ✅ |
 | AD-15 | Gestión de imágenes de sección servicios | Media | ✅ |
 | AD-16 | Listado de artículos del blog con estado publicado/borrador | Alta | ✅ |
 | AD-17 | Formulario de creación/edición de artículo (Markdown, imagen portada, SEO, publicado/borrador) | Alta | ✅ |
-| AD-18 | Vista previa de artículo antes de publicar (Draft Mode) | Media | 🔲 |
+| AD-18 | Vista previa de artículo antes de publicar (Draft Mode) | Media | ✅ |
 | AD-19 | Listado de clientes: con cuenta (Stack Auth) y sin cuenta (solo en pedidos) con badge de tipo | Media | ✅ |
 | AD-20 | Gestión de roles y usuarios — invitar (crea en Stack Auth + email de contraseña), cambiar rol, eliminar | Alta | ✅ |
 | AD-21 | Configuración de pasarelas de pago | Alta | ✅ |
@@ -274,7 +274,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | E-02 | Email de confirmación de pedido (disparado desde webhook al aprobar) | Alta | ✅ |
 | E-03 | Email de cambio de estado a "Enviado" con tracking | Alta | ✅ |
 | E-04 | Email de bienvenida al registrarse (disparado desde /api/auth/welcome) | Media | ✅ |
-| E-05 | Email de confirmación de suscripción al newsletter | Media | 🔲 |
+| E-05 | Email de confirmación de suscripción al newsletter | Media | ✅ |
 
 ---
 
@@ -286,9 +286,9 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | SEO-02 | Metadatos dinámicos por producto y artículo | Alta | ✅ |
 | SEO-03 | ISR en tienda y blog (revalidación 60s) | Alta | ✅ |
 | SEO-04 | Generación estática de rutas de producto y blog | Alta | ✅ |
-| SEO-05 | sitemap.xml dinámico | Media | 🔲 |
-| SEO-06 | robots.txt | Media | 🔲 |
-| SEO-07 | Open Graph y Twitter Card por página | Media | 🔲 |
+| SEO-05 | sitemap.xml dinámico | Media | ✅ |
+| SEO-06 | robots.txt | Media | ✅ |
+| SEO-07 | Open Graph y Twitter Card por página | Media | ✅ |
 | SEO-08 | Optimización de imágenes con next/image + Supabase CDN | Alta | 🔲 |
 | SEO-09 | Vercel Analytics o Plausible | Baja | 🔲 |
 
@@ -969,24 +969,121 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 
 ---
 
+### HU-R06 — Generación automática de guía de envío post-pago (nueva)
+
+> Como sistema de pagos, tras confirmar un pago quiero que se genere automáticamente la guía de envío en Skydropx para que el equipo de VPS Coffee pueda despachar sin intervención manual.
+
+**Estimación:** L (8 puntos)  
+**Módulo:** `lib/shipping/shipments.ts` + webhooks Wompi/MercadoPago  
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Pago Wompi aprobado | `createShipmentForOrder()` ejecutado; `skydropx_shipment_id`, `tracking_number` y `label_url` guardados en la orden |
+| AC-2 | Pago MercadoPago aprobado | Ídem AC-1 |
+| AC-3 | Skydropx falla | El webhook responde 200 de todas formas; fallo solo loguea en consola |
+| AC-4 | Webhook recibido dos veces (retry) | Segunda llamada detecta `skydropx_shipment_id` existente y no crea guía duplicada |
+| AC-5 | Provider = 'fixed' | `createShipmentForOrder` retorna `null` sin error |
+| AC-6 | Guía creada | Se envía email de tracking al cliente |
+| AC-7 | Email de tracking falla | La guía ya está guardada; el fallo de email no revierte nada |
+
+**Criterios de rechazo:**
+
+- El webhook retorna 500 si Skydropx falla (impediría reintentos de pago).
+- Se crean guías duplicadas si el webhook se dispara dos veces.
+- El `tracking_number` no se guarda en la orden.
+
+**Cobertura de tests:** `lib/shipping/__tests__/shipments.test.ts`
+
+---
+
+### HU-R07 — Previsualización de artículos borrador (nueva)
+
+> Como editor del blog, quiero poder previsualizar un artículo antes de publicarlo para verificar el formato y el contenido sin que sea visible para el público.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `api/draft/enable/route.ts` + `app/(public)/blog/[slug]/page.tsx`  
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Editor hace clic en "Previsualizar ↗" en un artículo borrador | Se abre `/blog/[slug]?draft=1` con banner amarillo de "modo borrador" |
+| AC-2 | Artículo borrador sin cookie de draft | `notFound()` — el artículo no es accesible públicamente |
+| AC-3 | URL con `?draft=1` y cookie activa | Artículo renderiza aunque `published = false` |
+| AC-4 | Cookie expira después de 1 hora | El artículo vuelve a ser inaccesible |
+| AC-5 | Artículo ya publicado + draft mode | Renderiza normalmente sin banner (pues `!post.published` es false) |
+| AC-6 | Secret inválido en `/api/draft/enable` | Responde 401 |
+
+**Criterios de rechazo:**
+
+- Un visitante sin cookie puede ver artículos no publicados directamente.
+- El banner de borrador aparece en artículos publicados.
+
+---
+
+### HU-R08 — Edición de perfil en Mi Cuenta (nueva)
+
+> Como cliente registrado, quiero poder actualizar mi nombre y teléfono desde Mi Cuenta para que mis datos estén al día y el checkout se pre-llene correctamente.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `api/account/profile/route.ts` + `components/account/ProfileForm`  
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Cliente cambia su nombre y guarda | `customers.name` y `user.displayName` actualizados |
+| AC-2 | Cliente cambia su teléfono y guarda | `customers.phone` actualizado |
+| AC-3 | Campo email deshabilitado | No se puede cambiar el email desde este formulario |
+| AC-4 | Usuario no autenticado llama PATCH | Responde 401 |
+| AC-5 | Cliente agrega una nueva dirección | Dirección guardada en `customer_addresses`; disponible en el próximo checkout |
+| AC-6 | Cliente marca dirección como predeterminada | La dirección previa deja de ser predeterminada |
+
+---
+
+### HU-R09 — Programar recolección masiva Skydropx desde admin (nueva)
+
+> Como operador de bodega, quiero seleccionar varios pedidos enviados y programar una recolección con Skydropx para que el transportista pase a recoger todos los paquetes en una sola visita.
+
+**Estimación:** M (3 puntos)  
+**Módulo:** `api/admin/pickups/route.ts` + `components/pedidos/PickupModal`  
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | No hay pedidos con guía Skydropx | Botón "Programar recolección" deshabilitado con tooltip |
+| AC-2 | Operador selecciona pedidos, fecha y ventana horaria | POST a `/api/admin/pickups`; pantalla de éxito |
+| AC-3 | Skydropx devuelve error | Se muestra el mensaje de error en el modal |
+| AC-4 | Skydropx no está configurado | API responde 503; modal muestra error |
+| AC-5 | Modal cerrado antes de enviar | Estado se resetea; no se hace ningún request |
+
+---
+
 ## 5. Resumen de Cobertura
 
 | Épica | Total ítems | Implementados | Pendientes | % |
 |-------|-------------|---------------|------------|---|
 | Fundación e Infraestructura | 10 | 10 | 0 | 100% |
-| Navegación | 7 | 6 | 1 | 86% |
+| Navegación | 7 | 7 | 0 | 100% |
 | Home | 8 | 8 | 0 | 100% |
 | Tienda y Catálogo | 12 | 12 | 0 | 100% |
 | Carrito | 8 | 6 | 2 | 75% |
-| Checkout y Pagos | 12 | 10 | 2 | 83% |
-| Envíos (Skydropx) | 8 | 4 | 4 | 50% |
+| Checkout y Pagos | 12 | 12 | 0 | 100% |
+| Envíos (Skydropx) | 8 | 7 | 1 | 87% |
 | Servicios | 6 | 5 | 1 | 83% |
 | Blog | 8 | 8 | 0 | 100% |
-| Autenticación y Mi Cuenta | 10 | 9 | 1 | 90% |
-| Panel de Administración | 28 | 25 | 3 | 89% |
-| Emails Transaccionales | 5 | 4 | 1 | 80% |
-| SEO y Rendimiento | 9 | 5 | 4 | 56% |
-| **TOTAL** | **134** | **116** | **18** | **87%** |
+| Autenticación y Mi Cuenta | 10 | 10 | 0 | 100% |
+| Panel de Administración | 28 | 28 | 0 | 100% |
+| Emails Transaccionales | 5 | 5 | 0 | 100% |
+| SEO y Rendimiento | 9 | 8 | 1 | 89% |
+| **TOTAL** | **134** | **126** | **8** | **94%** |
 
 ---
 

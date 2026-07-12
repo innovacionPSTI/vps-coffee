@@ -34,7 +34,14 @@ async function getCustomerId(supabase: ReturnType<typeof createServerClient>, st
 
 export async function GET() {
   try {
-    const user = await stackServerApp.getUser()
+    // getUser() puede throw en Route Handlers si la sesión no está disponible
+    // (mismo patrón defensivo que /api/auth/welcome)
+    let user = null
+    try {
+      user = await stackServerApp.getUser()
+    } catch {
+      // Stack Auth lanza cuando no hay sesión activa
+    }
     if (!user?.primaryEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
@@ -63,7 +70,12 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
-    const user = await stackServerApp.getUser()
+    let user = null
+    try {
+      user = await stackServerApp.getUser()
+    } catch {
+      // Stack Auth lanza cuando no hay sesión activa
+    }
     if (!user?.primaryEmail) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }

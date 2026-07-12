@@ -53,23 +53,28 @@ export async function PATCH(req: NextRequest) {
       )
     }
 
-    // If switching to skydropx, at least client_id + client_secret are required
+    // If switching to skydropx, credentials + origin address are required
     if (body.provider === 'skydropx') {
       const current = await getShippingConfig()
-      const effectiveClientId = body.skydropx_client_id ?? current.skydropx_client_id
+      const effectiveClientId     = body.skydropx_client_id     ?? current.skydropx_client_id
       const effectiveClientSecret = body.skydropx_client_secret ?? current.skydropx_client_secret
-      const effectiveAddressFromId = body.skydropx_address_from_id ?? current.skydropx_address_from_id
+      const effectiveOriginName   = (body as Record<string, unknown>).origin_name   ?? current.origin_name
+      const effectiveOriginCity   = (body as Record<string, unknown>).origin_city   ?? current.origin_city
+      const effectiveOriginDept   = (body as Record<string, unknown>).origin_department ?? current.origin_department
+      const effectiveOriginPC     = (body as Record<string, unknown>).origin_postal_code ?? current.origin_postal_code
 
-      if (!effectiveClientId || !effectiveClientSecret || !effectiveAddressFromId) {
+      const missing = [
+        !effectiveClientId     && 'skydropx_client_id',
+        !effectiveClientSecret && 'skydropx_client_secret',
+        !effectiveOriginName   && 'origin_name',
+        !effectiveOriginCity   && 'origin_city',
+        !effectiveOriginDept   && 'origin_department',
+        !effectiveOriginPC     && 'origin_postal_code',
+      ].filter(Boolean)
+
+      if (missing.length) {
         return NextResponse.json(
-          {
-            error: 'Para activar Skydropx debes proveer: skydropx_client_id, skydropx_client_secret y skydropx_address_from_id',
-            missing: [
-              !effectiveClientId && 'skydropx_client_id',
-              !effectiveClientSecret && 'skydropx_client_secret',
-              !effectiveAddressFromId && 'skydropx_address_from_id',
-            ].filter(Boolean),
-          },
+          { error: 'Para activar Skydropx faltan campos obligatorios', missing },
           { status: 400 }
         )
       }
