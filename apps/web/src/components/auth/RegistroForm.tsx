@@ -57,8 +57,10 @@ export default function RegistroForm() {
         }
       }
 
-      // Email de bienvenida en segundo plano
-      fetch('/api/auth/welcome', {
+      // Sincroniza el usuario en Supabase (customers) y envía email de bienvenida.
+      // Se awaita para garantizar que el upsert completa antes de navegar;
+      // los errores se silencian para no bloquear el registro.
+      await fetch('/api/auth/welcome', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ name: name.trim() }),
