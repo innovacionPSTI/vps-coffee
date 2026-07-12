@@ -1,5 +1,5 @@
 # VPS Coffee — Estado del Proyecto
-> **Última actualización:** Julio 2026 · **Stack:** Next.js 15 · Supabase · Tailwind · Turborepo
+> **Última actualización:** Julio 2026 · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
 
 ---
 
@@ -17,14 +17,18 @@
 - `tsconfig.json` compartido
 
 ### `packages/database`
-- `src/types.ts` — tipos TypeScript completos de todas las tablas
+- `src/types.ts` — tipos TypeScript completos de todas las tablas (incluye `payment_config`, campos Resend)
 - `src/client.ts` — `createBrowserClient()` y `createServerClient()`
-- `src/queries/` — products, orders, blog, banners, shipping-config, **store-config**
-- `supabase/migrations/001_initial_schema.sql` — schema completo con RLS, triggers, seed data y buckets de storage
-- `supabase/migrations/002_shipping_config.sql` — tabla `shipping_config` con soporte multi-proveedor
-- `supabase/migrations/003_banners.sql` — tabla `banners` con campos de imagen web/mobile
-- `supabase/migrations/004_store_config.sql` — tabla `store_config` singleton (id=1) con whatsapp, nombre, email, logo
-- `supabase/migrations/005_store_config_logo.sql` — añade columna `logo_url` a `store_config` (idempotente)
+- `src/queries/` — products, orders, blog, banners, shipping-config, store-config, **payment-config**
+- `supabase/migrations/1_initial_schema.sql` — schema completo para Stack Auth (sin FK a auth.users, sin trigger on_auth_user_created); RLS solo con políticas válidas; roles correctos incluido `miembro`
+- `supabase/migrations/2_shipping_config.sql` — tabla `shipping_config` con soporte multi-proveedor
+- `supabase/migrations/3_banner_mobile_image.sql` — tabla `banners` con campos de imagen web/mobile
+- `supabase/migrations/4_store_config.sql` — tabla `store_config` singleton (id=1) con whatsapp, nombre, email, logo; RLS habilitado
+- `supabase/migrations/5_payment_config.sql` — tabla `payment_config` singleton (id=1) con credenciales Wompi y MercadoPago
+- `supabase/migrations/6_email_config.sql` — añade `resend_api_key` y `resend_from_email` a `store_config`
+- `supabase/migrations/7_shipping_profiles.sql` — tabla `shipping_profiles` para perfiles de envío; RLS habilitado
+- `supabase/migrations/8_customers.sql` — tabla `customers` (mirror de compradores web desde Stack Auth); FK `orders.customer_id → customers.id`; RLS habilitado (solo service_role)
+- `supabase/migrations/9_customer_addresses.sql` — tabla `customer_addresses` (1 cliente → N direcciones guardadas para pre-llenar checkout); RLS habilitado
 
 ### `packages/ui`
 - `Button`, `Badge`, `ProductCard`, `Spinner` — componentes base con variantes VPS
@@ -36,8 +40,18 @@
 - `globals.css` con fuentes Ahsing/Geeeki, variables CSS, utilidades arch/scrollbar
 - `app/layout.tsx` con metadata SEO global
 
+**Auth (Stack Auth):**
+- `src/stack.ts` — `StackServerApp` (tokenStore: nextjs-cookie, urls custom: /login, /registro, /mi-cuenta)
+- `src/middleware.ts` — protege `/mi-cuenta/*`; redirige a `/login?returnTo=...` si sin sesión
+- `src/app/handler/[...stack]/page.tsx` — catch-all handler (password-reset, email-verification, etc.)
+- `src/app/(auth)/layout.tsx` — layout centrado con logo para páginas de auth
+- `src/app/(auth)/login/page.tsx` — formulario VPS-branded, `signInWithCredential`, returnTo param
+- `src/app/(auth)/registro/page.tsx` — formulario VPS-branded, `signUpWithCredential`, dispara welcome email
+- `src/components/auth/LogoutButton.tsx` — client component con `useUser().signOut()`
+- `src/app/api/auth/welcome/route.ts` — POST: obtiene user de Stack Auth, envía bienvenida vía Resend
+
 **Layout:**
-- `Navbar` — sticky con scroll, carrito badge, hamburger mobile; acepta prop `logoUrl` desde layout servidor
+- `Navbar` — sticky; carrito badge; hamburger mobile; acepta prop `logoUrl`; muestra "Iniciar sesión" o icono Mi Cuenta segú `useUser()` (Stack Auth)
 - `Footer` — links, redes sociales, WhatsApp; acepta props `logoUrl` y `whatsapp` desde layout servidor
 
 **Layouts de grupo (server components):**
@@ -61,7 +75,7 @@
 | `/carrito` | `app/carrito/page.tsx` | Client |
 | `/checkout` | `app/checkout/page.tsx` | 3 pasos |
 | `/checkout/confirmacion` | `app/checkout/confirmacion/page.tsx` | async, WhatsApp desde BD |
-| `/mi-cuenta` | `app/(account)/mi-cuenta/page.tsx` | Skeleton |
+| `/mi-cuenta` | `app/(account)/mi-cuenta/page.tsx` | SSR · user real |
 | `/mi-cuenta/pedidos` | `app/(account)/mi-cuenta/pedidos/page.tsx` | ✅ |
 
 > **Nota Next.js 15:** En rutas dinámicas `params` es un `Promise`. Se debe tipar como `params: Promise<{ slug: string }>` y usar `const { slug } = await params`.
@@ -69,10 +83,15 @@
 **API Routes:**
 | Ruta | Función |
 |------|---------|
-| `POST /api/checkout` | Crea orden en Supabase |
+| `POST /api/checkout` | Crea orden en Supabase + genera URL de pago Wompi o preferencia MercadoPago |
 | `POST /api/newsletter` | Upsert suscriptor |
 | `POST /api/webhooks/skydropx` | Actualiza estado pedido |
+| `POST /api/webhooks/wompi` | Verifica firma SHA256, actualiza estado de pago, envía email de confirmación |
+| `POST /api/webhooks/mercadopago` | Consulta pago real en API de MP, actualiza estado, envía email |
 | `POST /api/shipping/rates` | Cotiza envío multi-proveedor |
+| `POST /api/auth/welcome` | Upsert en `customers` + vincula pedidos previos + email de bienvenida |
+| `GET /api/account/addresses` | Devuelve direcciones guardadas del cliente logueado (para pre-llenar checkout) |
+| `POST /api/account/addresses` | Guarda nueva dirección del cliente; maneja `is_default` de forma exclusiva |
 
 **Componentes:**
 - `HeroCarousel` — autoplay 5s, fade, dots, flechas; usa `<picture>` + `<source media="(max-width: 768px)">` para mostrar imagen mobile en móvil e imagen desktop en escritorio
@@ -83,6 +102,9 @@
 - `ShopClient` — filtros tueste/peso/método, sort, grid
 - `ProductDetail` — galería, selector variantes, add to cart
 - `lib/whatsapp.ts` — async, lee número desde `getStoreConfig()` en BD; fallback `573XXXXXXXXX`
+- `lib/wompi.ts` — `buildWompiCheckoutUrl` (firma SHA256), `verifyWompiWebhook`, `mapWompiStatus`; sin process.env
+- `lib/mercadopago.ts` — `createMercadoPagoPreference`, `getMercadoPagoPayment`, `mapMercadoPagoStatus`, `isMercadoPagoSandbox`; sin process.env
+- `lib/email.ts` — `sendOrderConfirmation`, `sendShippingNotification`, `sendWelcomeEmail` vía Resend (fetch directo); credenciales como parámetros
 - `lib/skydropx/auth.ts` — OAuth 2.0 con cache de token
 - `lib/skydropx/quotations.ts` — cotizar + polling + cálculo de parcel
 
@@ -90,10 +112,19 @@
 **Setup:**
 - `package.json`, `next.config.ts`, `tailwind.config.ts`, `tsconfig.json`
 - `globals.css` con fuentes VPS
-- `app/layout.tsx`, redirect `/` → `/dashboard`
+- `app/layout.tsx` — StackProvider/StackTheme; topbar con nombre/iniciales del usuario real
+
+**Auth (Stack Auth):**
+- `src/stack.ts` — `StackServerApp` (tokenStore: nextjs-cookie)
+- `src/middleware.ts` — protege todas las rutas excepto `/handler/*`; redirige a `/handler/sign-in`
+- `src/app/handler/[...stack]/page.tsx` — catch-all handler Stack Auth
+
+**Auth y Roles:**
+- `src/lib/roles.ts` — reescrito con `AssignableRole = AdminRole | 'miembro'`; `ADMIN_ROLES`, `ASSIGNABLE_ROLES`, `ROLE_LABELS` (incluyendo miembro), `isAdminRole()` retorna false para miembro
+- Roles disponibles: `super_admin`, `admin`, `vendedor`, `gestor_tienda`, `miembro` (sin acceso al panel), `customer`
 
 **Layout:**
-- `AdminSidebar` — sidebar `#614A2A`, nav activo, todos los links
+- `AdminSidebar` — sidebar `#614A2A`, nav activo, Configuración al final de la lista
 - `AdminTopbar` — barra superior con búsqueda y avatar
 
 **Componentes:**
@@ -111,7 +142,9 @@
 | `/banners` | Vista previa de slides; cada banner soporta imagen web + imagen mobile |
 | `/categorias` | CRUD de categorías |
 | `/blog` | Tabla artículos con estado publicado/borrador |
-| `/configuracion` | Pasarelas de pago, Skydropx, Resend; **WhatsApp y Logo desde `store_config`** |
+| `/clientes` | Tabla unificada: usuarios registrados (Stack Auth, badge "Con cuenta") + compradores sin cuenta (solo en orders, badge "Sin cuenta"); búsqueda y filtros |
+| `/usuarios` | CRUD de usuarios del panel: invitar (crea en Stack Auth con rol `miembro` + envía email de contraseña), cambiar rol, eliminar |
+| `/configuracion` | `ShippingConfigForm`, `PaymentConfigForm` (Wompi+MP con SecretInput + toggle), `EmailConfigForm` (Resend), `StoreConfigForm` (WhatsApp, logo) |
 
 **API Admin:**
 | Ruta | Función |
@@ -122,8 +155,14 @@
 | `PATCH /api/admin/orders/[id]/status` | Actualiza estado de orden |
 | `GET /api/admin/shipping` | Lee config de envíos (client_secret enmascarado) |
 | `PATCH /api/admin/shipping` | Guarda config de envíos con validación |
-| `GET /api/admin/config` | Lee `store_config` (WhatsApp, nombre, email, logo) |
-| `PATCH /api/admin/config` | Guarda `store_config`; valida que WhatsApp tenga 10–15 dígitos |
+| `GET /api/admin/config` | Lee `store_config` (WhatsApp, nombre, email, logo, Resend); enmascara `resend_api_key` |
+| `PATCH /api/admin/config` | Guarda `store_config`; valida que WhatsApp tenga 10–15 dígitos; acepta campos Resend |
+| `GET /api/admin/payment-config` | Lee `payment_config`; devuelve secrets enmascarados + flags `has_*` |
+| `PATCH /api/admin/payment-config` | Guarda credenciales Wompi/MP; valida prefijo `pub_`; no sobreescribe secrets vacíos |
+| `GET /api/admin/usuarios` | Lista usuarios del panel (roles `super_admin`, `admin`, `vendedor`, `gestor_tienda`, `miembro`) desde Supabase |
+| `POST /api/admin/usuarios` | Crea usuario: `stackServerApp.createUser()` → upsert en `profiles` con rol `miembro` → envía email "Establece tu contraseña" vía Stack Auth REST API |
+| `PATCH /api/admin/usuarios/[id]` | Cambia rol (`AssignableRole`); solo super_admin puede asignar super_admin |
+| `DELETE /api/admin/usuarios/[id]` | Elimina usuario del panel |
 | `POST /api/admin/upload` | Sube archivo a Supabase Storage; **auto-crea el bucket** si no existe |
 | `DELETE /api/admin/upload` | Elimina archivo de Storage |
 
@@ -132,20 +171,14 @@
 ## 🔧 Pendiente de implementar
 
 ### Prioridad alta
-- [ ] **Integración real de pagos Wompi** — widget JS embebido en checkout, webhook PATCH `/api/webhooks/wompi`
-- [ ] **Integración real de pagos MercadoPago** — SDK React Brick, webhook
-- [ ] **Stack Auth** — flujo login/registro, middleware de protección de rutas, `useUser()` hook
 - [ ] **Formulario CRUD de blog** (`/admin/blog/nuevo` y `/admin/blog/[id]`) — editor Markdown/rich text
+- [ ] **Editor de banners** — formulario de edición de slide con imagen web + imagen mobile; drag & drop para reordenar
 
 ### Prioridad media
-- [ ] **Middleware de autenticación** — proteger `/mi-cuenta/*` y `admin.vpscoffee.com/*` con roles
-- [ ] **Emails transaccionales con Resend** — confirmación de pedido, envío, bienvenida
 - [ ] **Creación de shipment Skydropx** tras pago confirmado (`lib/skydropx/shipments.ts`)
 - [ ] **Modal de despacho masivo** en admin (pickups Skydropx)
 - [ ] **SEO:** `sitemap.xml`, `robots.txt`, Open Graph por página
 - [ ] **Página 404** personalizada
-- [ ] **Gestión de usuarios y roles** en admin (`/admin/usuarios`)
-- [ ] **Editor de banners** — formulario de edición/reordenamiento de slides
 
 ### Prioridad baja
 - [ ] **Cupones de descuento** — tabla `coupons` + validación en checkout
@@ -179,11 +212,15 @@ cp .env.example apps/admin/.env.local
 ### 4. Ejecutar migraciones SQL en Supabase
 Abrir el SQL Editor de Supabase y ejecutar en orden:
 ```
-packages/database/supabase/migrations/001_initial_schema.sql
-packages/database/supabase/migrations/002_shipping_config.sql
-packages/database/supabase/migrations/003_banners.sql
-packages/database/supabase/migrations/004_store_config.sql
-packages/database/supabase/migrations/005_store_config_logo.sql
+packages/database/supabase/migrations/1_initial_schema.sql
+packages/database/supabase/migrations/2_shipping_config.sql
+packages/database/supabase/migrations/3_banner_mobile_image.sql
+packages/database/supabase/migrations/4_store_config.sql
+packages/database/supabase/migrations/5_payment_config.sql
+packages/database/supabase/migrations/6_email_config.sql
+packages/database/supabase/migrations/7_shipping_profiles.sql
+packages/database/supabase/migrations/8_customers.sql
+packages/database/supabase/migrations/9_customer_addresses.sql
 ```
 
 ### 5. Levantar el proyecto
@@ -217,7 +254,14 @@ vps-coffee/
 │   │   │   ├── carrito/
 │   │   │   ├── checkout/
 │   │   │   │   └── confirmacion/       — async; WhatsApp desde BD
-│   │   │   └── api/
+│   │   │   ├── api/
+│   │   │   │   ├── checkout/route.ts   — crea orden + URL pago Wompi/MP
+│   │   │   │   ├── webhooks/
+│   │   │   │   │   ├── skydropx/route.ts
+│   │   │   │   │   ├── wompi/route.ts  — verifica firma, actualiza orden, email
+│   │   │   │   │   └── mercadopago/route.ts — consulta MP API, actualiza orden, email
+│   │   │   │   ├── newsletter/
+│   │   │   │   └── shipping/rates/
 │   │   ├── components/
 │   │   │   ├── layout/
 │   │   │   │   ├── Navbar.tsx          — acepta prop logoUrl
@@ -232,6 +276,9 @@ vps-coffee/
 │   │   ├── store/cart.ts
 │   │   └── lib/
 │   │       ├── whatsapp.ts             — async; lee desde BD
+│   │       ├── wompi.ts                — buildWompiCheckoutUrl, verifyWompiWebhook, mapWompiStatus
+│   │       ├── mercadopago.ts          — createMercadoPagoPreference, getMercadoPagoPayment, etc.
+│   │       ├── email.ts                — sendOrderConfirmation, sendShippingNotification, sendWelcomeEmail
 │   │       └── skydropx/
 │   │
 │   └── admin/src/
@@ -246,14 +293,23 @@ vps-coffee/
 │       │   ├── banners/
 │       │   ├── categorias/
 │       │   ├── blog/
+│       │   ├── clientes/
+│       │   │   ├── page.tsx            — Server Component: fusiona Stack Auth users + orders por email
+│       │   │   └── ClientesClient.tsx  — búsqueda, filtros con/sin cuenta, tabla con badge de tipo
+│       │   ├── usuarios/
+│       │   │   └── UsuariosClient.tsx  — invitar (siempre como miembro), cambiar rol, eliminar
 │       │   ├── configuracion/
-│       │   │   ├── page.tsx            — carga shipping + store_config
-│       │   │   └── StoreConfigForm.tsx — WhatsApp, logo, nombre, email
+│       │   │   ├── page.tsx            — carga shipping + store_config + payment_config
+│       │   │   ├── ShippingConfigForm.tsx
+│       │   │   ├── StoreConfigForm.tsx — WhatsApp, logo, nombre, email
+│       │   │   ├── PaymentConfigForm.tsx — Wompi + MP con SecretInput + toggles
+│       │   │   └── EmailConfigForm.tsx — Resend API key + from email
 │       │   └── api/admin/
 │       │       ├── products/           — POST (crea con imágenes), GET/PATCH/DELETE [id]
 │       │       ├── orders/[id]/status/
 │       │       ├── shipping/           — GET+PATCH con validación y secret masking
-│       │       ├── config/             — GET+PATCH store_config
+│       │       ├── config/             — GET+PATCH store_config + Resend; enmascara resend_api_key
+│       │       ├── payment-config/     — GET+PATCH payment_config; secrets ••••last4 + has_* flags
 │       │       └── upload/             — POST/DELETE con auto-create de bucket
 │       └── components/
 │           ├── layout/                 — AdminSidebar, AdminTopbar
@@ -270,11 +326,13 @@ vps-coffee/
 │   │   │   ├── shipping-config.ts
 │   │   │   └── store-config.ts         — getStoreConfig / updateStoreConfig
 │   │   └── supabase/migrations/
-│   │       ├── 001_initial_schema.sql
-│   │       ├── 002_shipping_config.sql
-│   │       ├── 003_banners.sql
-│   │       ├── 004_store_config.sql
-│   │       └── 005_store_config_logo.sql
+│   │       ├── 1_initial_schema.sql        — Stack Auth-native: sin FK auth.users, sin triggers
+│   │       ├── 2_shipping_config.sql
+│   │       ├── 3_banner_mobile_image.sql
+│   │       ├── 4_store_config.sql
+│   │       ├── 5_payment_config.sql
+│   │       ├── 6_email_config.sql
+│   │       └── 7_shipping_profiles.sql
 │   └── config/
 │
 ├── .env.example

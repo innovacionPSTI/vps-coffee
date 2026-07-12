@@ -14,9 +14,9 @@ const CATEGORIES = ['Orígenes', 'Preparación', 'Novedades', 'Cultura']
 export default async function BlogPage({
   searchParams,
 }: {
-  searchParams: Record<string, string | undefined>
+  searchParams: Promise<Record<string, string | undefined>>
 }) {
-  const category = searchParams.categoria
+  const { categoria: category } = await searchParams
   const posts = await getBlogPosts({ category, limit: 20 }).catch(() => [])
   const featured = posts[0]
   const rest = posts.slice(1)

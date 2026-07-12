@@ -78,11 +78,11 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 |----|----------|-----------|--------|
 | F-01 | Configurar monorepo Turborepo con pnpm workspaces | Alta | ✅ |
 | F-02 | Definir design system: colores, tipografía, componentes base | Alta | ✅ |
-| F-03 | Crear schema de base de datos con todas las tablas y relaciones | Alta | ✅ |
+| F-03 | Crear schema de base de datos con todas las tablas y relaciones (incluye `customers` y `customer_addresses`) | Alta | ✅ |
 | F-04 | Implementar RLS (Row Level Security) en Supabase | Alta | ✅ |
 | F-05 | Configurar buckets de Storage en Supabase | Alta | ✅ |
-| F-06 | Integrar Stack Auth para autenticación | Alta | 🔲 |
-| F-07 | Crear middleware de protección de rutas por rol | Alta | 🔲 |
+| F-06 | Integrar Stack Auth para autenticación | Alta | ✅ |
+| F-07 | Crear middleware de protección de rutas por rol | Alta | ✅ |
 | F-08 | Configurar variables de entorno y .env.example documentado | Alta | ✅ |
 | F-09 | Configurar fuentes personalizadas Ahsing y Geeeki | Alta | ✅ |
 | F-10 | Definir seed data inicial (categorías y banners) | Media | ✅ |
@@ -162,11 +162,11 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | P-04 | Selector de método de pago (Wompi / MercadoPago) | Alta | ✅ |
 | P-05 | Creación de orden en Supabase al confirmar | Alta | ✅ |
 | P-06 | Página de confirmación de pedido con número de orden | Alta | ✅ |
-| P-07 | Integración real del widget Wompi embebido | Alta | 🔲 |
-| P-08 | Integración real de MercadoPago Brick | Alta | 🔲 |
-| P-09 | Webhook Wompi — actualización automática de estado de pago | Alta | 🔲 |
-| P-10 | Webhook MercadoPago — actualización automática de estado de pago | Alta | 🔲 |
-| P-11 | Pre-llenado de datos si el usuario está logueado | Media | 🔲 |
+| P-07 | Integración real de Wompi (hosted checkout con firma SHA256) | Alta | ✅ |
+| P-08 | Integración real de MercadoPago (preference + redirect) | Alta | ✅ |
+| P-09 | Webhook Wompi — actualización automática de estado de pago | Alta | ✅ |
+| P-10 | Webhook MercadoPago — actualización automática de estado de pago | Alta | ✅ |
+| P-11 | Pre-llenado de dirección de envío desde `customer_addresses` si el usuario está logueado | Media | ✅ API lista (`GET /api/account/addresses`); integración en CheckoutClient pendiente |
 | P-12 | Generación automática de número de orden correlativo (VPS-XXXX) | Alta | ✅ |
 
 ---
@@ -218,14 +218,16 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 
 | ID | Historia | Prioridad | Estado |
 |----|----------|-----------|--------|
-| A-01 | Página de Login con Stack Auth | Alta | 🔲 |
-| A-02 | Página de Registro con Stack Auth | Alta | 🔲 |
-| A-03 | Middleware de protección /mi-cuenta/* | Alta | 🔲 |
+| A-01 | Página de Login con Stack Auth | Alta | ✅ |
+| A-02 | Página de Registro con Stack Auth | Alta | ✅ |
+| A-03 | Middleware de protección /mi-cuenta/* y /admin/* | Alta | ✅ |
 | A-04 | Dashboard de Mi Cuenta (stats de pedidos, datos personales) | Alta | ✅ |
 | A-05 | Historial de pedidos del cliente | Alta | ✅ |
 | A-06 | Editar datos personales del perfil | Media | 🔲 |
-| A-07 | Cerrar sesión | Alta | 🔲 |
-| A-08 | Trigger automático: crear perfil al registrarse | Alta | ✅ |
+| A-07 | Cerrar sesión (LogoutButton con useUser().signOut()) | Alta | ✅ |
+| A-08 | Creación de perfil en `profiles` al registrarse como admin | Alta | ✅ |
+| A-09 | Mirror de cliente web en `customers` al registrarse + vinculación de pedidos previos | Alta | ✅ |
+| A-10 | Gestión de direcciones guardadas (`customer_addresses`) — API GET/POST con manejo de `is_default` | Media | ✅ |
 
 ---
 
@@ -246,13 +248,13 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | AD-11 | Vista de envío con tracking y botón descargar guía | Media | ✅ |
 | AD-12 | Modal de despacho masivo (pickups Skydropx) | Media | 🔲 |
 | AD-13 | Gestión de banners del hero (CRUD con drag & drop) | Alta | ✅ |
-| AD-14 | Formulario de edición de slide con imagen web + imagen mobile | Alta | 🔲 |
+| AD-14 | Formulario de edición de slide con imagen web + imagen mobile; drag & drop para reordenar | Alta | 🔲 |
 | AD-15 | Gestión de imágenes de sección servicios | Media | ✅ |
 | AD-16 | Listado de artículos del blog con estado publicado/borrador | Alta | ✅ |
 | AD-17 | Formulario de creación/edición de artículo con rich text | Alta | 🔲 |
 | AD-18 | Vista previa de artículo antes de publicar (Draft Mode) | Media | 🔲 |
-| AD-19 | Listado de clientes registrados | Media | 🔲 |
-| AD-20 | Gestión de roles y usuarios (solo super_admin) | Alta | 🔲 |
+| AD-19 | Listado de clientes: con cuenta (Stack Auth) y sin cuenta (solo en pedidos) con badge de tipo | Media | ✅ |
+| AD-20 | Gestión de roles y usuarios — invitar (crea en Stack Auth + email de contraseña), cambiar rol, eliminar | Alta | ✅ |
 | AD-21 | Configuración de pasarelas de pago | Alta | ✅ |
 | AD-22 | Configuración de número WhatsApp desde BD (`store_config`) | Alta | ✅ |
 | AD-23 | CRUD de categorías | Media | ✅ |
@@ -265,10 +267,10 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 
 | ID | Historia | Prioridad | Estado |
 |----|----------|-----------|--------|
-| E-01 | Integrar Resend como proveedor de emails | Alta | 🔲 |
-| E-02 | Email de confirmación de pedido (al cliente) | Alta | 🔲 |
-| E-03 | Email de cambio de estado a "Enviado" con tracking | Alta | 🔲 |
-| E-04 | Email de bienvenida al registrarse | Media | 🔲 |
+| E-01 | Integrar Resend como proveedor de emails (configurado desde admin) | Alta | ✅ |
+| E-02 | Email de confirmación de pedido (disparado desde webhook al aprobar) | Alta | ✅ |
+| E-03 | Email de cambio de estado a "Enviado" con tracking | Alta | ✅ |
+| E-04 | Email de bienvenida al registrarse (disparado desde /api/auth/welcome) | Media | ✅ |
 | E-05 | Email de confirmación de suscripción al newsletter | Media | 🔲 |
 
 ---
@@ -460,7 +462,7 @@ Cada historia incluye sus criterios de aceptación y el estado de implementació
 - Al confirmar, se crea la orden en Supabase con número correlativo (VPS-XXXX).
 - El usuario es redirigido a una página de confirmación con el número de orden.
 
-**Estado:** ✅ Implementado (integración real de pagos pendiente)
+**Estado:** ✅ Implementado (Wompi hosted checkout + MercadoPago preference; usuario redirigido al gateway al confirmar)
 
 ---
 
@@ -640,15 +642,17 @@ Cada historia incluye sus criterios de aceptación y el estado de implementació
 ---
 
 **HU-024 — Controlar accesos por rol**
-> Como super administrador, quiero asignar roles a los usuarios del panel (admin, editor) para que cada miembro del equipo solo acceda a las secciones que le corresponden.
+> Como super administrador, quiero invitar usuarios al panel, asignarles roles y revocarlos para que cada miembro del equipo solo acceda a las secciones que le corresponden.
 
 **Criterios de aceptación:**
-- Los roles disponibles son: super_admin, admin, editor, customer.
-- El super_admin puede gestionar roles de otros usuarios desde `/admin/usuarios`.
-- Las políticas RLS en Supabase bloquean el acceso a nivel de base de datos según el rol.
-- Los editores solo pueden ver pedidos (no modificarlos) y no acceden a pagos ni usuarios.
+- Los roles del panel son: `super_admin`, `admin`, `vendedor`, `gestor_tienda`. El rol `miembro` existe pero sin acceso al panel (estado de invitación pendiente de asignación).
+- Al invitar, el usuario se crea en Stack Auth con rol `miembro` y recibe un email "Establece tu contraseña".
+- El super_admin puede elevar o reducir el rol de cualquier usuario desde `/usuarios`.
+- Las secciones del sidebar se filtran según el rol (`ROLE_CONFIG` en `lib/roles.ts`).
+- Las políticas RLS en Supabase bloquean el acceso a nivel de base de datos; el service role lo bypasea.
+- Un usuario con rol `miembro` que intente acceder al panel es redirigido al sign-in.
 
-**Estado:** ✅ RLS implementado | 🔲 UI de gestión de usuarios pendiente
+**Estado:** ✅ Implementado
 
 ---
 
@@ -662,6 +666,20 @@ Cada historia incluye sus criterios de aceptación y el estado de implementació
 - Al guardar, los cambios se aplican inmediatamente sin recargar toda la app.
 - El logo aparece en el Navbar y Footer del sitio público.
 - El número de WhatsApp se usa en los CTAs de maquila, asesorías, footer y confirmación de pedido.
+
+**Estado:** ✅ Implementado
+
+---
+
+**HU-026 — Ver todos los clientes en un solo lugar**
+> Como administrador, quiero ver en un panel la lista completa de personas que han interactuado con la tienda —tanto las que tienen cuenta registrada como las que compraron como invitados— para llevar un control total y planificar campañas.
+
+**Criterios de aceptación:**
+- La tabla muestra clientes con cuenta (Stack Auth) y compradores sin cuenta (solo en `orders`), diferenciados por badge "Con cuenta" / "Sin cuenta".
+- Cada fila incluye: nombre, email, teléfono (si está disponible), número de pedidos, total gastado y fecha de último pedido.
+- Los administradores del panel (tabla `profiles`) son excluidos de la lista.
+- Existe búsqueda por nombre, email o teléfono y filtro por tipo de cliente.
+- Los datos se ordenan por actividad más reciente (último pedido o fecha de registro).
 
 **Estado:** ✅ Implementado
 
@@ -907,20 +925,20 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 
 | Épica | Total ítems | Implementados | Pendientes | % |
 |-------|-------------|---------------|------------|---|
-| Fundación e Infraestructura | 10 | 8 | 2 | 80% |
+| Fundación e Infraestructura | 10 | 10 | 0 | 100% |
 | Navegación | 7 | 6 | 1 | 86% |
 | Home | 8 | 8 | 0 | 100% |
 | Tienda y Catálogo | 12 | 12 | 0 | 100% |
 | Carrito | 8 | 6 | 2 | 75% |
-| Checkout y Pagos | 12 | 5 | 7 | 42% |
+| Checkout y Pagos | 12 | 9 | 3 | 75% |
 | Envíos (Skydropx) | 8 | 4 | 4 | 50% |
 | Servicios | 6 | 5 | 1 | 83% |
 | Blog | 8 | 8 | 0 | 100% |
-| Autenticación y Mi Cuenta | 8 | 3 | 5 | 38% |
-| Panel de Administración | 25 | 17 | 8 | 68% |
-| Emails Transaccionales | 5 | 0 | 5 | 0% |
+| Autenticación y Mi Cuenta | 10 | 9 | 1 | 90% |
+| Panel de Administración | 25 | 19 | 6 | 76% |
+| Emails Transaccionales | 5 | 4 | 1 | 80% |
 | SEO y Rendimiento | 9 | 5 | 4 | 56% |
-| **TOTAL** | **126** | **87** | **39** | **69%** |
+| **TOTAL** | **128** | **105** | **23** | **82%** |
 
 ---
 
@@ -965,18 +983,26 @@ cd apps/web && pnpm test:watch
 | `apps/web/src/lib/shipping/__tests__/skydropx-auth.test.ts` | Unitaria | 7 | Skydropx OAuth (credenciales desde BD) |
 | `apps/web/src/lib/shipping/__tests__/skydropx-provider.test.ts` | Unitaria | 9 | SkydropxProvider (polling, degradación) |
 | `apps/web/src/lib/shipping/__tests__/factory.test.ts` | Unitaria | 8 | getShippingProvider factory |
+| `apps/web/src/lib/__tests__/wompi.test.ts` | Unitaria | 9 | buildWompiCheckoutUrl, verifyWompiWebhook, mapWompiStatus |
+| `apps/web/src/lib/__tests__/mercadopago.test.ts` | Unitaria | 8 | mapMercadoPagoStatus, isMercadoPagoSandbox |
 | `packages/database/src/queries/__tests__/products.test.ts` | Unitaria | 8 | DB queries — productos |
 | `packages/database/src/queries/__tests__/orders.test.ts` | Unitaria | 12 | DB queries — órdenes |
 | `packages/database/src/queries/__tests__/blog.test.ts` | Unitaria | 10 | DB queries — blog |
 | `packages/database/src/queries/__tests__/store-config.test.ts` | Unitaria | 10 | DB queries — store_config (getStoreConfig, updateStoreConfig) |
-| `apps/web/src/app/api/__tests__/checkout.integration.test.ts` | Integración | 10 | POST /api/checkout |
+| `apps/web/src/app/api/__tests__/checkout.integration.test.ts` | Integración | 14 | POST /api/checkout (incluye casos 503 de gateway) |
 | `apps/web/src/app/api/__tests__/webhook-skydropx.integration.test.ts` | Integración | 9 | POST /api/webhooks/skydropx |
+| `apps/web/src/app/api/__tests__/webhook-wompi.integration.test.ts` | Integración | 10 | POST /api/webhooks/wompi (firma, status, email) |
+| `apps/web/src/app/api/__tests__/webhook-mercadopago.integration.test.ts` | Integración | 8 | POST /api/webhooks/mercadopago (fetch MP, update, email) |
 | `apps/web/src/app/api/__tests__/shipping-rates.integration.test.ts` | Integración | 9 | POST /api/shipping/rates (multi-proveedor) |
 | `apps/admin/src/app/api/admin/orders/__tests__/order-status.integration.test.ts` | Integración | 9 | PATCH /api/admin/orders/[id]/status |
 | `apps/admin/src/app/api/admin/shipping/__tests__/shipping-config.integration.test.ts` | Integración | 14 | GET+PATCH /api/admin/shipping |
-| `apps/admin/src/app/api/admin/config/__tests__/store-config-api.integration.test.ts` | Integración | 11 | GET+PATCH /api/admin/config (WhatsApp validation, logo) |
+| `apps/admin/src/app/api/admin/config/__tests__/store-config-api.integration.test.ts` | Integración | 14 | GET+PATCH /api/admin/config (WhatsApp, logo, Resend masking) |
+| `apps/admin/src/app/api/admin/payment-config/__tests__/payment-config.integration.test.ts` | Integración | 10 | GET+PATCH /api/admin/payment-config (masking, flags, validación) |
 | `apps/admin/src/app/api/admin/products/__tests__/products-create.integration.test.ts` | Integración | 9 | POST /api/admin/products (imágenes, variantes, validación) |
-| **TOTAL** | | **163** | |
+| `apps/admin/src/app/api/admin/usuarios/__tests__/usuarios.integration.test.ts` | Integración | 12 | GET/POST/PATCH/DELETE /api/admin/usuarios (Stack Auth mock, roles, invite email) |
+| `apps/web/src/app/api/auth/__tests__/welcome.integration.test.ts` | Integración | 10 | POST /api/auth/welcome (upsert customers, vincular pedidos previos, email) |
+| `apps/web/src/app/api/account/__tests__/addresses.integration.test.ts` | Integración | 12 | GET/POST /api/account/addresses (auth, is_default exclusivo, customer lookup) |
+| **TOTAL** | | **249** | |
 
 ---
 

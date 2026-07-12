@@ -1,0 +1,91 @@
+import { NextRequest, NextResponse } from 'next/server'
+import { createServerClient, getPaymentConfig, getStoreConfig } from '@vps/database'
+import { getMercadoPagoPayment, mapMercadoPagoStatus } from '@/lib/mercadopago'
+import { sendOrderConfirmation } from '@/lib/email'
+import type { Order, Database } from '@vps/database'
+
+type OrderUpdate = Database['public']['Tables']['orders']['Update']
+
+/**
+ * Webhook de MercadoPago — notificaciones IPN/Webhooks
+ * Docs: https://www.mercadopago.com.co/developers/es/docs/your-integrations/notifications/webhooks
+ *
+ * Body: { type: "payment", data: { id: "12345678" } }
+ * Se consulta el estado real del pago con la API de MP.
+ *
+ * El access_token se carga desde la tabla payment_config.
+ */
+export async function POST(req: NextRequest) {
+  let body: Record<string, unknown>
+  try {
+    body = await req.json()
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON' }, { status: 400 })
+  }
+
+  const type = body.type as string | undefined
+  if (type !== 'payment') return NextResponse.json({ ok: true })
+
+  const data = body.data as Record<string, unknown> | undefined
+  const paymentId = data?.id as string | undefined
+  if (!paymentId) return NextResponse.json({ ok: true })
+
+  // Cargar access_token desde la BD
+  const paymentConfig = await getPaymentConfig().catch(() => null)
+  if (!paymentConfig?.mercadopago_access_token) {
+    console.error('[webhook/mercadopago] access_token no configurado en BD')
+    return NextResponse.json({ error: 'MP not configured' }, { status: 503 })
+  }
+
+  let payment: Awaited<ReturnType<typeof getMercadoPagoPayment>>
+  try {
+    payment = await getMercadoPagoPayment(paymentConfig.mercadopago_access_token, paymentId)
+  } catch (err) {
+    console.error('[webhook/mercadopago] Error consultando pago:', err)
+    return NextResponse.json({ error: 'MP fetch error' }, { status: 500 })
+  }
+
+  const { status: mpStatus, external_reference: reference } = payment
+  if (!reference) {
+    console.warn('[webhook/mercadopago] Pago sin external_reference:', paymentId)
+    return NextResponse.json({ ok: true })
+  }
+
+  const paymentStatus = mapMercadoPagoStatus(mpStatus)
+  const supabase = createServerClient()
+
+  const updatePayload: OrderUpdate = {
+    payment_status: paymentStatus,
+    payment_id: String(payment.id),
+    updated_at: new Date().toISOString(),
+    ...(paymentStatus === 'approved' ? { status: 'processing' as const } : {}),
+  }
+
+  const { data: updatedOrder, error } = await supabase
+    .from('orders')
+    .update(updatePayload)
+    .eq('order_number', reference)
+    .select()
+    .single()
+
+  if (error) {
+    console.error('[webhook/mercadopago] Error actualizando orden:', error)
+    return NextResponse.json({ ok: true, warning: 'order_not_updated' })
+  }
+
+  if (paymentStatus === 'approved' && updatedOrder) {
+    try {
+      const storeConfig = await getStoreConfig()
+      if (storeConfig?.resend_api_key && storeConfig?.resend_from_email) {
+        await sendOrderConfirmation(updatedOrder as unknown as Order, {
+          apiKey: storeConfig.resend_api_key,
+          fromEmail: storeConfig.resend_from_email,
+        })
+      }
+    } catch (emailErr) {
+      console.error('[webhook/mercadopago] Error enviando email:', emailErr)
+    }
+  }
+
+  return NextResponse.json({ ok: true })
+}

@@ -3,26 +3,44 @@
  *
  * Tests the full route handler in isolation:
  *   - Input validation (400 on missing fields)
- *   - Happy path: delegates to createOrder, returns order_number + order_id
+ *   - 503 when payment gateway not configured or inactive
+ *   - Happy path: delegates to createOrder + buildWompiCheckoutUrl, returns payment_url
  *   - DB failure: returns 500
  *
- * We mock @vps/database so no real Supabase connection is needed.
+ * We mock @vps/database, @/lib/wompi and @/lib/mercadopago so no real
+ * Supabase or payment-gateway connection is needed.
  */
 
 import { NextRequest } from 'next/server'
 
-// Mock DB layer
+// Mock DB layer — must be before imports
 jest.mock('@vps/database', () => ({
   createOrder: jest.fn(),
+  getPaymentConfig: jest.fn(),
 }))
 
-import { createOrder } from '@vps/database'
+jest.mock('@/lib/wompi', () => ({
+  buildWompiCheckoutUrl: jest.fn(),
+}))
+
+jest.mock('@/lib/mercadopago', () => ({
+  createMercadoPagoPreference: jest.fn(),
+  isMercadoPagoSandbox: jest.fn(),
+}))
+
+import { createOrder, getPaymentConfig } from '@vps/database'
+import { buildWompiCheckoutUrl } from '@/lib/wompi'
+import { createMercadoPagoPreference, isMercadoPagoSandbox } from '@/lib/mercadopago'
 import { POST } from '../checkout/route'
 
 const mockCreateOrder = createOrder as jest.MockedFunction<typeof createOrder>
+const mockGetPaymentConfig = getPaymentConfig as jest.MockedFunction<typeof getPaymentConfig>
+const mockBuildWompiUrl = buildWompiCheckoutUrl as jest.MockedFunction<typeof buildWompiCheckoutUrl>
+const mockCreateMPPreference = createMercadoPagoPreference as jest.MockedFunction<typeof createMercadoPagoPreference>
+const mockIsSandbox = isMercadoPagoSandbox as jest.MockedFunction<typeof isMercadoPagoSandbox>
 
 // ─────────────────────────────────────────────
-// Helpers
+// Fixtures
 // ─────────────────────────────────────────────
 function makeRequest(body: object): NextRequest {
   return new NextRequest('http://localhost/api/checkout', {
@@ -51,8 +69,26 @@ const validBody = {
   payment_method: 'wompi',
 }
 
+const mockActiveWompiConfig = {
+  id: 1,
+  wompi_public_key: 'pub_test_abc123',
+  wompi_private_key: 'prv_test_abc123',
+  wompi_integrity_secret: 'test_integrity_secret',
+  wompi_events_secret: 'test_events_secret',
+  wompi_active: true,
+  mercadopago_access_token: 'TEST-mp-abc123',
+  mercadopago_public_key: 'TEST-pub-abc123',
+  mercadopago_active: false,
+  updated_at: new Date().toISOString(),
+}
+
+const WOMPI_PAYMENT_URL = 'https://checkout.wompi.co/p/?public-key=pub_test_abc123&reference=VPS-0042'
+
 beforeEach(() => {
   jest.clearAllMocks()
+  // Default happy-path config
+  mockGetPaymentConfig.mockResolvedValue(mockActiveWompiConfig as never)
+  mockBuildWompiUrl.mockReturnValue(WOMPI_PAYMENT_URL)
 })
 
 // ─────────────────────────────────────────────
@@ -93,10 +129,64 @@ describe('POST /api/checkout — validación', () => {
 })
 
 // ─────────────────────────────────────────────
+// Pasarela no configurada (503)
+// ─────────────────────────────────────────────
+describe('POST /api/checkout — pasarela no configurada', () => {
+  it('retorna 503 si wompi_active = false', async () => {
+    mockGetPaymentConfig.mockResolvedValueOnce({
+      ...mockActiveWompiConfig,
+      wompi_active: false,
+    } as never)
+
+    const req = makeRequest(validBody)
+    const res = await POST(req)
+    expect(res.status).toBe(503)
+    const data = await res.json()
+    expect(data.error).toMatch(/wompi/i)
+  })
+
+  it('retorna 503 si wompi_public_key está vacío', async () => {
+    mockGetPaymentConfig.mockResolvedValueOnce({
+      ...mockActiveWompiConfig,
+      wompi_public_key: null,
+    } as never)
+
+    const req = makeRequest(validBody)
+    const res = await POST(req)
+    expect(res.status).toBe(503)
+  })
+
+  it('retorna 503 si mercadopago_active = false', async () => {
+    mockGetPaymentConfig.mockResolvedValueOnce({
+      ...mockActiveWompiConfig,
+      mercadopago_active: false,
+    } as never)
+
+    const req = makeRequest({ ...validBody, payment_method: 'mercadopago' })
+    const res = await POST(req)
+    expect(res.status).toBe(503)
+    const data = await res.json()
+    expect(data.error).toMatch(/mercadopago/i)
+  })
+
+  it('retorna 503 si mercadopago_access_token está vacío', async () => {
+    mockGetPaymentConfig.mockResolvedValueOnce({
+      ...mockActiveWompiConfig,
+      mercadopago_active: true,
+      mercadopago_access_token: null,
+    } as never)
+
+    const req = makeRequest({ ...validBody, payment_method: 'mercadopago' })
+    const res = await POST(req)
+    expect(res.status).toBe(503)
+  })
+})
+
+// ─────────────────────────────────────────────
 // Happy path (200)
 // ─────────────────────────────────────────────
 describe('POST /api/checkout — happy path', () => {
-  it('retorna order_number y order_id al crear la orden correctamente', async () => {
+  it('retorna order_number, order_id y payment_url al crear la orden con Wompi', async () => {
     mockCreateOrder.mockResolvedValueOnce({
       id: 42,
       order_number: 'VPS-0042',
@@ -108,7 +198,9 @@ describe('POST /api/checkout — happy path', () => {
     const data = await res.json()
 
     expect(res.status).toBe(200)
-    expect(data).toEqual({ order_number: 'VPS-0042', order_id: 42 })
+    expect(data.order_number).toBe('VPS-0042')
+    expect(data.order_id).toBe(42)
+    expect(data.payment_url).toBe(WOMPI_PAYMENT_URL)
   })
 
   it('llama a createOrder con los datos correctos del cliente', async () => {
@@ -127,6 +219,21 @@ describe('POST /api/checkout — happy path', () => {
     )
   })
 
+  it('llama a buildWompiCheckoutUrl con publicKey e integritySecret correctos', async () => {
+    mockCreateOrder.mockResolvedValueOnce({ id: 1, order_number: 'VPS-0001' } as never)
+
+    const req = makeRequest(validBody)
+    await POST(req)
+
+    expect(mockBuildWompiUrl).toHaveBeenCalledWith(
+      expect.objectContaining({
+        publicKey: 'pub_test_abc123',
+        integritySecret: 'test_integrity_secret',
+        reference: 'VPS-0001',
+      })
+    )
+  })
+
   it('usa shipping_cost = 0 si no se proporciona', async () => {
     mockCreateOrder.mockResolvedValueOnce({ id: 1, order_number: 'VPS-0001' } as never)
 
@@ -137,6 +244,27 @@ describe('POST /api/checkout — happy path', () => {
     expect(mockCreateOrder).toHaveBeenCalledWith(
       expect.objectContaining({ shipping_cost: 0 })
     )
+  })
+
+  it('devuelve sandbox_init_point para MercadoPago en modo sandbox', async () => {
+    mockGetPaymentConfig.mockResolvedValueOnce({
+      ...mockActiveWompiConfig,
+      mercadopago_active: true,
+    } as never)
+    mockCreateOrder.mockResolvedValueOnce({ id: 5, order_number: 'VPS-0005' } as never)
+    mockIsSandbox.mockReturnValueOnce(true)
+    mockCreateMPPreference.mockResolvedValueOnce({
+      id: 'pref-123',
+      init_point: 'https://www.mercadopago.com.co/checkout/v1/redirect?pref_id=pref-123',
+      sandbox_init_point: 'https://sandbox.mercadopago.com.co/checkout/v1/redirect?pref_id=pref-123',
+    })
+
+    const req = makeRequest({ ...validBody, payment_method: 'mercadopago' })
+    const res = await POST(req)
+    const data = await res.json()
+
+    expect(res.status).toBe(200)
+    expect(data.payment_url).toContain('sandbox.mercadopago')
   })
 })
 

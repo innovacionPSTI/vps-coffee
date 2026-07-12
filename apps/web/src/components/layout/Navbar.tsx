@@ -1,9 +1,10 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import Link from 'next/link'
 import { useCartStore } from '@/store/cart'
 import CartDrawer from '@/components/cart/CartDrawer'
+import NavAuthButton from '@/components/auth/NavAuthButton'
 
 const navLinks = [
   { href: '/', label: 'Café' },
@@ -70,15 +71,11 @@ export default function Navbar({ logoUrl }: { logoUrl?: string | null }) {
 
             {/* Íconos */}
             <div className="flex items-center gap-3">
-              <Link
-                href="/mi-cuenta"
-                className="p-2 text-brand-primary hover:text-brand-dark transition-colors"
-                aria-label="Mi cuenta"
-              >
-                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                </svg>
-              </Link>
+              {/* useUser() vive en NavAuthButton, envuelto en Suspense para evitar
+                  NoSuspenseBoundaryError en el root layout */}
+              <Suspense fallback={<div className="w-8 h-8" />}>
+                <NavAuthButton />
+              </Suspense>
 
               <button
                 onClick={() => setCartOpen(true)}

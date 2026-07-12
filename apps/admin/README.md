@@ -1,6 +1,6 @@
 # apps/admin — Panel de administración VPS Coffee
 
-Aplicación Next.js 14 (App Router) para la gestión interna de VPS Coffee: pedidos, catálogo, blog, banners y configuración del sistema.
+Aplicación Next.js 16 (App Router) para la gestión interna de VPS Coffee. Protegida con Stack Auth + sistema de roles en Supabase.
 
 **URL local:** `http://localhost:3001`
 
@@ -17,189 +17,130 @@ cd apps/admin
 pnpm dev
 ```
 
-> En desarrollo, el panel es accesible sin autenticación. En producción se protegerá con Stack Auth (pendiente de integrar).
+---
+
+## Autenticación y roles
+
+El acceso al panel está restringido por dos capas:
+
+1. **Stack Auth** — verifica que el usuario tiene sesión activa
+2. **Supabase `profiles`** — verifica que el email tiene un rol de admin
+
+Sin signup: los usuarios admin los crea únicamente el super_admin desde `/usuarios`.
+
+### Roles disponibles
+
+| Rol | Secciones accesibles |
+|-----|---------------------|
+| `super_admin` | Todo + gestión de usuarios y roles |
+| `admin` | Todo (sin gestión de usuarios) |
+| `vendedor` | Productos, Categorías, Pedidos, Clientes |
+| `gestor_tienda` | Banners, Blog, Configuración General |
+
+### Crear el primer super_admin
+
+Ver el procedimiento completo en [`DEPLOYMENT.md` — sección 12.0](../../DEPLOYMENT.md).
+
+Resumen rápido para desarrollo:
+
+```sql
+-- En el SQL Editor de Supabase
+INSERT INTO profiles (id, email, full_name, role)
+VALUES (gen_random_uuid(), 'tu@email.com', 'Tu Nombre', 'super_admin');
+```
+
+Luego ir a `http://localhost:3001/handler/sign-in` → "¿Olvidaste tu contraseña?" con ese email.
 
 ---
 
 ## Estructura de rutas
 
-Todas las rutas del admin están dentro del grupo `(dashboard)` que aplica el layout con sidebar y topbar:
-
 ```
 src/app/
-├── (dashboard)/
-│   ├── layout.tsx               ← Sidebar + Topbar wrapper
-│   ├── dashboard/page.tsx       → /dashboard
-│   ├── productos/page.tsx       → /productos
-│   ├── pedidos/
-│   │   ├── page.tsx             → /pedidos
-│   │   └── [id]/page.tsx        → /pedidos/[id]
-│   ├── banners/page.tsx         → /banners
-│   ├── blog/page.tsx            → /blog
-│   └── configuracion/
-│       ├── page.tsx             → /configuracion  (Server Component)
-│       └── ShippingConfigForm.tsx (Client Component)
+├── layout.tsx                    ← Root layout: verifica rol, renderiza Sidebar + Topbar
+├── no-autorizado/page.tsx        ← Página 403 (sin rol de admin)
+├── handler/[...stack]/page.tsx   ← Stack Auth catch-all (sign-in, password-reset, etc.)
+│
+├── dashboard/page.tsx            → /dashboard
+├── productos/
+│   ├── page.tsx                  → /productos
+│   ├── nuevo/page.tsx            → /productos/nuevo
+│   └── [id]/page.tsx             → /productos/[id]
+├── categorias/page.tsx           → /categorias
+├── pedidos/
+│   ├── page.tsx                  → /pedidos
+│   └── [id]/page.tsx             → /pedidos/[id]
+├── clientes/page.tsx             → /clientes
+├── banners/page.tsx              → /banners
+├── blog/page.tsx                 → /blog
+├── configuracion/page.tsx        → /configuracion (secciones según rol)
+└── usuarios/
+    ├── page.tsx                  → /usuarios (solo super_admin)
+    └── UsuariosClient.tsx        ← UI de invitación y cambio de roles
+│
 └── api/admin/
-    ├── orders/[id]/status/route.ts   ← PATCH estado de orden
-    └── shipping/route.ts             ← GET/PATCH configuración de envíos
+    ├── usuarios/route.ts         ← GET/POST/PATCH/DELETE usuarios
+    ├── products/route.ts
+    ├── categories/[id]/route.ts
+    ├── orders/[id]/status/route.ts
+    ├── banners/route.ts
+    ├── config/route.ts
+    ├── payment-config/route.ts
+    ├── shipping/route.ts
+    └── upload/route.ts
 ```
 
 ---
 
-## Páginas del panel
+## Archivos de lógica de autenticación/roles
 
-### `/dashboard`
-
-Métricas del negocio con datos en tiempo real:
-
-- Ventas totales del día
-- Pedidos pendientes de procesar
-- Número de productos activos
-- Tabla de pedidos recientes con acceso rápido a cada orden
-
-Usa `force-dynamic` para no cachear datos de negocio.
-
-### `/productos`
-
-Tabla del catálogo completo con:
-
-- Nombre, categoría, precio base, estado (activo / inactivo)
-- Acceso rápido a editar cada producto
-- *(CRUD completo pendiente — formulario de creación/edición con upload de imágenes)*
-
-### `/pedidos`
-
-Listado de todas las órdenes con filtro por estado:
-
-| Estado | Color | Descripción |
-|--------|-------|-------------|
-| `pending` | Gris | Esperando confirmación de pago |
-| `processing` | Azul | Pago confirmado, preparando |
-| `shipped` | Amarillo | Guía generada, en camino |
-| `delivered` | Verde | Entregado al destinatario |
-| `cancelled` | Rojo | Cancelado |
-| `exception` | Naranja | Incidencia en la entrega |
-
-### `/pedidos/[id]`
-
-Vista detallada de una orden:
-
-- Timeline de cambios de estado
-- Items con imagen, variante, cantidad y precio
-- Datos del cliente y dirección de envío
-- Campo de tracking number
-- Selector de nuevo estado con `PATCH /api/admin/orders/[id]/status`
-
-### `/banners`
-
-Preview del carrusel hero y las secciones de servicios (maquila, asesorías). *(Gestión visual de banners y upload pendiente)*
-
-### `/blog`
-
-Tabla de artículos del blog con estado publicado/borrador. *(Editor rich text pendiente)*
-
-### `/configuracion`
-
-Configuración del proveedor de envíos activo. Carga el estado inicial desde la BD (`force-dynamic`) y lo pasa a `<ShippingConfigForm>`.
+| Archivo | Propósito |
+|---------|-----------|
+| `src/stack.ts` | Instancia `StackServerApp` (sin signUp URL) |
+| `src/middleware.ts` | Bloquea sign-up, inyecta `x-pathname`, verifica sesión Stack Auth |
+| `src/lib/auth.ts` | `getAdminUser()` — combina Stack Auth + Supabase para obtener rol |
+| `src/lib/roles.ts` | `ROLE_CONFIG`, `canAccess()`, `ASSIGNABLE_ROLES` |
+| `src/app/layout.tsx` | Llama `getAdminUser()`, redirige a `/no-autorizado` si no es admin, pasa rol al Sidebar |
+| `src/components/layout/AdminSidebar.tsx` | Filtra items de nav según el rol recibido como prop |
 
 ---
 
-## Configuración de envíos (detalles técnicos)
+## Página de configuración — acceso por rol
 
-Esta es la sección más compleja del admin. La página es un Server Component async que lee la config actual; el formulario es un Client Component que maneja la UI y el submit.
+`/configuracion` adapta su contenido según el rol:
 
-### `page.tsx` (Server Component)
-
-```typescript
-export const dynamic = 'force-dynamic'
-
-export default async function ConfiguracionPage() {
-  const shippingConfig = await getShippingConfig()
-  return (
-    <div>
-      <ShippingConfigForm initialConfig={shippingConfig} />
-    </div>
-  )
-}
-```
-
-### `ShippingConfigForm.tsx` (Client Component)
-
-Comportamientos clave:
-
-- **Tabs de proveedor:** array `AVAILABLE_PROVIDERS = ['fixed', 'skydropx']` — agregar nuevos proveedores aquí.
-- **Secret nunca pre-llenado:** El campo `client_secret` siempre empieza vacío. Si el usuario no escribe nada, el PATCH no envía el campo y el backend conserva el valor existente.
-- **Indicador de credencial guardada:** Cuando `initialConfig.skydropx_client_secret` empieza con `••••`, muestra un badge "Credencial guardada".
-- **Estados del botón:** `idle → saving → saved/error` usando `useTransition`.
-- **Extensible:** Para agregar un nuevo proveedor, basta con agregar su slug al array `AVAILABLE_PROVIDERS` y un bloque condicional de campos en el JSX.
+- **`gestor_tienda`**: ve solo la sección *Configuración General* (nombre de tienda, WhatsApp, logo)
+- **`admin` / `super_admin`**: ven además *Envíos*, *Pasarelas de pago* y *Emails transaccionales*
 
 ---
 
-## API Routes del admin
+## Gestión de usuarios (`/usuarios`)
 
-### `PATCH /api/admin/orders/[id]/status`
+Solo accesible para `super_admin`. Permite:
 
-Actualiza el estado de una orden. Solo acepta los valores del enum `order_status`.
+- **Ver** todos los usuarios con rol admin y sus fechas de creación
+- **Agregar** un usuario (email + nombre + rol) → crea fila en `profiles`
+- **Cambiar rol** inline mediante un dropdown en la tabla
+- **Revocar acceso** → elimina la fila de `profiles` (el usuario queda sin acceso al admin)
 
-```typescript
-// Request
-{ "status": "processing" }
-
-// Response 200
-{ "id": 42, "status": "processing", "order_number": "VPS-0042", ... }
-```
-
-**Errores:** `400` si el status es inválido · `404` si la orden no existe · `500` error de BD
-
----
-
-### `GET /api/admin/shipping`
-
-Devuelve la configuración actual con el `client_secret` enmascarado:
-
-```json
-{
-  "provider": "skydropx",
-  "fixed_rate": 8000,
-  "skydropx_client_id": "mi-client-id",
-  "skydropx_client_secret": "••••••••5678",
-  "skydropx_address_from_id": "warehouse-01",
-  "skydropx_base_url": "https://api-pro.skydropx.com"
-}
-```
-
-La función `maskConfig()` aplica esta transformación: si `client_secret` existe, devuelve `••••` + últimos 4 caracteres; si no, `null`.
-
----
-
-### `PATCH /api/admin/shipping`
-
-Actualiza la configuración. Reglas de validación:
-
-1. `provider` debe ser `'fixed'` o `'skydropx'` (o los slugs que se agreguen en el futuro)
-2. `fixed_rate` debe ser ≥ 0
-3. Al cambiar a `skydropx`, los tres campos de credencial deben existir — ya sea en el body del request o en la configuración actual en BD
-
-Si el usuario no envía `skydropx_client_secret`, el backend no lo sobreescribe (preserva el valor existente).
-
----
-
-## Componentes de layout
-
-```
-src/components/layout/
-├── AdminSidebar.tsx    ← Nav links, logo, menú colapsable en mobile
-└── AdminTopbar.tsx     ← Título de sección, botón de logout (pendiente)
-```
+> Al agregar un usuario, el sistema crea el registro en `profiles`. El usuario debe ir a `/handler/sign-in` y usar "¿Olvidaste tu contraseña?" para crear su cuenta en Stack Auth.
 
 ---
 
 ## Variables de entorno requeridas
 
 ```env
+# Supabase
 NEXT_PUBLIC_SUPABASE_URL=
 NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=
 SUPABASE_SERVICE_ROLE_KEY=
+
+# Stack Auth (Hexclave)
+NEXT_PUBLIC_HEXCLAVE_PROJECT_ID=
+NEXT_PUBLIC_HEXCLAVE_PUBLISHABLE_CLIENT_KEY=
+HEXCLAVE_SECRET_SERVER_KEY=
+
+# URLs
 NEXT_PUBLIC_ADMIN_URL=http://localhost:3001
 ```
 
@@ -213,18 +154,9 @@ pnpm test
 pnpm test:coverage
 ```
 
-Archivos de test:
+Tests de integración disponibles:
 
-- `src/app/api/admin/orders/__tests__/order-status.integration.test.ts` — 9 casos
-- `src/app/api/admin/shipping/__tests__/shipping-config.integration.test.ts` — 14 casos
-
----
-
-## Pendiente de implementar
-
-- Stack Auth: middleware de protección de rutas, login page, logout
-- CRUD de productos: formulario con upload de imágenes a Supabase Storage
-- Editor de blog: componente rich text (Tiptap o similar)
-- Gestión de banners: upload de imágenes y reordenamiento
-- Gestión de usuarios y roles
-- Creación de guías de envío (Skydropx label API) desde `/pedidos/[id]`
+- `api/admin/orders/__tests__/` — actualización de estado de pedidos
+- `api/admin/config/__tests__/` — configuración de tienda
+- `api/admin/payment-config/__tests__/` — credenciales de pasarelas
+- `api/admin/shipping/__tests__/` — configuración de envíos

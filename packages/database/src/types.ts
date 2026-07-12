@@ -10,23 +10,26 @@ export type Database = {
       profiles: {
         Row: {
           id: string
+          email: string | null
           full_name: string | null
           phone: string | null
-          role: 'super_admin' | 'admin' | 'editor' | 'customer'
+          role: 'super_admin' | 'admin' | 'vendedor' | 'gestor_tienda' | 'miembro' | 'customer'
           created_at: string
         }
         Insert: {
-          id: string
+          id?: string
+          email?: string | null
           full_name?: string | null
           phone?: string | null
-          role?: 'super_admin' | 'admin' | 'editor' | 'customer'
+          role?: 'super_admin' | 'admin' | 'vendedor' | 'gestor_tienda' | 'miembro' | 'customer'
           created_at?: string
         }
         Update: {
           id?: string
+          email?: string | null
           full_name?: string | null
           phone?: string | null
-          role?: 'super_admin' | 'admin' | 'editor' | 'customer'
+          role?: 'super_admin' | 'admin' | 'vendedor' | 'gestor_tienda' | 'miembro' | 'customer'
           created_at?: string
         }
         Relationships: []
@@ -301,7 +304,7 @@ export type Database = {
             foreignKeyName: 'orders_customer_id_fkey'
             columns: ['customer_id']
             isOneToOne: false
-            referencedRelation: 'profiles'
+            referencedRelation: 'customers'
             referencedColumns: ['id']
           }
         ]
@@ -423,6 +426,8 @@ export type Database = {
           store_name: string
           store_email: string | null
           logo_url: string | null
+          resend_api_key: string | null
+          resend_from_email: string | null
           updated_at: string
         }
         Insert: {
@@ -431,6 +436,8 @@ export type Database = {
           store_name?: string
           store_email?: string | null
           logo_url?: string | null
+          resend_api_key?: string | null
+          resend_from_email?: string | null
           updated_at?: string
         }
         Update: {
@@ -439,9 +446,169 @@ export type Database = {
           store_name?: string
           store_email?: string | null
           logo_url?: string | null
+          resend_api_key?: string | null
+          resend_from_email?: string | null
           updated_at?: string
         }
         Relationships: []
+      }
+      payment_config: {
+        Row: {
+          id: number
+          wompi_public_key: string | null
+          wompi_private_key: string | null
+          wompi_integrity_secret: string | null
+          wompi_events_secret: string | null
+          wompi_active: boolean
+          mercadopago_access_token: string | null
+          mercadopago_public_key: string | null
+          mercadopago_active: boolean
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          wompi_public_key?: string | null
+          wompi_private_key?: string | null
+          wompi_integrity_secret?: string | null
+          wompi_events_secret?: string | null
+          wompi_active?: boolean
+          mercadopago_access_token?: string | null
+          mercadopago_public_key?: string | null
+          mercadopago_active?: boolean
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          wompi_public_key?: string | null
+          wompi_private_key?: string | null
+          wompi_integrity_secret?: string | null
+          wompi_events_secret?: string | null
+          wompi_active?: boolean
+          mercadopago_access_token?: string | null
+          mercadopago_public_key?: string | null
+          mercadopago_active?: boolean
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      shipping_profiles: {
+        Row: {
+          id: number
+          email: string
+          first_name: string | null
+          last_name: string | null
+          phone: string | null
+          address: string | null
+          city: string | null
+          department: string | null
+          postal_code: string | null
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          email: string
+          first_name?: string | null
+          last_name?: string | null
+          phone?: string | null
+          address?: string | null
+          city?: string | null
+          department?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          email?: string
+          first_name?: string | null
+          last_name?: string | null
+          phone?: string | null
+          address?: string | null
+          city?: string | null
+          department?: string | null
+          postal_code?: string | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customers: {
+        Row: {
+          id: string
+          stack_id: string | null
+          email: string
+          name: string | null
+          phone: string | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: string
+          stack_id?: string | null
+          email: string
+          name?: string | null
+          phone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: string
+          stack_id?: string | null
+          email?: string
+          name?: string | null
+          phone?: string | null
+          created_at?: string
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      customer_addresses: {
+        Row: {
+          id: string
+          customer_id: string
+          label: string | null
+          full_name: string
+          phone: string | null
+          address: string
+          city: string
+          department: string | null
+          postal_code: string | null
+          is_default: boolean
+          created_at: string
+        }
+        Insert: {
+          id?: string
+          customer_id: string
+          label?: string | null
+          full_name: string
+          phone?: string | null
+          address: string
+          city: string
+          department?: string | null
+          postal_code?: string | null
+          is_default?: boolean
+          created_at?: string
+        }
+        Update: {
+          id?: string
+          customer_id?: string
+          label?: string | null
+          full_name?: string
+          phone?: string | null
+          address?: string
+          city?: string
+          department?: string | null
+          postal_code?: string | null
+          is_default?: boolean
+          created_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'customer_addresses_customer_id_fkey'
+            columns: ['customer_id']
+            isOneToOne: false
+            referencedRelation: 'customers'
+            referencedColumns: ['id']
+          }
+        ]
       }
     }
     Views: {
@@ -471,7 +638,7 @@ export type OrderStatus =
 
 export type ShippingProviderType = 'fixed' | 'skydropx'
 
-export type UserRole = 'super_admin' | 'admin' | 'editor' | 'customer'
+export type UserRole = 'super_admin' | 'admin' | 'vendedor' | 'gestor_tienda' | 'miembro' | 'customer'
 
 export interface ProductImage {
   url: string
@@ -511,6 +678,10 @@ export type Order = Omit<Database['public']['Tables']['orders']['Row'], 'shippin
 export type BlogPost = Database['public']['Tables']['blog_posts']['Row']
 export type NewsletterSubscriber = Database['public']['Tables']['newsletter_subscribers']['Row']
 export type StoreConfigRow = Database['public']['Tables']['store_config']['Row']
+export type PaymentConfig = Database['public']['Tables']['payment_config']['Row']
+
+export type Customer = Database['public']['Tables']['customers']['Row']
+export type CustomerAddress = Database['public']['Tables']['customer_addresses']['Row']
 
 export type ProductWithVariants = Product & {
   variants: ProductVariant[]
@@ -518,5 +689,9 @@ export type ProductWithVariants = Product & {
 }
 
 export type OrderWithItems = Order & {
-  profile?: Profile | null
+  customer?: Customer | null
+}
+
+export type CustomerWithAddresses = Customer & {
+  addresses: CustomerAddress[]
 }

@@ -38,7 +38,7 @@ export async function createOrder(input: CreateOrderInput): Promise<Order> {
   return data as unknown as Order
 }
 
-export async function getOrdersByCustomer(customerId: string) {
+export async function getOrdersByCustomer(customerId: string): Promise<Order[]> {
   const supabase = createServerClient()
   const { data, error } = await supabase
     .from('orders')
@@ -47,7 +47,24 @@ export async function getOrdersByCustomer(customerId: string) {
     .order('created_at', { ascending: false })
 
   if (error) throw error
-  return data as unknown as Order[]
+  return (data ?? []) as unknown as Order[]
+}
+
+/**
+ * Obtiene los pedidos de un cliente por su email.
+ * Usado desde /mi-cuenta/pedidos cuando el usuario está autenticado con Stack Auth
+ * y sus órdenes históricas se vincularon por email (no por ID de Stack).
+ */
+export async function getOrdersByCustomerEmail(email: string): Promise<Order[]> {
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('orders')
+    .select('*')
+    .eq('customer_email', email.toLowerCase())
+    .order('created_at', { ascending: false })
+
+  if (error) throw error
+  return (data ?? []) as unknown as Order[]
 }
 
 export async function getOrderById(id: number) {

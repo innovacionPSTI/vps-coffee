@@ -136,54 +136,42 @@ git push
 
 Antes de desplegar, el schema de producción debe estar al día. Ejecutar en el **SQL Editor** del proyecto Supabase de producción, en este orden exacto:
 
-### Migración 1 — Schema base
+> **Consejo:** Copia el contenido de cada archivo `.sql` y pégalo en el SQL Editor de Supabase → **Run**.
 
-```sql
--- packages/database/supabase/migrations/001_initial_schema.sql
--- Crea: profiles, categories, products, product_variants,
---       banners, orders, blog_posts, newsletter_subscribers,
---       RLS policies, trigger on_auth_user_created, buckets de Storage,
---       seed data (categorías y banners iniciales)
-```
-
-### Migración 2 — Configuración de envíos
-
-```sql
--- packages/database/supabase/migrations/002_shipping_config.sql
--- Crea: enum shipping_provider_type, tabla shipping_config (singleton)
-```
-
-### Migración 3 — Banners con imagen mobile
-
-```sql
--- packages/database/supabase/migrations/003_banners.sql
--- Agrega: columna image_url_mobile a la tabla banners
-```
-
-### Migración 4 — Configuración de la tienda
-
-```sql
--- packages/database/supabase/migrations/004_store_config.sql
--- Crea: tabla store_config (singleton id=1)
--- Campos: whatsapp_number, store_name, store_email, logo_url, updated_at
-```
-
-### Migración 5 — Columna logo_url (idempotente)
-
-```sql
--- packages/database/supabase/migrations/005_store_config_logo.sql
--- ALTER TABLE store_config ADD COLUMN IF NOT EXISTS logo_url TEXT DEFAULT NULL;
--- Ejecutar siempre aunque ya hayas aplicado la 004
-```
+| # | Archivo | Qué hace |
+|---|---------|----------|
+| 1 | `1_initial_schema.sql` | Tablas base (profiles, products, orders, blog, etc.), RLS, políticas públicas, seed de categorías y banners |
+| 2 | `2_shipping_config.sql` | Tabla `shipping_config` (singleton) + RLS |
+| 3 | `3_banner_mobile_image.sql` | Columna `image_url_mobile` en banners |
+| 4 | `4_store_config.sql` | Tabla `store_config` con `logo_url` (singleton) + RLS |
+| 5 | `5_payment_config.sql` | Tabla `payment_config` para credenciales de Wompi y MercadoPago + RLS |
+| 6 | `6_email_config.sql` | Campos `resend_api_key` y `resend_from_email` en `store_config` |
+| 7 | `7_shipping_profiles.sql` | Tabla `shipping_profiles` (perfil de envío del usuario web) + RLS |
+| 8 | `8_customers.sql` | Tabla `customers` (mirror de compradores web desde Stack Auth); FK `orders.customer_id → customers.id` |
+| 9 | `9_customer_addresses.sql` | Tabla `customer_addresses` (direcciones guardadas por cliente para pre-llenar checkout) |
 
 ### Verificar el schema
 
-Después de aplicar las migraciones, verificar en el dashboard de Supabase → **Table Editor** que existen:
+Después de aplicar las migraciones, verificar en **Table Editor** que existen:
 
 - `profiles`, `categories`, `products`, `product_variants`
 - `orders`, `banners`, `blog_posts`, `newsletter_subscribers`
 - `shipping_config` (con una fila id=1)
 - `store_config` (con una fila id=1)
+- `payment_config` (con una fila id=1)
+- `shipping_profiles`
+- `customers`, `customer_addresses`
+
+Verificar que RLS esté activo en todas las tablas:
+
+```sql
+SELECT tablename, rowsecurity
+FROM pg_tables
+WHERE schemaname = 'public'
+ORDER BY tablename;
+```
+
+Todas deben mostrar `rowsecurity = true`.
 
 Y en **Storage** que existen los buckets:
 - `products` (público)
@@ -490,6 +478,61 @@ Si el repositorio es público y las fuentes tienen licencia restrictiva, conside
 
 Después de que ambas apps estén desplegadas y los dominios configurados:
 
+### 12.0 Crear el primer super_admin
+
+Este es el **primer paso obligatorio** antes de usar el panel. Sin él, nadie puede entrar al admin.
+
+**Paso 1 — Insertar el profile en Supabase**
+
+En el **SQL Editor** de Supabase, ejecuta:
+
+```sql
+INSERT INTO profiles (id, email, full_name, role)
+VALUES (
+  gen_random_uuid(),
+  'tu@email.com',   -- el email con el que iniciarás sesión
+  'Tu Nombre',
+  'super_admin'
+);
+```
+
+> Reemplaza `tu@email.com` y `Tu Nombre` con tus datos reales. Este email debe ser el mismo que usarás para iniciar sesión en Stack Auth.
+
+**Paso 2 — Crear la cuenta en Stack Auth**
+
+El admin no tiene formulario de registro (está deshabilitado). Para crear la cuenta:
+
+1. Ve a `https://admin.vpscoffee.com/handler/sign-in`
+2. Haz clic en **"¿Olvidaste tu contraseña?"**
+3. Ingresa el mismo email que pusiste en Supabase
+4. Stack Auth enviará un correo para crear/restablecer la contraseña
+5. Sigue el link del correo y define tu contraseña
+
+**Paso 3 — Verificar acceso**
+
+Inicia sesión con email y contraseña. Deberías ver el panel completo con la sección **Usuarios** en el menú lateral.
+
+> **¿Por qué este orden?** El middleware verifica primero la sesión de Stack Auth, y luego el layout busca el `email` en `profiles`. Si el profile no existe, el sistema redirige a `/no-autorizado`. El profile debe existir antes del primer login.
+
+**Agregar más usuarios admin (desde el panel)**
+
+Una vez que el super_admin ha ingresado:
+
+1. Ve a `/usuarios` en el panel
+2. Clic en **"Agregar usuario"**
+3. Ingresa email, nombre y rol (`Admin`, `Vendedor` o `Gestor de Tienda`)
+4. El nuevo usuario debe ir a `https://admin.vpscoffee.com/handler/sign-in`, usar "¿Olvidaste tu contraseña?" y crear su contraseña
+
+Los roles disponibles y sus permisos:
+
+| Rol | Acceso |
+|-----|--------|
+| `Admin` | Todo el panel (sin gestión de usuarios) |
+| `Vendedor` | Productos, Categorías, Pedidos, Clientes |
+| `Gestor de Tienda` | Banners, Blog, Configuración General |
+
+---
+
 ### 12.1 Configurar proveedor de envíos
 
 1. Ir a `https://admin.vpscoffee.com/configuracion`
@@ -535,13 +578,13 @@ Completar antes de hacer el primer deploy a producción:
 
 - [ ] `pnpm lint` pasa sin errores en todas las apps
 - [ ] `pnpm type-check` pasa sin errores de TypeScript
-- [ ] `pnpm test` — todos los 163 tests pasan
+- [ ] `pnpm test` — todos los 227 tests pasan
 - [ ] No hay `console.log` de debug en el código
 - [ ] No hay credenciales hardcodeadas en el código
 
 ### Supabase (producción)
 
-- [ ] Las 5 migraciones SQL aplicadas correctamente
+- [ ] Las 9 migraciones SQL aplicadas correctamente (1 → 9)
 - [ ] RLS activado en todas las tablas (verificar en **Authentication → Policies**)
 - [ ] Buckets de Storage creados: `products`, `banners`, `blog`, `private`
 - [ ] Políticas de Storage configuradas (público/privado según la tabla)
@@ -578,9 +621,12 @@ Completar antes de hacer el primer deploy a producción:
 
 ### Post-deploy
 
+- [ ] **Crear super_admin** — INSERT en `profiles` (ver sección 12.0)
+- [ ] Ir a `https://admin.vpscoffee.com/handler/sign-in` → "¿Olvidaste tu contraseña?" con el email del super_admin
+- [ ] Confirmar que el link del correo funciona y permite crear contraseña
+- [ ] Iniciar sesión como super_admin — dashboard accesible con sección Usuarios visible
 - [ ] Abrir `https://vpscoffee.com` — Home carga correctamente
 - [ ] Abrir `https://vpscoffee.com/tienda` — Catálogo visible
-- [ ] Abrir `https://admin.vpscoffee.com` — Dashboard accesible
 - [ ] Subir logo desde `/configuracion` — aparece en el sitio
 - [ ] Ingresar número de WhatsApp — CTAs funcionan
 - [ ] Webhook de Skydropx registrado en el dashboard de Skydropx
@@ -718,11 +764,12 @@ Configurar alertas en Vercel → **Observability** → **Alerts** para recibir n
 │                         Supabase (producción)                       │
 │                                                                     │
 │  PostgreSQL + RLS              Storage Buckets                      │
-│  ├── profiles                  ├── products  (público)              │
-│  ├── products                  ├── banners   (público)              │
-│  ├── orders                    ├── blog      (público)              │
-│  ├── store_config (logo/wa)    ├── logos     (público)              │
-│  └── shipping_config           └── private  (privado)              │
+│  ├── profiles (admin users)    ├── products  (público)              │
+│  ├── customers (web buyers)    ├── banners   (público)              │
+│  ├── customer_addresses        ├── blog      (público)              │
+│  ├── products / orders         ├── logos     (público)              │
+│  ├── store_config (logo/wa)    └── private  (privado)              │
+│  └── shipping_config                                                │
 └─────────────────────────────────────────────────────────────────────┘
 ```
 

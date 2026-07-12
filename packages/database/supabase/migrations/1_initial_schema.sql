@@ -1,35 +1,35 @@
 -- ============================================================
 -- VPS Coffee — Schema inicial de Supabase / PostgreSQL
--- Ejecutar en el SQL Editor de Supabase
+-- Compatible con Stack Auth (proveedor de identidad externo).
+-- auth.users permanece vacía — NO usar auth.uid() en políticas RLS.
 -- ============================================================
 
 -- Habilitar extensiones
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
 -- ─── PROFILES ─────────────────────────────────────────────────────────────────
+-- Usuarios del panel de administración.
+-- id: UUID libre generado por gen_random_uuid() — NO vinculado a auth.users.
+-- email: clave de enlace con Stack Auth (Stack Auth no usa auth.users).
+-- role: 'miembro' por defecto (sin acceso). Un admin asigna el rol real.
 CREATE TABLE IF NOT EXISTS profiles (
-  id            UUID PRIMARY KEY REFERENCES auth.users(id) ON DELETE CASCADE,
+  id            UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  email         TEXT UNIQUE,
   full_name     TEXT,
   phone         TEXT,
-  role          TEXT DEFAULT 'customer'
-                  CHECK (role IN ('super_admin','admin','editor','customer')),
+  role          TEXT NOT NULL DEFAULT 'miembro'
+                  CHECK (role IN ('super_admin','admin','vendedor','gestor_tienda','miembro','customer')),
   created_at    TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Crear perfil automáticamente al registrarse
-CREATE OR REPLACE FUNCTION handle_new_user()
-RETURNS TRIGGER AS $$
-BEGIN
-  INSERT INTO profiles (id, full_name)
-  VALUES (new.id, new.raw_user_meta_data->>'full_name');
-  RETURN new;
-END;
-$$ LANGUAGE plpgsql SECURITY DEFINER;
+CREATE INDEX IF NOT EXISTS profiles_email_idx ON profiles (email);
 
-DROP TRIGGER IF EXISTS on_auth_user_created ON auth.users;
-CREATE TRIGGER on_auth_user_created
-  AFTER INSERT ON auth.users
-  FOR EACH ROW EXECUTE PROCEDURE handle_new_user();
+COMMENT ON COLUMN profiles.email IS
+  'Email del usuario en Stack Auth. Clave de enlace entre Stack Auth y Supabase.';
+COMMENT ON COLUMN profiles.role IS
+  'super_admin: acceso total + usuarios. admin: acceso total. '
+  'vendedor: productos/pedidos/clientes. gestor_tienda: banners/blog/config. '
+  'miembro: sin acceso (default al crear). customer: usuario web (no aplica al admin).';
 
 -- ─── CATEGORIES ───────────────────────────────────────────────────────────────
 CREATE TABLE IF NOT EXISTS categories (
@@ -91,7 +91,7 @@ CREATE TABLE IF NOT EXISTS banners (
 CREATE TABLE IF NOT EXISTS orders (
   id                      SERIAL PRIMARY KEY,
   order_number            TEXT UNIQUE NOT NULL,
-  customer_id             UUID REFERENCES profiles(id) ON DELETE SET NULL,
+  customer_id             UUID,   -- sin FK: clientes web no tienen fila en profiles
   customer_name           TEXT NOT NULL,
   customer_email          TEXT NOT NULL,
   customer_phone          TEXT,
@@ -157,91 +157,28 @@ VALUES
 ON CONFLICT (id) DO NOTHING;
 
 -- ─── ROW LEVEL SECURITY ───────────────────────────────────────────────────────
-ALTER TABLE profiles ENABLE ROW LEVEL SECURITY;
-ALTER TABLE products ENABLE ROW LEVEL SECURITY;
-ALTER TABLE product_variants ENABLE ROW LEVEL SECURITY;
-ALTER TABLE categories ENABLE ROW LEVEL SECURITY;
-ALTER TABLE banners ENABLE ROW LEVEL SECURITY;
-ALTER TABLE orders ENABLE ROW LEVEL SECURITY;
-ALTER TABLE blog_posts ENABLE ROW LEVEL SECURITY;
+-- El service role key (SUPABASE_SERVICE_ROLE_KEY) bypasea RLS → todo el backend
+-- funciona sin restricciones. El anon key solo puede hacer lo que definen
+-- las políticas de abajo. Tablas sin política = acceso denegado al anon key.
+ALTER TABLE profiles              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE categories            ENABLE ROW LEVEL SECURITY;
+ALTER TABLE products              ENABLE ROW LEVEL SECURITY;
+ALTER TABLE product_variants      ENABLE ROW LEVEL SECURITY;
+ALTER TABLE banners               ENABLE ROW LEVEL SECURITY;
+ALTER TABLE orders                ENABLE ROW LEVEL SECURITY;
+ALTER TABLE blog_posts            ENABLE ROW LEVEL SECURITY;
 ALTER TABLE newsletter_subscribers ENABLE ROW LEVEL SECURITY;
 
--- Profiles: cada usuario ve su propio perfil; admins ven todos
-CREATE POLICY "Users view own profile" ON profiles
-  FOR SELECT USING (auth.uid() = id);
+-- Catálogo público (lectura sin credenciales)
+CREATE POLICY "categories_public_read"        ON categories        FOR SELECT USING (true);
+CREATE POLICY "products_public_read"          ON products          FOR SELECT USING (active = true);
+CREATE POLICY "product_variants_public_read"  ON product_variants  FOR SELECT USING (active = true);
+CREATE POLICY "banners_public_read"           ON banners           FOR SELECT USING (active = true);
+CREATE POLICY "blog_posts_public_read"        ON blog_posts        FOR SELECT USING (published = true);
+CREATE POLICY "newsletter_public_subscribe"   ON newsletter_subscribers FOR INSERT WITH CHECK (true);
 
-CREATE POLICY "Admins view all profiles" ON profiles
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
-  );
-
-CREATE POLICY "Users update own profile" ON profiles
-  FOR UPDATE USING (auth.uid() = id);
-
--- Products: lectura pública de activos; escritura solo admins/editors
-CREATE POLICY "Public read active products" ON products
-  FOR SELECT USING (active = true);
-
-CREATE POLICY "Admins manage products" ON products
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin','editor'))
-  );
-
--- Product variants: lectura pública
-CREATE POLICY "Public read active variants" ON product_variants
-  FOR SELECT USING (active = true);
-
-CREATE POLICY "Admins manage variants" ON product_variants
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin','editor'))
-  );
-
--- Categories: lectura pública
-CREATE POLICY "Public read categories" ON categories
-  FOR SELECT USING (active = true);
-
-CREATE POLICY "Admins manage categories" ON categories
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
-  );
-
--- Banners: lectura pública de activos
-CREATE POLICY "Public read active banners" ON banners
-  FOR SELECT USING (active = true);
-
-CREATE POLICY "Admins manage banners" ON banners
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin','editor'))
-  );
-
--- Orders: clientes ven solo los suyos; admins ven todos
-CREATE POLICY "Customers see own orders" ON orders
-  FOR SELECT USING (customer_id = auth.uid());
-
-CREATE POLICY "Admins see all orders" ON orders
-  FOR SELECT USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
-  );
-
-CREATE POLICY "Admins update orders" ON orders
-  FOR UPDATE USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
-  );
-
--- Blog: lectura pública de publicados
-CREATE POLICY "Public read published posts" ON blog_posts
-  FOR SELECT USING (published = true);
-
-CREATE POLICY "Admins manage blog" ON blog_posts
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin','editor'))
-  );
-
--- Newsletter: solo admins
-CREATE POLICY "Admins manage newsletter" ON newsletter_subscribers
-  FOR ALL USING (
-    EXISTS (SELECT 1 FROM profiles WHERE id = auth.uid() AND role IN ('admin','super_admin'))
-  );
+-- profiles y orders: sin política de anon → acceso denegado al anon key.
+-- El backend los accede siempre con service role.
 
 -- ─── SEED DATA ────────────────────────────────────────────────────────────────
 INSERT INTO categories (name, slug, description, order_index) VALUES

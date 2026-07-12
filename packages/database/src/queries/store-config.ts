@@ -6,6 +6,8 @@ export type StoreConfig = {
   store_name: string
   store_email: string | null
   logo_url: string | null
+  resend_api_key: string | null
+  resend_from_email: string | null
   updated_at: string
 }
 
@@ -17,6 +19,8 @@ const DEFAULT_CONFIG: StoreConfig = {
   store_name: 'VPS Coffee',
   store_email: null,
   logo_url: null,
+  resend_api_key: null,
+  resend_from_email: 'pedidos@vpscoffee.com',
   updated_at: new Date().toISOString(),
 }
 
@@ -32,13 +36,16 @@ export async function getStoreConfig(): Promise<StoreConfig> {
   return data as StoreConfig
 }
 
-export async function updateStoreConfig(
-  input: UpdateStoreConfigInput
-): Promise<StoreConfig> {
+export async function updateStoreConfig(input: UpdateStoreConfigInput): Promise<StoreConfig> {
   const supabase = createServerClient()
+
+  // No sobreescribir resend_api_key si viene vacío
+  const sanitized = { ...input }
+  if (sanitized.resend_api_key === '') delete sanitized.resend_api_key
+
   const { data, error } = await supabase
     .from('store_config')
-    .upsert({ id: 1, ...input, updated_at: new Date().toISOString() })
+    .upsert({ id: 1, ...sanitized, updated_at: new Date().toISOString() })
     .select()
     .single()
 

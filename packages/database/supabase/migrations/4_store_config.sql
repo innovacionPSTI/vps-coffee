@@ -11,3 +11,6 @@ CREATE TABLE IF NOT EXISTS store_config (
 
 -- Insertar fila inicial si no existe
 INSERT INTO store_config (id) VALUES (1) ON CONFLICT DO NOTHING;
+
+-- RLS: solo service role accede (contiene API keys de Resend y datos de tienda)
+ALTER TABLE store_config ENABLE ROW LEVEL SECURITY;
