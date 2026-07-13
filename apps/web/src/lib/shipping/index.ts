@@ -26,7 +26,7 @@ import { FixedRateProvider } from './providers/fixed-rate'
 import { SkydropxProvider } from './providers/skydropx'
 import type { ShippingProvider } from './types'
 
-export type { ShippingProvider, ShippingRate, ShippingAddress, ShippingParcel } from './types'
+export type { ShippingProvider, ShippingRate, ShippingAddress, ShippingParcel, ParcelItem } from './types'
 export { calculateParcel } from './types'
 export { SkydropxProvider } from './providers/skydropx'
 export type { SkydropxConfig, SkydropxOriginAddress, SkydropxShipmentResult } from './providers/skydropx'
@@ -65,8 +65,9 @@ export async function getShippingProvider(): Promise<ShippingProvider> {
         return new FixedRateProvider(config.fixed_rate)
       }
 
+      // postal_code is optional — Skydropx accepts area_level1+area_level2 without it
       const hasOrigin = origin_name && origin_street && origin_city &&
-                        origin_department && origin_postal_code && origin_phone && origin_email
+                        origin_department && origin_phone && origin_email
 
       if (!hasOrigin) {
         console.warn('[shipping] Skydropx: dirección de origen incompleta — usando tarifa fija')
@@ -76,7 +77,7 @@ export async function getShippingProvider(): Promise<ShippingProvider> {
       return new SkydropxProvider({
         clientId: skydropx_client_id,
         clientSecret: skydropx_client_secret,
-        baseUrl: skydropx_base_url ?? 'https://app.skydropx.com',
+        baseUrl: skydropx_base_url ?? 'https://api-pro.skydropx.com',
         origin: {
           name: origin_name!,
           street: origin_street!,

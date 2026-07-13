@@ -6,7 +6,7 @@ type VariantInsert = Database['public']['Tables']['product_variants']['Insert']
 
 export async function POST(req: NextRequest) {
   const body = await req.json()
-  const { name, slug, description, category_id, featured, active, seo_title, seo_desc, images = [], variants = [] } = body
+  const { name, slug, description, category_id, featured, active, seo_title, seo_desc, images = [], variants = [], variant_options = [] } = body
 
   if (!name?.trim() || !slug?.trim())
     return NextResponse.json({ error: 'Nombre y slug son requeridos' }, { status: 400 })
@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
       seo_title: seo_title || null,
       seo_desc: seo_desc || null,
       images: Array.isArray(images) ? images : [],
+      variant_options: Array.isArray(variant_options) && variant_options.length > 0 ? variant_options : null,
     })
     .select()
     .single()
@@ -45,6 +46,11 @@ export async function POST(req: NextRequest) {
     stock: Number(v.stock ?? 0),
     sku: v.sku || null,
     active: v.active ?? true,
+    weight_kg: v.weight_kg ? Number(v.weight_kg) : null,
+    length_cm: v.length_cm ? Number(v.length_cm) : null,
+    width_cm:  v.width_cm  ? Number(v.width_cm)  : null,
+    height_cm: v.height_cm ? Number(v.height_cm) : null,
+    attributes: v.attributes && Object.keys(v.attributes).length > 0 ? v.attributes : null,
   }))
 
   const { error: variantError } = await supabase.from('product_variants').insert(variantRows)

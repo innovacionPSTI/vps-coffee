@@ -153,9 +153,19 @@ En `/configuracion` → sección *Envíos*, el formulario `ShippingConfigForm.ts
 - Client ID, Client Secret, Base URL (default: `https://app.skydropx.com`)
 
 **Dirección de origen** (reemplaza el antiguo `address_from_id`):
-- Nombre del remitente, dirección, barrio, ciudad, departamento, código postal, teléfono, email
+- Nombre del remitente, dirección, barrio, **departamento** (combobox SearchableSelect), **ciudad** (combobox filtrado por departamento), código postal, teléfono, email
 
 La dirección de origen se guarda en `shipping_config` y se usa tanto para cotizaciones como para la creación de guías.
+
+---
+
+## Componente SearchableSelect
+
+```
+src/components/ui/SearchableSelect.tsx
+```
+
+Combobox reutilizable con búsqueda incremental, navegación con teclado (↑↓ Enter Escape) y cierre al hacer clic fuera. Las claves de lista usan `${index}-${option}` para evitar colisiones cuando un nombre de ciudad aparece en múltiples departamentos (ej: "Buenaventura" en Valle del Cauca y Chocó).
 
 ---
 

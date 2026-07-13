@@ -10,7 +10,14 @@ export interface CartItem {
   price: number
   qty: number
   imageUrl?: string
+  /** Legacy label weight for fallback shipping calculation */
   weight: '250g' | '500g' | '1kg'
+  /** Real weight in kg (from product_variants.weight_kg) */
+  weight_kg?: number | null
+  /** Packed dimensions in cm (from product_variants.*_cm) */
+  length_cm?: number | null
+  width_cm?: number | null
+  height_cm?: number | null
 }
 
 interface CartState {

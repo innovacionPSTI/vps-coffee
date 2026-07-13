@@ -55,6 +55,11 @@ export async function PATCH(req: NextRequest, { params }: { params: Promise<{ id
         stock: Number(v.stock ?? 0),
         sku: v.sku || null,
         active: v.active ?? true,
+        weight_kg: v.weight_kg ? Number(v.weight_kg) : null,
+        length_cm: v.length_cm ? Number(v.length_cm) : null,
+        width_cm:  v.width_cm  ? Number(v.width_cm)  : null,
+        height_cm: v.height_cm ? Number(v.height_cm) : null,
+        attributes: v.attributes && Object.keys(v.attributes).length > 0 ? v.attributes : null,
       }))
 
     if (toUpsert.length > 0) {

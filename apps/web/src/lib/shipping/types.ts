@@ -30,6 +30,8 @@ export interface ShippingParcel {
   width: number   // cm
   height: number  // cm
   weight: number  // kg
+  /** Declared value of goods in COP — required by Skydropx PRO */
+  declaredAmount?: number
 }
 
 // ─── Rate ─────────────────────────────────────────────────────────────────────
@@ -74,27 +76,65 @@ export interface ShippingProvider {
 // ─── Parcel utility ───────────────────────────────────────────────────────────
 
 /**
- * Calculates the shipment parcel dimensions and total weight
- * from the cart items. Used by all providers.
+ * Item shape accepted by calculateParcel.
+ * If weight_kg / dimensions are set they are used directly.
+ * Otherwise falls back to the legacy `weight` string ('250g', '500g', '1kg').
+ */
+export interface ParcelItem {
+  /** Actual weight in kg from product_variants.weight_kg */
+  weight_kg?: number | null
+  /** Packed length in cm from product_variants.length_cm */
+  length_cm?: number | null
+  /** Packed width in cm from product_variants.width_cm */
+  width_cm?: number | null
+  /** Packed height in cm from product_variants.height_cm */
+  height_cm?: number | null
+  /** Legacy label weight ('250g' | '500g' | '1kg') — used only when weight_kg is absent */
+  weight?: string
+  qty: number
+}
+
+/**
+ * Calculates the shipment parcel dimensions and total weight from cart items.
  *
- * Weight tiers (kg):
+ * Priority:
+ *   1. Real dimensions (weight_kg / *_cm) stored per variant → use them.
+ *   2. Fallback: weight tiers from the variant label string.
+ *
+ * Weight tiers (fallback, kg):
  *   ≤ 0.7  → small box  20×15×8 cm
  *   ≤ 1.5  → medium box 25×20×10 cm
  *   > 1.5  → large box  35×25×15 cm
  */
-export function calculateParcel(
-  items: { weight: string; qty: number }[]
-): ShippingParcel {
+export function calculateParcel(items: ParcelItem[]): ShippingParcel {
   const WEIGHT_MAP: Record<string, number> = {
     '250g': 0.3,
     '500g': 0.6,
     '1kg':  1.1,
   }
 
+  // Total weight: use weight_kg when available, else fall back to label
   const totalWeight = items.reduce((sum, item) => {
-    return sum + (WEIGHT_MAP[item.weight] ?? 0.5) * item.qty
+    const kg = (item.weight_kg != null && item.weight_kg > 0)
+      ? item.weight_kg
+      : (WEIGHT_MAP[item.weight ?? ''] ?? 0.5)
+    return sum + kg * item.qty
   }, 0)
 
+  // Use real dimensions if ALL items with qty > 0 have them set
+  const hasRealDimensions = items
+    .filter((i) => i.qty > 0)
+    .every((i) => i.length_cm && i.width_cm && i.height_cm)
+
+  if (hasRealDimensions && items.length > 0) {
+    // Total box = max dimensions across all items (single shipment box)
+    const length = Math.max(...items.map((i) => i.length_cm ?? 0))
+    const width  = Math.max(...items.map((i) => i.width_cm  ?? 0))
+    const height = Math.max(...items.map((i) => i.height_cm ?? 0))
+    return { length, width, height, weight: totalWeight }
+  }
+
+  // Fallback: size tiers based on total weight
   if (totalWeight <= 0.7) return { length: 20, width: 15, height: 8,  weight: totalWeight }
   if (totalWeight <= 1.5) return { length: 25, width: 20, height: 10, weight: totalWeight }
   return                         { length: 35, width: 25, height: 15, weight: totalWeight }

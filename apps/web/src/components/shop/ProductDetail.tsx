@@ -1,9 +1,10 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import Link from 'next/link'
 import { useCartStore } from '@/store/cart'
-import type { ProductWithVariants, ProductVariant } from '@vps/database'
+import type { ProductWithVariants } from '@vps/database'
+import { getProductOptions, getVariantAttrs, getVariantLabel } from '@/lib/variant-utils'
 
 interface Props {
   product: ProductWithVariants
@@ -11,9 +12,12 @@ interface Props {
 }
 
 export default function ProductDetail({ product, related }: Props) {
+  const variantOpts = getProductOptions(product)
+  const firstActive = product.variants.find((v) => v.active) ?? null
+
   const [selectedImage, setSelectedImage] = useState(0)
-  const [selectedVariant, setSelectedVariant] = useState<ProductVariant | null>(
-    product.variants.find((v) => v.active) ?? null
+  const [selectedAttrs, setSelectedAttrs] = useState<Record<string, string>>(
+    () => firstActive ? getVariantAttrs(firstActive, variantOpts) : {}
   )
   const [qty, setQty] = useState(1)
   const addItem = useCartStore((s) => s.addItem)
@@ -21,10 +25,23 @@ export default function ProductDetail({ product, related }: Props) {
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
-  // Agrupar variantes por tipo
-  const roasts = [...new Set(product.variants.filter(v => v.active && v.roast).map(v => v.roast!))]
-  const weights = [...new Set(product.variants.filter(v => v.active && v.weight).map(v => v.weight!))]
-  const grinds = [...new Set(product.variants.filter(v => v.active && v.grind).map(v => v.grind!))]
+  // Find the variant matching current selections
+  const selectedVariant = useMemo(() => {
+    return product.variants.find((v) => {
+      if (!v.active) return false
+      const attrs = getVariantAttrs(v, variantOpts)
+      return variantOpts.every((opt) => !selectedAttrs[opt] || attrs[opt] === selectedAttrs[opt])
+    }) ?? null
+  }, [selectedAttrs, product.variants, variantOpts])
+
+  function isAvailable(opt: string, value: string): boolean {
+    const test = { ...selectedAttrs, [opt]: value }
+    return product.variants.some((v) => {
+      if (!v.active) return false
+      const attrs = getVariantAttrs(v, variantOpts)
+      return variantOpts.every((o) => !test[o] || attrs[o] === test[o])
+    })
+  }
 
   function handleAddToCart() {
     if (!selectedVariant) return
@@ -32,11 +49,15 @@ export default function ProductDetail({ product, related }: Props) {
       variantId: selectedVariant.id,
       productSlug: product.slug,
       productName: product.name,
-      variantLabel: [selectedVariant.weight, selectedVariant.grind, selectedVariant.roast].filter(Boolean).join(' · '),
+      variantLabel: getVariantLabel(selectedVariant, variantOpts),
       price: selectedVariant.price,
       qty,
       imageUrl: product.images[0]?.url,
-      weight: selectedVariant.weight ?? '500g',
+      weight: (selectedVariant.weight ?? '500g') as '250g' | '500g' | '1kg',
+      weight_kg: selectedVariant.weight_kg ?? null,
+      length_cm: selectedVariant.length_cm ?? null,
+      width_cm:  selectedVariant.width_cm  ?? null,
+      height_cm: selectedVariant.height_cm ?? null,
     })
   }
 
@@ -67,7 +88,7 @@ export default function ProductDetail({ product, related }: Props) {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center">
-                  <span className="font-display text-brand-primary/10 text-8xl">VPS</span>
+                  <span className="font-display text-brand-primary/10 text-8xl">▲</span>
                 </div>
               )}
             </div>
@@ -107,84 +128,38 @@ export default function ProductDetail({ product, related }: Props) {
 
             <hr className="border-brand-primary/10 mb-6" />
 
-            {/* Selector de variantes */}
-            {roasts.length > 0 && (
-              <div className="mb-4">
-                <p className="font-brand text-sm font-semibold text-brand-primary mb-2">Tueste:</p>
-                <div className="flex gap-2 flex-wrap">
-                  {roasts.map((r) => (
-                    <button
-                      key={r}
-                      onClick={() => {
-                        const v = product.variants.find(
-                          (v) => v.roast === r && v.active && (!selectedVariant?.weight || v.weight === selectedVariant.weight)
-                        )
-                        if (v) setSelectedVariant(v)
-                      }}
-                      className={`rounded-full px-4 py-1.5 text-sm font-brand border transition-colors ${
-                        selectedVariant?.roast === r
-                          ? 'bg-brand-primary text-brand-cream border-brand-primary'
-                          : 'border-brand-primary/30 text-brand-primary hover:border-brand-primary'
-                      }`}
-                    >
-                      {r.charAt(0).toUpperCase() + r.slice(1)}
-                    </button>
-                  ))}
+            {/* Dynamic attribute selectors */}
+            {variantOpts.map((opt) => {
+              const values = [...new Set(product.variants.filter((v) => v.active).map((v) => getVariantAttrs(v, variantOpts)[opt]).filter(Boolean))]
+              if (values.length === 0) return null
+              return (
+                <div key={opt} className="mb-4">
+                  <p className="font-brand text-sm font-semibold text-brand-primary mb-2">{opt}:</p>
+                  <div className="flex gap-2 flex-wrap">
+                    {values.map((val) => {
+                      const available = isAvailable(opt, val)
+                      const selected = selectedAttrs[opt] === val
+                      return (
+                        <button
+                          key={val}
+                          onClick={() => available && setSelectedAttrs((prev) => ({ ...prev, [opt]: val }))}
+                          disabled={!available}
+                          className={`rounded-full px-4 py-1.5 text-sm font-brand border transition-colors relative ${
+                            selected
+                              ? 'bg-brand-primary text-brand-cream border-brand-primary'
+                              : available
+                                ? 'border-brand-primary/30 text-brand-primary hover:border-brand-primary'
+                                : 'border-brand-primary/10 text-brand-primary/30 cursor-not-allowed line-through'
+                          }`}
+                        >
+                          {val.charAt(0).toUpperCase() + val.slice(1)}
+                        </button>
+                      )
+                    })}
+                  </div>
                 </div>
-              </div>
-            )}
-
-            {weights.length > 0 && (
-              <div className="mb-4">
-                <p className="font-brand text-sm font-semibold text-brand-primary mb-2">Peso:</p>
-                <div className="flex gap-2 flex-wrap">
-                  {weights.map((w) => (
-                    <button
-                      key={w}
-                      onClick={() => {
-                        const v = product.variants.find(
-                          (v) => v.weight === w && v.active && (!selectedVariant?.roast || v.roast === selectedVariant.roast)
-                        )
-                        if (v) setSelectedVariant(v)
-                      }}
-                      className={`rounded-full px-4 py-1.5 text-sm font-brand border transition-colors ${
-                        selectedVariant?.weight === w
-                          ? 'bg-brand-primary text-brand-cream border-brand-primary'
-                          : 'border-brand-primary/30 text-brand-primary hover:border-brand-primary'
-                      }`}
-                    >
-                      {w}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
-
-            {grinds.length > 0 && (
-              <div className="mb-6">
-                <p className="font-brand text-sm font-semibold text-brand-primary mb-2">Molienda:</p>
-                <div className="flex gap-2 flex-wrap">
-                  {grinds.map((g) => (
-                    <button
-                      key={g}
-                      onClick={() => {
-                        const v = product.variants.find(
-                          (v) => v.grind === g && v.active
-                        )
-                        if (v) setSelectedVariant(v)
-                      }}
-                      className={`rounded-full px-4 py-1.5 text-sm font-brand border transition-colors ${
-                        selectedVariant?.grind === g
-                          ? 'bg-brand-primary text-brand-cream border-brand-primary'
-                          : 'border-brand-primary/30 text-brand-primary hover:border-brand-primary'
-                      }`}
-                    >
-                      {g.charAt(0).toUpperCase() + g.slice(1)}
-                    </button>
-                  ))}
-                </div>
-              </div>
-            )}
+              )
+            })}
 
             <hr className="border-brand-primary/10 mb-6" />
 
@@ -235,7 +210,7 @@ export default function ProductDetail({ product, related }: Props) {
             <div className="flex flex-col gap-2">
               {[
                 '🚚 Envío gratis en compras mayores a $100.000',
-                '✓ Tueste artesanal garantizado',
+                '✓ Calidad garantizada',
                 '↩ Devoluciones en 30 días',
               ].map((text) => (
                 <p key={text} className="font-brand text-sm text-brand-primary/60">{text}</p>
@@ -253,6 +228,10 @@ export default function ProductDetail({ product, related }: Props) {
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
               {related.map((p) => {
                 const v = p.variants.find((v) => v.active)
+                const relatedOpts = getProductOptions(p)
+                const prices = p.variants.filter((pv) => pv.active).map((pv) => pv.price)
+                const minRelatedPrice = prices.length > 0 ? Math.min(...prices) : 0
+                const hasMultipleRelatedPrices = prices.length > 0 && Math.max(...prices) !== minRelatedPrice
                 return (
                   <Link key={p.id} href={`/tienda/${p.slug}`} className="group bg-white rounded-2xl overflow-hidden shadow-card hover:shadow-card-hover transition-shadow">
                     <div className="h-48 bg-brand-cream overflow-hidden">
@@ -260,13 +239,16 @@ export default function ProductDetail({ product, related }: Props) {
                         <img src={p.images[0].url} alt={p.name} className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" />
                       ) : (
                         <div className="w-full h-full flex items-center justify-center">
-                          <span className="font-display text-brand-primary/10 text-4xl">VPS</span>
+                          <span className="font-display text-brand-primary/10 text-4xl">▲</span>
                         </div>
                       )}
                     </div>
                     <div className="p-4">
                       <p className="font-brand font-semibold text-brand-primary">{p.name}</p>
-                      <p className="font-brand font-bold text-brand-primary mt-1">{v ? fmt(v.price) : ''}</p>
+                      <p className="font-brand font-bold text-brand-primary mt-1">
+                        {v ? `${hasMultipleRelatedPrices ? 'Desde ' : ''}${fmt(minRelatedPrice)}` : ''}
+                      </p>
+                      {v && <p className="font-brand text-xs text-brand-primary/40 mt-0.5">{getVariantLabel(v, relatedOpts)}</p>}
                     </div>
                   </Link>
                 )

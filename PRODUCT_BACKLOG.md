@@ -1134,6 +1134,89 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 
 ---
 
+### HU-R10 — Variantes genéricas (colores, tallas y otros atributos)
+
+> Como administrador de productos, quiero definir atributos libres para las variantes (color, talla, material, etc.) para que la tienda muestre swatches visuales y filtros adecuados sin estar restringida a café.
+
+**Estimación:** L (5 puntos)  
+**Módulo:** `lib/variant-utils.ts` · `components/shop/ShopClient.tsx` · `components/shop/ProductDetail.tsx` · `admin/productos/ProductForm.tsx` · migración `14_product_variants_extended.sql`  
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Producto tiene `variant_options: ["Color","Talla"]` | Tienda muestra selectores de color y talla |
+| AC-2 | Valor de variante es un color (ej. "Rojo") | Se renderiza un swatch con el hex correspondiente |
+| AC-3 | Producto tiene múltiples precios | Tarjeta muestra "Desde $X" en lugar de precio único |
+| AC-4 | Producto sin `variant_options` JSONB | Sistema usa campos legacy `roast`/`weight`/`grind` sin cambios |
+| AC-5 | Variante no disponible para combinación seleccionada | Opción aparece tachada y no puede añadirse al carrito |
+| AC-6 | Admin define opciones en ProductForm | `variant_options` y `attributes` se guardan correctamente |
+
+---
+
+### HU-R11 — Selector de transportadora en checkout
+
+> Como cliente, quiero ver las opciones de envío disponibles con su precio y tiempo de entrega para elegir la que prefiero antes de pagar.
+
+**Estimación:** M (3 puntos)  
+**Módulo:** `components/checkout/CheckoutClient.tsx` · `api/checkout/route.ts` · `packages/database/src/queries/orders.ts`  
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Cliente completa datos de envío y pulsa "Ver opciones de envío →" | Se muestran tarifas con carrier, servicio, días y precio |
+| AC-2 | Se muestra spinner mientras se calculan las tarifas | Botón deshabilitado; texto "Calculando opciones de envío…" |
+| AC-3 | No hay tarifas disponibles | Mensaje ámbar; puede continuar con tarifa fija de respaldo |
+| AC-4 | Cliente cambia ciudad o departamento | Tarifas se resetean; debe recalcular antes de continuar |
+| AC-5 | Cliente selecciona una tarifa y confirma pedido | `carrier_name` y `skydropx_rate_id` quedan en la orden de BD |
+| AC-6 | Proveedor configurado es tarifa fija | No aparece el paso de "Ver opciones"; continúa directo al pago |
+
+---
+
+### HU-R12 — Comboboxes de departamento/ciudad Colombia
+
+> Como cliente, quiero elegir mi departamento y ciudad desde listas con búsqueda filtrada para reducir errores tipográficos en la dirección de envío.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `lib/colombia-locations.ts` · `components/ui/SearchableSelect.tsx` · `CheckoutClient.tsx` · `AddressesForm.tsx` · `ShippingConfigForm.tsx` (admin)  
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Cliente abre combobox de departamento | Lista de 33 departamentos ordenada alfabéticamente con filtro |
+| AC-2 | Cliente selecciona departamento | Ciudad se limpia y se carga la lista del departamento elegido |
+| AC-3 | Ciudad deshabilitada sin departamento | Placeholder "Elige departamento primero"; no es clickeable |
+| AC-4 | Ciudad aparece en múltiples departamentos (ej. "Buenaventura") | No hay error de clave duplicada en React |
+| AC-5 | Navegación por teclado (↑↓ Enter Escape) | El combobox responde correctamente a todas las teclas |
+
+---
+
+### HU-R13 — Editar y eliminar direcciones en Mi Cuenta
+
+> Como cliente, quiero poder corregir o eliminar mis direcciones guardadas para mantener mi libreta de direcciones actualizada.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `api/account/addresses/[id]/route.ts` · `components/account/AddressesForm.tsx`  
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Cliente pulsa "Editar" en una dirección | Aparece formulario inline con datos precargados |
+| AC-2 | Cliente guarda cambios | Se llama PATCH; datos actualizados en BD y UI |
+| AC-3 | Cliente marca como predeterminada | La anterior predeterminada deja de serlo |
+| AC-4 | Cliente elimina una dirección (con confirmación) | Dirección eliminada de BD y desaparece de la lista |
+| AC-5 | Usuario no autenticado llama PATCH/DELETE | API responde 401 |
+| AC-6 | Intento de editar/eliminar dirección de otro cliente | API responde 404 |
+
+---
+
 ## 5. Resumen de Cobertura
 
 | Épica | Total ítems | Implementados | Pendientes | % |
@@ -1151,7 +1234,8 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 | Panel de Administración | 33 | 33 | 0 | 100% |
 | Emails Transaccionales | 5 | 5 | 0 | 100% |
 | SEO y Rendimiento | 9 | 9 | 0 | 100% |
-| **TOTAL** | **136** | **136** | **0** | **100%** |
+| Plataforma genérica + UX envíos | 4 | 4 | 0 | 100% |
+| **TOTAL** | **140** | **140** | **0** | **100%** |
 
 ---
 
@@ -1202,7 +1286,7 @@ cd apps/web && pnpm test:watch
 | `packages/database/src/queries/__tests__/orders.test.ts` | Unitaria | 12 | DB queries — órdenes |
 | `packages/database/src/queries/__tests__/blog.test.ts` | Unitaria | 10 | DB queries — blog |
 | `packages/database/src/queries/__tests__/store-config.test.ts` | Unitaria | 10 | DB queries — store_config (getStoreConfig, updateStoreConfig) |
-| `apps/web/src/app/api/__tests__/checkout.integration.test.ts` | Integración | 14 | POST /api/checkout (incluye casos 503 de gateway) |
+| `apps/web/src/app/api/__tests__/checkout.integration.test.ts` | Integración | 17 | POST /api/checkout — 503 gateway, shipping_rate → carrier_name/skydropx_rate_id, tarifa fija sin shipping_rate |
 | `apps/web/src/app/api/__tests__/webhook-skydropx.integration.test.ts` | Integración | 9 | POST /api/webhooks/skydropx |
 | `apps/web/src/app/api/__tests__/webhook-wompi.integration.test.ts` | Integración | 10 | POST /api/webhooks/wompi (firma, status, email) |
 | `apps/web/src/app/api/__tests__/webhook-mercadopago.integration.test.ts` | Integración | 8 | POST /api/webhooks/mercadopago (fetch MP, update, email) |
@@ -1222,7 +1306,10 @@ cd apps/web && pnpm test:watch
 | `packages/database/src/queries/__tests__/themes.test.ts` | Unitaria | 14 | getThemes, getActiveTheme, createTheme, updateTheme, setActiveTheme, deleteTheme — guards activo/default |
 | `apps/admin/src/app/api/admin/themes/__tests__/themes.integration.test.ts` | Integración | 14 | GET/POST/PATCH/DELETE /api/admin/themes — autorización, setActive (dos ops), guards delete |
 | `apps/admin/src/app/api/admin/sections/__tests__/sections.integration.test.ts` | Integración | 10 | PATCH /api/admin/sections/[key] — autorización (solo admin/super_admin), validación enabled, multi-key |
-| **TOTAL** | | **319** | |
+| `apps/web/src/lib/__tests__/variant-utils.test.ts` | Unitaria | 22 | getProductOptions, getVariantAttrs, getVariantLabel, isColorValue, COLOR_HEX — JSONB + legacy |
+| `apps/web/src/lib/__tests__/colombia-locations.test.ts` | Unitaria | 10 | DEPARTMENTS (33, ordenados, sin duplicados), getCitiesForDepartment (ciudades por depto, vacío, ordenados) |
+| `apps/web/src/app/api/account/__tests__/addresses-id.integration.test.ts` | Integración | 9 | PATCH/DELETE /api/account/addresses/[id] — auth, 404 cliente, 404 dirección, editar, default exclusivo, eliminar |
+| **TOTAL** | | **360** | |
 
 ---
 

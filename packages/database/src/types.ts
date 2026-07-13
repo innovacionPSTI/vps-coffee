@@ -80,6 +80,7 @@ export type Database = {
           seo_title: string | null
           seo_desc: string | null
           created_at: string
+          variant_options: Json | null
         }
         Insert: {
           id?: number
@@ -93,6 +94,7 @@ export type Database = {
           seo_title?: string | null
           seo_desc?: string | null
           created_at?: string
+          variant_options?: Json | null
         }
         Update: {
           id?: number
@@ -106,6 +108,7 @@ export type Database = {
           seo_title?: string | null
           seo_desc?: string | null
           created_at?: string
+          variant_options?: Json | null
         }
         Relationships: [
           {
@@ -129,6 +132,11 @@ export type Database = {
           stock: number
           sku: string | null
           active: boolean
+          weight_kg: number | null
+          length_cm: number | null
+          width_cm: number | null
+          height_cm: number | null
+          attributes: Json | null
         }
         Insert: {
           id?: number
@@ -141,6 +149,11 @@ export type Database = {
           stock?: number
           sku?: string | null
           active?: boolean
+          weight_kg?: number | null
+          length_cm?: number | null
+          width_cm?: number | null
+          height_cm?: number | null
+          attributes?: Json | null
         }
         Update: {
           id?: number
@@ -153,6 +166,11 @@ export type Database = {
           stock?: number
           sku?: string | null
           active?: boolean
+          weight_kg?: number | null
+          length_cm?: number | null
+          width_cm?: number | null
+          height_cm?: number | null
+          attributes?: Json | null
         }
         Relationships: [
           {

@@ -90,8 +90,12 @@ export async function POST(req: NextRequest) {
       payment_method,
       discount,
       coupon_code,
-      skydropx_rate_id,
+      shipping_rate,
     } = body
+
+    // Extract carrier info from the rate the user selected
+    const skydropx_rate_id: string | null = shipping_rate?.id ?? null
+    const carrier_name: string | null = shipping_rate?.carrier_name ?? null
 
     if (!email || !name || !address || !items?.length) {
       return NextResponse.json({ error: 'Datos incompletos' }, { status: 400 })
@@ -144,6 +148,8 @@ export async function POST(req: NextRequest) {
       shipping_cost: shipping_cost ?? 0,
       total,
       payment_method: method,
+      skydropx_rate_id,
+      carrier_name,
     })
 
     // Auto-guardar dirección para el usuario logueado (silencioso, no bloquea)

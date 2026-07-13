@@ -165,7 +165,7 @@ vps-coffee/
     │   │   ├── coupons.ts, testimonials.ts, cart.ts
     │   │   ├── sections.ts                 ← isSectionEnabled (fail-open)
     │   │   └── themes.ts                   ← getActiveTheme, setActiveTheme, etc.
-    │   └── supabase/migrations/            ← 1_initial_schema.sql … 18_themes.sql
+    │   └── supabase/migrations/            ← 1_initial_schema.sql … 14_product_variants_extended.sql
     └── config/
         ├── tailwind.config.ts              ← Design system VPS (colores, fuentes, etc.)
         └── tsconfig.json                   ← Configuración TypeScript base
@@ -226,19 +226,15 @@ packages/database/supabase/migrations/2_shipping_config.sql
 packages/database/supabase/migrations/3_banner_mobile_image.sql
 packages/database/supabase/migrations/4_store_config.sql
 packages/database/supabase/migrations/5_payment_config.sql
-packages/database/supabase/migrations/6_email_config.sql
-packages/database/supabase/migrations/7_shipping_profiles.sql
-packages/database/supabase/migrations/8_customers.sql
-packages/database/supabase/migrations/9_customer_addresses.sql
-packages/database/supabase/migrations/10_shipping_free_threshold.sql
-packages/database/supabase/migrations/11_legal_content.sql
-packages/database/supabase/migrations/12_social_links.sql
-packages/database/supabase/migrations/13_skydropx_origin_address.sql
-packages/database/supabase/migrations/14_maintenance_mode.sql
-packages/database/supabase/migrations/15_coupons.sql
-packages/database/supabase/migrations/16_testimonials.sql
-packages/database/supabase/migrations/17_cart_items.sql
-packages/database/supabase/migrations/18_themes.sql
+packages/database/supabase/migrations/6_shipping_profiles.sql
+packages/database/supabase/migrations/7_customers.sql
+packages/database/supabase/migrations/8_customer_addresses.sql
+packages/database/supabase/migrations/9_section_settings.sql
+packages/database/supabase/migrations/10_coupons.sql
+packages/database/supabase/migrations/11_testimonials.sql
+packages/database/supabase/migrations/12_cart_items.sql
+packages/database/supabase/migrations/13_themes.sql
+packages/database/supabase/migrations/14_product_variants_extended.sql
 ```
 
 ### Paso 5 — Levantar el proyecto
@@ -470,7 +466,14 @@ Crea una orden en Supabase al finalizar el checkout.
   "subtotal": 90000,
   "shipping_cost": 8000,
   "total": 98000,
-  "payment_method": "wompi | mercadopago"
+  "payment_method": "wompi | mercadopago",
+  "shipping_rate": {
+    "id": "rate-abc123",
+    "carrier_name": "Servientrega",
+    "service_name": "Entrega estándar",
+    "days": 3,
+    "total_price": 12000
+  }
 }
 ```
 
@@ -769,18 +772,23 @@ cd packages/database && pnpm test:coverage
 | `apps/web/src/lib/shipping/__tests__/skydropx-auth.test.ts` | Unitaria | 7 | OAuth 2.0: nuevo token, caché, renovación, cache por clientId |
 | `apps/web/src/lib/shipping/__tests__/skydropx-provider.test.ts` | Unitaria | 9 | `SkydropxProvider`: happy path, polling, degradación graceful |
 | `apps/web/src/lib/shipping/__tests__/factory.test.ts` | Unitaria | 8 | Factory: todos los paths del switch, fallbacks |
+| `apps/web/src/lib/__tests__/variant-utils.test.ts` | Unitaria | 22 | `getProductOptions`, `getVariantAttrs`, `getVariantLabel`, `isColorValue`, `COLOR_HEX` |
+| `apps/web/src/lib/__tests__/colombia-locations.test.ts` | Unitaria | 10 | 33 departamentos, sin duplicados, `getCitiesForDepartment`, ciudades ordenadas |
 | `packages/database/src/queries/__tests__/products.test.ts` | Unitaria | 8 | Queries de productos: filtros, slug, featured, errores |
 | `packages/database/src/queries/__tests__/orders.test.ts` | Unitaria | 12 | Queries de órdenes: número correlativo, discount default, updateOrderStatus |
 | `packages/database/src/queries/__tests__/blog.test.ts` | Unitaria | 10 | Queries de blog: filtro categoría, limit, getFeaturedPost null-safe |
-| `apps/web/src/app/api/__tests__/checkout.integration.test.ts` | Integración | 10 | `POST /api/checkout`: validación, happy path, errores 500 |
+| `packages/database/src/queries/__tests__/coupons.test.ts` | Unitaria | 14 | `validateCoupon`: porcentaje, fijo, inactivo, expirado, usos, mínimo pedido |
+| `packages/database/src/queries/__tests__/themes.test.ts` | Unitaria | 14 | `getThemes`, `getActiveTheme`, `createTheme`, `setActiveTheme`, `deleteTheme` |
+| `apps/web/src/app/api/__tests__/checkout.integration.test.ts` | Integración | 17 | `POST /api/checkout`: validación, pasarela, happy path, `shipping_rate` → `carrier_name`, errores |
 | `apps/web/src/app/api/__tests__/webhook-skydropx.integration.test.ts` | Integración | 9 | `POST /api/webhooks/skydropx`: mapping de eventos, tracking_number, idempotencia |
 | `apps/web/src/app/api/__tests__/shipping-rates.integration.test.ts` | Integración | 9 | `POST /api/shipping/rates`: routing a provider, address mapping, fallbacks |
+| `apps/web/src/app/api/account/__tests__/addresses-id.integration.test.ts` | Integración | 9 | `PATCH/DELETE /api/account/addresses/[id]`: auth guard, 404, update, set default, delete |
 | `apps/admin/src/app/api/admin/orders/__tests__/order-status.integration.test.ts` | Integración | 9 | `PATCH /api/admin/orders/[id]/status`: todos los estados, errores |
 | `apps/admin/src/app/api/admin/shipping/__tests__/shipping-config.integration.test.ts` | Integración | 14 | `GET/PATCH /api/admin/shipping`: enmascaramiento del secret, validaciones, errores |
 | `packages/database/src/queries/__tests__/store-config.test.ts` | Unitaria | 10 | `getStoreConfig`: fallback a DEFAULT_CONFIG, happy path; `updateStoreConfig`: upsert, errores |
 | `apps/admin/src/app/api/admin/config/__tests__/store-config-api.integration.test.ts` | Integración | 11 | `GET/PATCH /api/admin/config`: WhatsApp validation, strip no-digits, logo URL, errores |
 | `apps/admin/src/app/api/admin/products/__tests__/products-create.integration.test.ts` | Integración | 9 | `POST /api/admin/products`: imágenes guardadas, variantes creadas, validación nombre+slug |
-| **Total** | | **163** | |
+| **Total** | | **238** | |
 
 ### Umbrales de cobertura
 
@@ -840,7 +848,7 @@ Cliente →  /tienda  →  Selecciona variante
         →  CartDrawer  (Zustand + localStorage)
         →  /carrito  →  Revisa totales + cupón
         →  /checkout  (Paso 1: Contacto)
-                     (Paso 2: Envío → POST /api/shipping/rates)
+                     (Paso 2: Envío → selecciona depto/ciudad → "Ver opciones" → POST /api/shipping/rates → elige transportadora)
                      (Paso 3: Pago → elige Wompi/MercadoPago)
         →  POST /api/checkout  →  Orden creada en Supabase (status: pending)
         →  /checkout/confirmacion  →  Muestra VPS-XXXX

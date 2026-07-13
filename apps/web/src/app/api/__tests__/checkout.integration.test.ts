@@ -272,6 +272,62 @@ describe('POST /api/checkout — happy path', () => {
 })
 
 // ─────────────────────────────────────────────
+// shipping_rate — transportadora elegida por el usuario
+// ─────────────────────────────────────────────
+describe('POST /api/checkout — shipping_rate', () => {
+  it('pasa carrier_name y skydropx_rate_id a createOrder cuando se incluye shipping_rate', async () => {
+    mockCreateOrder.mockResolvedValueOnce({ id: 1, order_number: 'VPS-0001' } as never)
+
+    const req = makeRequest({
+      ...validBody,
+      shipping_rate: {
+        id: 'rate-abc123',
+        carrier_name: 'Servientrega',
+        service_name: 'Entrega estándar',
+        days: 3,
+        total_price: 12000,
+      },
+    })
+    await POST(req)
+
+    expect(mockCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skydropx_rate_id: 'rate-abc123',
+        carrier_name: 'Servientrega',
+      })
+    )
+  })
+
+  it('pasa carrier_name=null cuando shipping_rate es null', async () => {
+    mockCreateOrder.mockResolvedValueOnce({ id: 2, order_number: 'VPS-0002' } as never)
+
+    const req = makeRequest({ ...validBody, shipping_rate: null })
+    await POST(req)
+
+    expect(mockCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skydropx_rate_id: null,
+        carrier_name: null,
+      })
+    )
+  })
+
+  it('funciona sin shipping_rate en el body (tarifa fija)', async () => {
+    mockCreateOrder.mockResolvedValueOnce({ id: 3, order_number: 'VPS-0003' } as never)
+
+    const req = makeRequest(validBody) // sin shipping_rate
+    const res = await POST(req)
+    expect(res.status).toBe(200)
+    expect(mockCreateOrder).toHaveBeenCalledWith(
+      expect.objectContaining({
+        skydropx_rate_id: null,
+        carrier_name: null,
+      })
+    )
+  })
+})
+
+// ─────────────────────────────────────────────
 // Error de base de datos (500)
 // ─────────────────────────────────────────────
 describe('POST /api/checkout — errores internos', () => {

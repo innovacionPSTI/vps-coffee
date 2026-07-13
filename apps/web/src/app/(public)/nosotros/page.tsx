@@ -75,7 +75,7 @@ export default function NosotrosPage() {
 
       {/* CTA */}
       <section className="py-20 text-center bg-brand-cream">
-        <h2 className="font-display text-brand-primary text-section mb-6">¿Listo para descubrir el café VPS?</h2>
+        <h2 className="font-display text-brand-primary text-section mb-6">¿Listo para conocer nuestros productos?</h2>
         <div className="flex gap-4 justify-center flex-wrap">
           <Link href="/tienda" className="bg-brand-primary text-brand-cream rounded-full px-8 py-3 font-brand font-medium hover:bg-brand-dark transition-colors">
             Ver nuestra tienda

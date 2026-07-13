@@ -192,24 +192,26 @@ export class SkydropxProvider implements ShippingProvider {
       quotation: {
         address_from: {
           country_code: 'CO',
-          postal_code: origin.postalCode,
           area_level1: origin.department,
           area_level2: origin.city,
-          area_level3: origin.neighborhood,
+          // postal_code omitted — Skydropx CO works with area_level1+area_level2 only
+          ...(origin.neighborhood ? { area_level3: origin.neighborhood } : {}),
         },
         address_to: {
           country_code: 'CO',
-          postal_code: address.postal_code,
           area_level1: address.area_level1,
           area_level2: address.area_level2,
+          // postal_code omitted — Skydropx CO rejects unrecognised codes
           ...(address.area_level3 ? { area_level3: address.area_level3 } : {}),
         },
-        packages: [{
+        parcel: {
           weight: parcel.weight,
           length: parcel.length,
           width: parcel.width,
           height: parcel.height,
-        }],
+        },
+        // Required by Skydropx PRO — declared value of goods in COP
+        declared_amount: parcel.declaredAmount ?? 50000,
       },
     }
 
@@ -218,7 +220,10 @@ export class SkydropxProvider implements ShippingProvider {
       body: JSON.stringify(body),
     })
 
-    if (!res.ok) throw new Error(`Skydropx createQuotation failed: ${res.status}`)
+    if (!res.ok) {
+      const errBody = await res.text().catch(() => '(no body)')
+      throw new Error(`Skydropx createQuotation failed: ${res.status} — ${errBody}`)
+    }
     const data = await res.json()
     // PRO API returns { id, is_completed, ... } directly
     return (data.id ?? data.data?.id) as string

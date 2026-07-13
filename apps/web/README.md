@@ -53,9 +53,11 @@ src/app/
     ├── newsletter/route.ts
     ├── shipping/rates/route.ts
     ├── account/
-    │   ├── profile/route.ts   ← GET/PATCH perfil del cliente
-    │   └── addresses/route.ts ← GET/POST direcciones guardadas
-    ├── draft/enable/route.ts  ← Blog Draft Mode (cookie __vps_draft)
+    │   ├── profile/route.ts            ← GET/PATCH perfil del cliente
+    │   └── addresses/
+    │       ├── route.ts                ← GET/POST direcciones guardadas
+    │       └── [id]/route.ts           ← PATCH/DELETE dirección por ID
+    ├── draft/enable/route.ts           ← Blog Draft Mode (cookie __vps_draft)
     └── webhooks/skydropx/route.ts
 ```
 
@@ -104,6 +106,31 @@ src/lib/shipping/
 ```
 
 `SkydropxProvider.getRates()` **nunca lanza** — siempre devuelve `[]` en error para que el checkout pueda degradar gracefully.
+
+## Utilidades de localización y variantes
+
+```
+src/lib/
+├── colombia-locations.ts   ← 33 departamentos + ~400 municipios; getCitiesForDepartment()
+└── variant-utils.ts        ← getProductOptions, getVariantAttrs, getVariantLabel,
+                               isColorValue, COLOR_HEX (sistema genérico de variantes)
+```
+
+## Componentes de UI reutilizables
+
+```
+src/components/ui/
+└── SearchableSelect.tsx    ← Combobox accesible con búsqueda, teclado y click-outside;
+                               usado en checkout (depto/ciudad) y selección de variantes
+```
+
+El checkout de 3 pasos implementa un **selector de tarifas de envío** en el paso 2:
+
+1. Usuario selecciona departamento y ciudad con `SearchableSelect`
+2. Botón "Ver opciones de envío →" llama a `POST /api/shipping/rates`
+3. Se listan las tarifas disponibles por transportadora/precio/días
+4. El usuario elige una tarifa; el botón "Continuar al pago →" se habilita
+5. La tarifa elegida (`carrier_name`, `skydropx_rate_id`) se persiste en la orden
 
 ---
 
@@ -160,6 +187,12 @@ Upsert del email en `newsletter_subscribers`. Envía email de confirmación **so
 ### `GET /api/account/profile` · `PATCH /api/account/profile`
 Lee/actualiza `name` y `phone` del customer. El PATCH también actualiza `displayName` en Stack Auth.
 
+### `GET /api/account/addresses` · `POST /api/account/addresses`
+Lista las direcciones guardadas del cliente / crea una nueva dirección. Requiere sesión Stack Auth.
+
+### `PATCH /api/account/addresses/[id]` · `DELETE /api/account/addresses/[id]`
+Edita campos de una dirección existente (incluyendo marcarla como predeterminada) o la elimina. Requiere sesión y que la dirección pertenezca al cliente autenticado.
+
 ### `GET /api/draft/enable` · `DELETE /api/draft/enable`
 Activa/desactiva Blog Draft Mode mediante cookie `__vps_draft`.
 
@@ -199,19 +232,29 @@ DRAFT_SECRET=cambia-este-secreto
 ## Tests
 
 ```bash
-pnpm test              # Jest — 209 casos en 19 archivos
+pnpm test              # Jest — todos los casos
 pnpm test:watch        # TDD
 pnpm test:coverage     # Con reporte HTML
 ```
 
-Nuevos archivos de test (v3):
-
-| Archivo | Cubre |
-|---------|-------|
-| `src/app/api/__tests__/newsletter.test.ts` | Suscripción, deduplicación, email de confirmación |
-| `src/app/api/__tests__/profile.test.ts` | GET/PATCH perfil, auth guard |
-| `src/app/api/__tests__/draft-enable.test.ts` | Validación de secret, cookie, redirect |
-| `src/__tests__/sitemap.test.ts` | Rutas estáticas, filtrado de productos/posts |
+| Archivo | Casos | Cubre |
+|---------|-------|-------|
+| `src/store/__tests__/cart.test.ts` | 18 | Cart Store: addItem, deduplicación, subtotal, localStorage |
+| `src/lib/shipping/__tests__/types.test.ts` | 10 | `calculateParcel`: tiers de peso, casos borde |
+| `src/lib/shipping/__tests__/fixed-rate.test.ts` | 10 | `FixedRateProvider`: tarifa, envío gratuito |
+| `src/lib/shipping/__tests__/skydropx-auth.test.ts` | 7 | OAuth 2.0: nuevo token, caché, renovación |
+| `src/lib/shipping/__tests__/skydropx-provider.test.ts` | 9 | `SkydropxProvider`: happy path, polling, degradación |
+| `src/lib/shipping/__tests__/factory.test.ts` | 8 | Factory: switch, fallbacks |
+| `src/lib/__tests__/variant-utils.test.ts` | 22 | `getProductOptions`, `getVariantLabel`, `isColorValue`, `COLOR_HEX` |
+| `src/lib/__tests__/colombia-locations.test.ts` | 10 | 33 departamentos, sin duplicados, ciudades ordenadas |
+| `src/app/api/__tests__/checkout.integration.test.ts` | 17 | `POST /api/checkout`: validación, pasarela, `shipping_rate`, errores |
+| `src/app/api/__tests__/webhook-skydropx.integration.test.ts` | 9 | Mapping de eventos Skydropx → status |
+| `src/app/api/__tests__/shipping-rates.integration.test.ts` | 9 | Routing a provider, address mapping, fallbacks |
+| `src/app/api/account/__tests__/addresses-id.integration.test.ts` | 9 | `PATCH/DELETE /addresses/[id]`: auth, 404, update, delete |
+| `src/app/api/__tests__/newsletter.test.ts` | — | Suscripción, deduplicación, email de confirmación |
+| `src/app/api/__tests__/profile.test.ts` | — | GET/PATCH perfil, auth guard |
+| `src/app/api/__tests__/draft-enable.test.ts` | — | Validación de secret, cookie, redirect |
+| `src/__tests__/sitemap.test.ts` | — | Rutas estáticas, filtrado de productos/posts |
 
 ---
 

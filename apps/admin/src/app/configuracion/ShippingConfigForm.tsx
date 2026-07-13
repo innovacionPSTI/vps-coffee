@@ -2,6 +2,8 @@
 
 import { useState, useTransition } from 'react'
 import type { ShippingConfig } from '@vps/database'
+import SearchableSelect from '@/components/ui/SearchableSelect'
+import { DEPARTMENTS, getCitiesForDepartment } from '@/lib/colombia-locations'
 
 interface Props {
   initialConfig: ShippingConfig | null
@@ -324,39 +326,40 @@ export default function ShippingConfigForm({ initialConfig }: Props) {
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
                 />
               </div>
-              <div>
-                <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">Ciudad *</label>
-                <input
-                  type="text"
-                  value={originCity}
-                  onChange={(e) => setOriginCity(e.target.value)}
-                  placeholder="Ciudad de despacho"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
-                />
-              </div>
+              <SearchableSelect
+                label="Ciudad *"
+                value={originCity}
+                options={getCitiesForDepartment(originDepartment)}
+                placeholder={originDepartment ? 'Selecciona ciudad' : 'Primero elige departamento'}
+                disabled={!originDepartment}
+                onChange={setOriginCity}
+              />
             </div>
 
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <SearchableSelect
+                label="Departamento *"
+                value={originDepartment}
+                options={DEPARTMENTS}
+                placeholder="Selecciona departamento"
+                onChange={(dept) => { setOriginDepartment(dept); setOriginCity('') }}
+              />
               <div>
-                <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">Departamento *</label>
-                <input
-                  type="text"
-                  value={originDepartment}
-                  onChange={(e) => setOriginDepartment(e.target.value)}
-                  placeholder="Departamento"
-                  className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
-                />
-              </div>
-              <div>
-                <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">Código postal *</label>
+                <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">
+                  Código postal <span className="font-normal text-brand-primary/40">(opcional)</span>
+                </label>
                 <input
                   type="text"
                   value={originPostalCode}
-                  onChange={(e) => setOriginPostalCode(e.target.value)}
-                  placeholder="050001"
+                  onChange={(e) => setOriginPostalCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                  placeholder="6 dígitos"
                   maxLength={6}
+                  inputMode="numeric"
                   className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
                 />
+                <p className="font-brand text-xs text-brand-primary/30 mt-1">
+                  Opcional. Skydropx usa departamento + ciudad para cotizar.
+                </p>
               </div>
             </div>
 

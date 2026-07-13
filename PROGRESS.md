@@ -1,5 +1,5 @@
 # VPS Coffee — Estado del Proyecto
-> **Última actualización:** Julio 2026 (v7) · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
+> **Última actualización:** Julio 2026 (v8) · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
 
 ---
 
@@ -32,14 +32,15 @@
 - `supabase/migrations/10_coupons.sql` — tabla `coupons` con código, tipo (percentage/fixed), valor, mínimo de pedido, usos máximos, contador de usos, expiración, estado activo
 - `supabase/migrations/11_testimonials.sql` — tabla `testimonials` con autor, cargo, contenido, avatar, rating (1-5), orden, estado activo
 - `supabase/migrations/12_cart_items.sql` — tabla `cart_items` para sincronizar carrito de usuarios logueados (FK a `customers`)
-- `supabase/migrations/13_themes.sql` — tabla `themes` con paleta hex completa y selección de fuentes; seed con tema VPS Coffee original; unique index parcial `WHERE is_active = true`
+- `supabase/migrations/13_themes.sql` — tabla `themes` con paleta hex completa (`color_primary`, `color_dark`, `color_cream`, `color_cream_warm`, `color_yellow`, `color_yellow_pale`, `color_text`) y selección de fuentes (`font_display`, `font_body`); seed con tema VPS Coffee original; unique index parcial `WHERE is_active = true`
+- `supabase/migrations/14_product_variants_extended.sql` — **dimensiones físicas** (`weight_kg`, `length_cm`, `width_cm`, `height_cm`) en `product_variants` para cotización real con Skydropx; **sistema de variantes genérico**: `variant_options JSONB` en `products` + `attributes JSONB` en `product_variants`; retrocompatible con campos heredados `roast`/`weight`/`grind` (14 archivos totales)
 - `src/queries/coupons.ts` — `getCoupons`, `getCouponByCode`, **`validateCoupon` (función pura)**, `createCoupon`, `updateCoupon`, `deleteCoupon`, `incrementCouponUsage`
 - `src/queries/testimonials.ts` — `getTestimonials(onlyActive)`, `createTestimonial`, `updateTestimonial`, `deleteTestimonial`
 - `src/queries/cart.ts` — `getCartItems`, `upsertCartItem`, `removeCartItem`, `clearCart`, `replaceCart`
 - `src/queries/sections.ts` — `getSectionSettings()` (lista todas ordenadas por `order_index`), `isSectionEnabled(key)` (fail-open: devuelve `true` si la tabla no existe)
 - `src/queries/themes.ts` — `getThemes()`, `getActiveTheme()`, `createTheme()`, `updateTheme()`, `setActiveTheme()`, `deleteTheme()` (protege activo y predeterminado)
-- `supabase/migrations/13_themes.sql` — tabla `themes` con paleta hex completa (`color_primary`, `color_dark`, `color_cream`, `color_cream_warm`, `color_yellow`, `color_yellow_pale`, `color_text`) y selección de fuentes (`font_display`, `font_body`); seed con tema VPS Coffee original; unique index parcial `WHERE is_active = true`
-- `src/types.ts` — añadidas tablas `order_items` (con `image_url`), `section_settings`, `themes`; añadida función `increment_coupon_usage` en `Database['public']['Functions']`
+- `src/queries/orders.ts` — `CreateOrderInput` incluye `carrier_name` y `skydropx_rate_id` para persistir la transportadora elegida por el cliente
+- `src/types.ts` — añadidas tablas `order_items` (con `image_url`), `section_settings`, `themes`; añadida función `increment_coupon_usage` en `Database['public']['Functions']`; `variant_options` en `products`, `attributes`+`weight_kg`+`length_cm`+`width_cm`+`height_cm` en `product_variants`
 
 ### `packages/ui`
 - `Button`, `Badge`, `ProductCard`, `Spinner` — componentes base con variantes VPS
@@ -85,7 +86,7 @@
 | `/blog/[slug]` | `app/(public)/blog/[slug]/page.tsx` | SSG+ISR |
 | `/nosotros` | `app/(public)/nosotros/page.tsx` | Estático |
 | `/carrito` | `app/carrito/page.tsx` | Client — tarifa y umbral de envío gratis desde BD vía `/api/shipping/config`; barra de progreso hacia envío gratis |
-| `/checkout` | `app/checkout/page.tsx` | 3 pasos — envío desde config real; si provider=skydropx llama `/api/shipping/rates` al completar dirección |
+| `/checkout` | `app/checkout/page.tsx` | 3 pasos — paso 2: comboboxes departamento/ciudad Colombia; si provider=skydropx muestra "Ver opciones de envío →" → lista de transportadoras con precio y días → usuario elige antes de continuar al pago; `shipping_rate` completo (id, carrier_name, service_name, days) se persiste en la orden |
 | `/terminos` | `app/(public)/terminos/page.tsx` | `force-dynamic` — renderiza `store_config.terms_content` (Markdown→HTML) |
 | `/privacidad` | `app/(public)/privacidad/page.tsx` | `force-dynamic` — renderiza `store_config.privacy_content` (Markdown→HTML) |
 | `/checkout/confirmacion` | `app/checkout/confirmacion/page.tsx` | async, WhatsApp desde BD |
@@ -113,6 +114,8 @@
 | `POST /api/auth/welcome` | Upsert en `customers` + vincula pedidos previos + email de bienvenida |
 | `GET /api/account/addresses` | Devuelve direcciones guardadas del cliente logueado |
 | `POST /api/account/addresses` | Guarda nueva dirección; maneja `is_default` de forma exclusiva |
+| `PATCH /api/account/addresses/[id]` | Edita campos de una dirección guardada; si `is_default=true` limpia la default previa |
+| `DELETE /api/account/addresses/[id]` | Elimina dirección verificando que pertenece al cliente |
 | `GET /api/account/profile` | Devuelve nombre y teléfono del customer logueado |
 | `PATCH /api/account/profile` | Actualiza nombre y teléfono; sincroniza `displayName` en Stack Auth |
 | `GET /api/draft/enable` | Activa modo borrador (cookie `__vps_draft` 1h) + redirect a `/blog/[slug]?draft=1` |
@@ -133,10 +136,13 @@
 - `ServicesSection` — async, llama `Promise.all` para URLs de WhatsApp desde BD
 - `NewsletterSection` — POST a API route
 - `CartDrawer` — slide-in desde derecha, overlay, Escape key
-- `ShopClient` — filtros tueste/peso/método, sort, grid
-- `ProductDetail` — galería, selector variantes, add to cart
+- `ShopClient` — filtros de categoría y atributos dinámicos desde `variant_options`; swatches de color cuando el valor es un color; "Desde $X" cuando hay múltiples precios; "Ver opciones" vs "Agregar" según cantidad de variantes
+- `ProductDetail` — galería, selector variantes genérico (cualquier atributo: color/talla/etc.), strikethrough para variantes no disponibles, add to cart
+- `lib/variant-utils.ts` — `getProductOptions`, `getVariantAttrs`, `getVariantLabel` (retrocompat. con café legacy), `isColorValue`, `COLOR_HEX` (20 colores españoles → hex)
+- `lib/colombia-locations.ts` — 33 departamentos + ~400 municipios; `DEPARTMENTS` (lista ordenada), `getCitiesForDepartment(dept)` (lista ordenada por depto)
+- `components/ui/SearchableSelect.tsx` — combobox reutilizable: input + dropdown filtrado, nav por teclado (↑↓ Enter Escape), cierre en click externo, checkmark en seleccionado, key única por índice (evita duplicados como "Buenaventura")
 - `components/account/ProfileForm` — editar nombre y teléfono del cliente; PATCH a `/api/account/profile`
-- `components/account/AddressesForm` — lista y agregar direcciones guardadas con modal inline
+- `components/account/AddressesForm` — lista, agregar, **editar inline** y eliminar direcciones; comboboxes departamento/ciudad; botón "Predeterminada"; PATCH+DELETE a `/api/account/addresses/[id]`
 - `components/pedidos/PickupModal` — modal para seleccionar órdenes y programar recolección Skydropx
 - `components/testimonials/TestimonialsCarousel` — carrusel automático (5s), 3 cards visibles, dots + flechas, pausa en hover; usa datos de BD
 - `components/auth/CartSyncOnLogin` — componente invisible montado en root layout; detecta login y sincroniza carrito localStorage ↔ BD
@@ -149,7 +155,7 @@
 - `lib/shipping/index.ts` — factory `getShippingProvider()` + exports de providers
 - `lib/shipping/providers/fixed/index.ts` — `FixedRateProvider`: devuelve tarifa fija desde config
 - `lib/shipping/providers/skydropx/auth.ts` — OAuth 2.0 client_credentials con cache de token por clientId
-- `lib/shipping/providers/skydropx/index.ts` — `SkydropxProvider`: cotización con `address_from` inline, polling hasta `is_completed`, extrae tracking de `included[0].attributes`; `createShipment()` completo
+- `lib/shipping/providers/skydropx/index.ts` — `SkydropxProvider`: cotización con `address_from` inline (sin `postal_code` — Skydropx Colombia solo requiere `area_level1`+`area_level2`), `declared_amount` calculado desde el total del carrito (requerido por PRO API), polling hasta `is_completed`, extrae tracking de `included[0].attributes`; `createShipment()` completo
 - `lib/shipping/shipments.ts` — `createShipmentForOrder(orderNumber)`: carga orden → config → destination → parcel → guía → actualiza orden; idempotente; nunca lanza
 
 ### `apps/admin` — Panel de administración
@@ -192,7 +198,7 @@
 | `/blog/[id]` | Formulario de edición de artículo; botón eliminar; botón "Previsualizar ↗" — activa Draft Mode mediante cookie |
 | `/configuracion` | → redirige a `/configuracion/general` |
 | `/configuracion/general` | `StoreConfigForm` — WhatsApp, logo, nombre, email, redes sociales, **modo mantenimiento**, **analytics toggle** |
-| `/configuracion/envios` | `ShippingConfigForm` — tarifa fija, envío gratis, Skydropx, dirección de origen (solo admin/super_admin) |
+| `/configuracion/envios` | `ShippingConfigForm` — tarifa fija, envío gratis, Skydropx, dirección de origen con comboboxes departamento/ciudad Colombia (solo admin/super_admin) |
 | `/configuracion/pagos` | `PaymentConfigForm` — Wompi + MercadoPago (solo admin/super_admin) |
 | `/configuracion/emails` | `EmailConfigForm` — Resend (solo admin/super_admin) |
 | `/configuracion/legal` | `LegalConfigForm` — editor Markdown Términos/Privacidad |
@@ -285,6 +291,14 @@
 - [x] **Eliminación de valores hardcodeados en emails** — `lib/email.ts` reescrito: `storeName` y `siteUrl` vienen de `store_config` y `NEXT_PUBLIC_SITE_URL`; helper `buildEmailConfig()` actualizado en los 5 callers (wompi, mercadopago, skydropx, newsletter, welcome); `admin/newsletter/send/route.ts` corregido (footer ya no tiene `vpscoffee.com` hardcodeado) ✅
 - [x] **Consolidación de migraciones** — reducidas de 19 a 13 archivos; 6 `ALTER TABLE` eliminados (6_email_config, 10_shipping_free_threshold, 11_legal_content, 12_social_links, 13_skydropx_origin_address, 14_maintenance_mode); sus columnas incorporadas en las migraciones CREATE TABLE originales (2 y 4); archivos renumerados sin colisiones; ambas apps pasan `tsc --noEmit` ✅
 
+### Completado en v8
+- [x] **Sistema de variantes genérico** — `variant_options JSONB` en `products` + `attributes JSONB` en `product_variants`; `lib/variant-utils.ts` con `getProductOptions`, `getVariantAttrs`, `getVariantLabel`, `isColorValue`, `COLOR_HEX` (20 colores); retrocompatible con campos legacy `roast`/`weight`/`grind`; `ShopClient` con swatches de color, "Desde $X", filtros dinámicos; `ProductDetail` con selector genérico ✅
+- [x] **Dimensiones de envío en variantes** — `weight_kg`, `length_cm`, `width_cm`, `height_cm` en `product_variants`; migración 14 compacta las dos extensiones anteriores (15→14) ✅
+- [x] **Comboboxes Colombia** — `lib/colombia-locations.ts` con 33 departamentos y ~400 municipios; `SearchableSelect` reutilizable (filtro, teclado, key por índice para evitar duplicados como "Buenaventura"); aplicado en checkout, admin/configuracion/envios y Mi Cuenta/perfil ✅
+- [x] **Fix Skydropx 422** — eliminado `postal_code` de cotizaciones (Skydropx CO solo requiere area_level1+area_level2); `declared_amount` calculado desde el total del carrito (campo requerido por PRO API) ✅
+- [x] **Selector de tarifa en checkout** — paso 2 separado: "Ver opciones de envío →" carga tarifas Skydropx y las muestra con carrier, servicio, días y precio; usuario elige antes de continuar; `shipping_rate` completo (`id`, `carrier_name`, `service_name`, `days`) persistido en `orders.carrier_name` y `orders.skydropx_rate_id` ✅
+- [x] **Direcciones editables en Mi Cuenta** — `PATCH /api/account/addresses/[id]` (editar campos, manejar default exclusivo) + `DELETE /api/account/addresses/[id]`; `AddressesForm` reescrito con edición inline, botón Predeterminada y Eliminar ✅
+
 ### Pendiente
 - [ ] **Tests newsletter** — API routes GET /api/admin/newsletter y POST /api/admin/newsletter/send
 - [ ] **Tracking en Mi Cuenta** — timeline visual del estado del pedido / Skydropx
@@ -329,6 +343,7 @@ packages/database/supabase/migrations/10_coupons.sql
 packages/database/supabase/migrations/11_testimonials.sql
 packages/database/supabase/migrations/12_cart_items.sql
 packages/database/supabase/migrations/13_themes.sql
+packages/database/supabase/migrations/14_product_variants_extended.sql
 ```
 
 ### 5. Levantar el proyecto
@@ -464,7 +479,7 @@ vps-coffee/
 │   │   │   ├── cart.ts                 — getCartItems, upsertCartItem, removeCartItem, clearCart, replaceCart
 │   │   │   ├── sections.ts             — getSectionSettings(), isSectionEnabled() (fail-open)
 │   │   │   └── themes.ts               — getThemes(), getActiveTheme(), createTheme(), updateTheme(), setActiveTheme(), deleteTheme()
-│   │   └── supabase/migrations/         — 13 archivos (consolidados desde 19)
+│   │   └── supabase/migrations/         — 14 archivos (consolidados desde 19)
 │   │       ├── 1_initial_schema.sql      — Stack Auth-native: sin FK auth.users, sin triggers
 │   │       ├── 2_shipping_config.sql     — shipping_config con multi-proveedor, envío gratis y origen Skydropx
 │   │       ├── 3_banner_mobile_image.sql
@@ -477,7 +492,8 @@ vps-coffee/
 │   │       ├── 10_coupons.sql
 │   │       ├── 11_testimonials.sql
 │   │       ├── 12_cart_items.sql
-│   │       └── 13_themes.sql
+│   │       ├── 13_themes.sql
+│   │       └── 14_product_variants_extended.sql — dimensiones físicas + variantes genéricas (color/talla/etc.)
 │   └── config/
 │
 ├── .env.example

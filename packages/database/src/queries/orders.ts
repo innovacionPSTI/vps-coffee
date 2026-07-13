@@ -13,6 +13,8 @@ export interface CreateOrderInput {
   discount?: number
   total: number
   payment_method?: 'wompi' | 'mercadopago'
+  skydropx_rate_id?: string | null
+  carrier_name?: string | null
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<Order> {

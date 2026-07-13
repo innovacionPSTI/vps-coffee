@@ -28,6 +28,12 @@ interface Variant {
   stock: string
   sku: string
   active: boolean
+  /** Dimensiones de envío (opcionales) */
+  weight_kg: string
+  length_cm: string
+  width_cm: string
+  height_cm: string
+  attributes: Record<string, string>
   _delete?: boolean
 }
 
@@ -44,6 +50,7 @@ interface Product {
   seo_title: string
   seo_desc: string
   images: string[]   // URLs de imágenes
+  variant_options: string  // comma-separated, e.g. "Color, Talla"
   variants: Variant[]
 }
 
@@ -55,6 +62,8 @@ interface Props {
 const emptyVariant = (): Variant => ({
   roast: 'medio', weight: '250g', grind: 'grano',
   brew_method: 'universal', price: '', stock: '0', sku: '', active: true,
+  weight_kg: '', length_cm: '', width_cm: '', height_cm: '',
+  attributes: {},
 })
 
 export default function ProductForm({ product, categories }: Props) {
@@ -71,6 +80,9 @@ export default function ProductForm({ product, categories }: Props) {
     seo_title: product?.seo_title ?? '',
     seo_desc: product?.seo_desc ?? '',
     images: product?.images?.map((img: any) => typeof img === 'string' ? img : img.url).filter(Boolean) ?? [''],
+    variant_options: Array.isArray(product?.variant_options) && product.variant_options.length > 0
+      ? (product.variant_options as string[]).join(', ')
+      : '',
     variants: product?.variants?.map((v: any) => ({
       id: v.id,
       roast: v.roast ?? 'medio',
@@ -81,6 +93,11 @@ export default function ProductForm({ product, categories }: Props) {
       stock: v.stock?.toString() ?? '0',
       sku: v.sku ?? '',
       active: v.active ?? true,
+      weight_kg: v.weight_kg?.toString() ?? '',
+      length_cm: v.length_cm?.toString() ?? '',
+      width_cm:  v.width_cm?.toString()  ?? '',
+      height_cm: v.height_cm?.toString() ?? '',
+      attributes: v.attributes ? (v.attributes as Record<string, string>) : {},
     })) ?? [emptyVariant()],
   })
 
@@ -123,6 +140,7 @@ export default function ProductForm({ product, categories }: Props) {
   }
 
   const visibleVariants = form.variants.filter((v) => !v._delete)
+  const parsedOptions = form.variant_options.split(',').map((s) => s.trim()).filter(Boolean)
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault()
@@ -150,14 +168,17 @@ export default function ProductForm({ product, categories }: Props) {
     setSaving(true)
     setError('')
 
+    const parsedOptions = form.variant_options.split(',').map((s) => s.trim()).filter(Boolean)
     const payload = {
       ...form,
       category_id: form.category_id ? Number(form.category_id) : null,
       images: form.images.filter(Boolean).map((url) => ({ url })),
+      variant_options: parsedOptions,
       variants: form.variants.map((v) => ({
         ...v,
         price: Number(v.price),
         stock: Number(v.stock),
+        attributes: Object.keys(v.attributes).length > 0 ? v.attributes : null,
       })),
     }
 
@@ -286,6 +307,23 @@ export default function ProductForm({ product, categories }: Props) {
                 placeholder="Descripción del producto..."
               />
             </div>
+
+            <div>
+              <label className="font-brand text-xs text-brand-primary/50 block mb-1">
+                Opciones de variante
+                <span className="text-brand-primary/30 ml-1">(separadas por coma, ej: Color, Talla)</span>
+              </label>
+              <input
+                type="text"
+                value={form.variant_options}
+                onChange={(e) => setForm((f) => ({ ...f, variant_options: e.target.value }))}
+                className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
+                placeholder="Color, Talla, Material"
+              />
+              <p className="font-brand text-xs text-brand-primary/30 mt-1">
+                Deja vacío para usar los campos estándar (Tueste, Peso, Molienda, Método).
+              </p>
+            </div>
           </section>
 
           {/* Imágenes */}
@@ -375,51 +413,70 @@ export default function ProductForm({ product, categories }: Props) {
                       )}
                     </div>
 
-                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-                      <div>
-                        <label className="font-brand text-xs text-brand-primary/40 block mb-1">Tueste</label>
-                        <select
-                          value={variant.roast}
-                          onChange={(e) => updateVariant(idx, 'roast', e.target.value)}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
-                        >
-                          {ROAST_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                        </select>
+                    {parsedOptions.length > 0 ? (
+                      // Dynamic attribute inputs
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {parsedOptions.map((opt) => (
+                          <div key={opt}>
+                            <label className="font-brand text-xs text-brand-primary/40 block mb-1">{opt}</label>
+                            <input
+                              type="text"
+                              value={variant.attributes[opt] ?? ''}
+                              onChange={(e) => updateVariant(idx, 'attributes', { ...variant.attributes, [opt]: e.target.value })}
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
+                              placeholder={opt}
+                            />
+                          </div>
+                        ))}
                       </div>
+                    ) : (
+                      // Legacy dropdowns: roast, weight, grind, brew_method
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        <div>
+                          <label className="font-brand text-xs text-brand-primary/40 block mb-1">Tueste</label>
+                          <select
+                            value={variant.roast}
+                            onChange={(e) => updateVariant(idx, 'roast', e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
+                          >
+                            {ROAST_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
 
-                      <div>
-                        <label className="font-brand text-xs text-brand-primary/40 block mb-1">Peso</label>
-                        <select
-                          value={variant.weight}
-                          onChange={(e) => updateVariant(idx, 'weight', e.target.value)}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
-                        >
-                          {WEIGHT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                        </select>
-                      </div>
+                        <div>
+                          <label className="font-brand text-xs text-brand-primary/40 block mb-1">Peso</label>
+                          <select
+                            value={variant.weight}
+                            onChange={(e) => updateVariant(idx, 'weight', e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
+                          >
+                            {WEIGHT_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
 
-                      <div>
-                        <label className="font-brand text-xs text-brand-primary/40 block mb-1">Molienda</label>
-                        <select
-                          value={variant.grind}
-                          onChange={(e) => updateVariant(idx, 'grind', e.target.value)}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
-                        >
-                          {GRIND_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                        </select>
-                      </div>
+                        <div>
+                          <label className="font-brand text-xs text-brand-primary/40 block mb-1">Molienda</label>
+                          <select
+                            value={variant.grind}
+                            onChange={(e) => updateVariant(idx, 'grind', e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
+                          >
+                            {GRIND_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
 
-                      <div>
-                        <label className="font-brand text-xs text-brand-primary/40 block mb-1">Método</label>
-                        <select
-                          value={variant.brew_method}
-                          onChange={(e) => updateVariant(idx, 'brew_method', e.target.value)}
-                          className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
-                        >
-                          {BREW_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
-                        </select>
+                        <div>
+                          <label className="font-brand text-xs text-brand-primary/40 block mb-1">Método</label>
+                          <select
+                            value={variant.brew_method}
+                            onChange={(e) => updateVariant(idx, 'brew_method', e.target.value)}
+                            className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
+                          >
+                            {BREW_OPTIONS.map((o) => <option key={o} value={o}>{o}</option>)}
+                          </select>
+                        </div>
                       </div>
-                    </div>
+                    )}
 
                     <div className="grid grid-cols-3 gap-3">
                       <div>
@@ -456,6 +513,34 @@ export default function ProductForm({ product, categories }: Props) {
                           className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
                           placeholder="SKU-001"
                         />
+                      </div>
+                    </div>
+
+                    {/* Dimensiones de envío */}
+                    <div>
+                      <p className="font-brand text-xs text-brand-primary/40 mb-2">
+                        Dimensiones de envío <span className="text-brand-primary/25">(opcionales — requeridas para cotizar con Skydropx)</span>
+                      </p>
+                      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                        {[
+                          { field: 'weight_kg', label: 'Peso (kg)', placeholder: '0.35' },
+                          { field: 'length_cm', label: 'Largo (cm)', placeholder: '20' },
+                          { field: 'width_cm',  label: 'Ancho (cm)', placeholder: '15' },
+                          { field: 'height_cm', label: 'Alto (cm)',  placeholder: '8'  },
+                        ].map(({ field, label, placeholder }) => (
+                          <div key={field}>
+                            <label className="font-brand text-xs text-brand-primary/40 block mb-1">{label}</label>
+                            <input
+                              type="number"
+                              min={0}
+                              step="0.01"
+                              value={(variant as any)[field]}
+                              onChange={(e) => updateVariant(idx, field as keyof Variant, e.target.value)}
+                              className="w-full border border-gray-200 rounded-lg px-3 py-2 font-brand text-sm text-brand-primary focus:outline-none focus:border-brand-primary"
+                              placeholder={placeholder}
+                            />
+                          </div>
+                        ))}
                       </div>
                     </div>
 

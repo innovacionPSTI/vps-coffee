@@ -4,6 +4,8 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useCartStore } from '@/store/cart'
 import type { ShippingRate } from '@/lib/shipping/types'
+import SearchableSelect from '@/components/ui/SearchableSelect'
+import { DEPARTMENTS, getCitiesForDepartment } from '@/lib/colombia-locations'
 
 type Step = 1 | 2 | 3
 
@@ -75,6 +77,7 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
   const [availableRates, setAvailableRates] = useState<ShippingRate[]>([])
   const [selectedRateId, setSelectedRateId] = useState<string | null>(null)
   const [ratesLoading, setRatesLoading]     = useState(false)
+  const [ratesFetched, setRatesFetched]     = useState(false)
 
   // Cupón
   const [couponCode, setCouponCode]         = useState('')
@@ -97,6 +100,7 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
     setRatesLoading(true)
     setAvailableRates([])
     setSelectedRateId(null)
+    setRatesFetched(false)
     try {
       const res = await fetch('/api/shipping/rates', {
         method: 'POST',
@@ -111,7 +115,15 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
             phone: shipping.phone,
             email: contact.email,
           },
-          items: items.map((i) => ({ weight: i.variantLabel.includes('1kg') ? '1kg' : i.variantLabel.includes('500g') ? '500g' : '250g', qty: i.qty })),
+          items: items.map((i) => ({
+            weight:    i.weight,
+            weight_kg: i.weight_kg ?? null,
+            length_cm: i.length_cm ?? null,
+            width_cm:  i.width_cm  ?? null,
+            height_cm: i.height_cm ?? null,
+            price:     i.price,
+            qty:       i.qty,
+          })),
         }),
       })
       if (res.ok) {
@@ -121,7 +133,10 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
         if (rates.length > 0) setSelectedRateId(rates[0].id)
       }
     } catch { /* fallback a tarifa fija */ }
-    finally { setRatesLoading(false) }
+    finally {
+      setRatesLoading(false)
+      setRatesFetched(true)
+    }
   }
 
   // Aplicar cupón
@@ -189,7 +204,15 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
           shipping_cost: shippingCost,
           discount: couponDiscount,
           coupon_code: couponApplied,
-          skydropx_rate_id: selectedRateId,
+          shipping_rate: selectedRate
+            ? {
+                id: selectedRate.id,
+                carrier_name: selectedRate.carrier_name,
+                service_name: selectedRate.service_name,
+                days: selectedRate.days,
+                total_price: selectedRate.total_price,
+              }
+            : null,
           total,
           payment_method: paymentMethod,
         }),
@@ -266,23 +289,99 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
                       </div>
                     ))}
                   </div>
-                  {[
-                    { key: 'address', label: 'Dirección', placeholder: 'Calle 123 #45-67, Apto 8' },
-                    { key: 'city', label: 'Ciudad', placeholder: 'Medellín' },
-                    { key: 'department', label: 'Departamento', placeholder: 'Antioquia' },
-                    { key: 'phone', label: 'Teléfono', placeholder: '+57 300 123 4567' },
-                  ].map((f) => (
-                    <div key={f.key}>
-                      <label className="font-brand text-sm font-semibold text-brand-primary block mb-1">{f.label} *</label>
-                      <input type="text" value={shipping[f.key as keyof ShippingInfo]} onChange={(e) => setShipping({ ...shipping, [f.key]: e.target.value })} placeholder={f.placeholder}
-                        className="w-full border border-brand-primary/20 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary" />
-                    </div>
-                  ))}
+                  {/* Dirección */}
+                  <div>
+                    <label className="font-brand text-sm font-semibold text-brand-primary block mb-1">Dirección *</label>
+                    <input type="text" value={shipping.address}
+                      onChange={(e) => setShipping({ ...shipping, address: e.target.value })}
+                      placeholder="Calle 123 #45-67, Apto 8"
+                      className="w-full border border-brand-primary/20 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary" />
+                  </div>
+
+                  {/* Departamento y Ciudad */}
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <SearchableSelect
+                      label="Departamento"
+                      required
+                      value={shipping.department}
+                      options={DEPARTMENTS}
+                      placeholder="Selecciona departamento"
+                      onChange={(dept) => {
+                        setShipping({ ...shipping, department: dept, city: '' })
+                        setRatesFetched(false)
+                        setAvailableRates([])
+                        setSelectedRateId(null)
+                      }}
+                    />
+                    <SearchableSelect
+                      label="Ciudad / Municipio"
+                      required
+                      value={shipping.city}
+                      options={getCitiesForDepartment(shipping.department)}
+                      placeholder={shipping.department ? 'Selecciona ciudad' : 'Primero elige departamento'}
+                      disabled={!shipping.department}
+                      onChange={(city) => {
+                        setShipping({ ...shipping, city })
+                        setRatesFetched(false)
+                        setAvailableRates([])
+                        setSelectedRateId(null)
+                      }}
+                    />
+                  </div>
+
+                  {/* Código postal */}
+                  <div>
+                    <label className="font-brand text-sm font-semibold text-brand-primary block mb-1">
+                      Código postal <span className="font-normal text-brand-primary/40">(opcional)</span>
+                    </label>
+                    <input type="text" value={shipping.postal_code}
+                      onChange={(e) => {
+                        const v = e.target.value.replace(/\D/g, '').slice(0, 6)
+                        setShipping({ ...shipping, postal_code: v })
+                      }}
+                      placeholder="6 dígitos"
+                      maxLength={6}
+                      inputMode="numeric"
+                      className={`w-40 border rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none transition-colors ${
+                        shipping.postal_code && shipping.postal_code.length !== 6
+                          ? 'border-amber-400 focus:border-amber-500'
+                          : 'border-brand-primary/20 focus:border-brand-primary'
+                      }`}
+                    />
+                    {shipping.postal_code && shipping.postal_code.length !== 6 && (
+                      <p className="font-brand text-xs text-amber-600 mt-1">El código postal debe tener 6 dígitos</p>
+                    )}
+                  </div>
+
+                  {/* Teléfono */}
+                  <div>
+                    <label className="font-brand text-sm font-semibold text-brand-primary block mb-1">Teléfono *</label>
+                    <input type="tel" value={shipping.phone}
+                      onChange={(e) => setShipping({ ...shipping, phone: e.target.value })}
+                      placeholder="+57 300 123 4567"
+                      className="w-full border border-brand-primary/20 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary" />
+                  </div>
 
                   {/* Selector de transportadora (Skydropx) */}
+                  {shippingCfg.provider === 'skydropx' && !isFreeShipping && ratesLoading && (
+                    <div className="flex items-center gap-3 py-3 px-4 bg-brand-cream/50 rounded-xl">
+                      <svg className="animate-spin w-4 h-4 text-brand-primary/50" fill="none" viewBox="0 0 24 24">
+                        <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                        <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                      </svg>
+                      <p className="font-brand text-sm text-brand-primary/50">Calculando opciones de envío…</p>
+                    </div>
+                  )}
+
+                  {shippingCfg.provider === 'skydropx' && !isFreeShipping && ratesFetched && availableRates.length === 0 && (
+                    <p className="font-brand text-sm text-amber-600 bg-amber-50 rounded-xl px-4 py-3">
+                      No se encontraron tarifas para esta dirección. Se aplicará tarifa estándar al confirmar.
+                    </p>
+                  )}
+
                   {shippingCfg.provider === 'skydropx' && !isFreeShipping && availableRates.length > 0 && (
                     <div>
-                      <p className="font-brand text-sm font-semibold text-brand-primary mb-2">Selecciona tu transportadora</p>
+                      <p className="font-brand text-sm font-semibold text-brand-primary mb-2">Elige tu transportadora</p>
                       <div className="space-y-2">
                         {availableRates.map((rate) => (
                           <label key={rate.id} className={`flex items-center justify-between gap-4 p-3 rounded-xl border-2 cursor-pointer transition-colors ${selectedRateId === rate.id ? 'border-brand-primary bg-brand-cream/40' : 'border-brand-primary/10 hover:border-brand-primary/30'}`}>
@@ -290,7 +389,7 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
                               <input type="radio" name="shipping_rate" value={rate.id} checked={selectedRateId === rate.id} onChange={() => setSelectedRateId(rate.id)} className="accent-brand-primary" />
                               <div>
                                 <p className="font-brand text-sm font-semibold text-brand-primary">{rate.carrier_name}</p>
-                                <p className="font-brand text-xs text-brand-primary/50">{rate.service_name} · {rate.days} día{rate.days !== 1 ? 's' : ''}</p>
+                                <p className="font-brand text-xs text-brand-primary/50">{rate.service_name} · {rate.days} día{rate.days !== 1 ? 's' : ''} hábil{rate.days !== 1 ? 'es' : ''}</p>
                               </div>
                             </div>
                             <span className="font-brand text-sm font-bold text-brand-primary">{fmt(rate.total_price)}</span>
@@ -300,27 +399,39 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
                     </div>
                   )}
 
-                  {ratesLoading && (
-                    <p className="font-brand text-sm text-brand-primary/50 text-center py-2">Calculando opciones de envío…</p>
-                  )}
+                  {(() => {
+                    const { name, lastname, address, city, department, phone } = shipping
+                    const formReady = !!(name && lastname && address && city && department && phone)
+                    const needsRates = shippingCfg.provider === 'skydropx' && !isFreeShipping
+                    // Show "calculate" button when form is filled but rates not yet fetched
+                    const showCalculate = needsRates && formReady && !ratesFetched && !ratesLoading
+                    // Can proceed if: not skydropx, or free shipping, or rates fetched (even if empty — we fallback)
+                    const canProceed = formReady && (!needsRates || ratesFetched)
 
-                  <div className="flex gap-3">
-                    <button onClick={() => setStep(1)} className="flex-1 border border-brand-primary/20 text-brand-primary rounded-full py-3 font-brand font-medium hover:border-brand-primary transition-colors">← Atrás</button>
-                    <button
-                      onClick={async () => {
-                        const { name, lastname, address, city, department, phone } = shipping
-                        if (!name || !lastname || !address || !city || !department || !phone) return
-                        if (shippingCfg.provider === 'skydropx' && !isFreeShipping && availableRates.length === 0) {
-                          await fetchRates()
-                        }
-                        setStep(3)
-                      }}
-                      disabled={ratesLoading}
-                      className="flex-1 bg-brand-primary text-brand-cream rounded-full py-3 font-brand font-medium hover:bg-brand-dark transition-colors disabled:opacity-50"
-                    >
-                      {ratesLoading ? 'Calculando envío...' : 'Continuar al pago →'}
-                    </button>
-                  </div>
+                    return (
+                      <div className="space-y-3">
+                        {showCalculate && (
+                          <button
+                            type="button"
+                            onClick={fetchRates}
+                            className="w-full border-2 border-brand-primary text-brand-primary rounded-full py-3 font-brand font-medium hover:bg-brand-primary hover:text-brand-cream transition-colors"
+                          >
+                            Ver opciones de envío →
+                          </button>
+                        )}
+                        <div className="flex gap-3">
+                          <button onClick={() => setStep(1)} className="flex-1 border border-brand-primary/20 text-brand-primary rounded-full py-3 font-brand font-medium hover:border-brand-primary transition-colors">← Atrás</button>
+                          <button
+                            onClick={() => { if (canProceed) setStep(3) }}
+                            disabled={!canProceed || ratesLoading}
+                            className="flex-1 bg-brand-primary text-brand-cream rounded-full py-3 font-brand font-medium hover:bg-brand-dark transition-colors disabled:opacity-40"
+                          >
+                            Continuar al pago →
+                          </button>
+                        </div>
+                      </div>
+                    )
+                  })()}
                 </div>
               </div>
             )}
