@@ -18,16 +18,23 @@ interface NavLeaf {
   section: AdminSection
 }
 
-/** Sub-ítem dentro de un leaf expandible (ej. sub-rutas de Configuración) */
+/** Sub-ítem dentro de un ítem expandible */
 interface NavSubLeaf {
   href: string
   label: string
   fullAccessOnly?: boolean
 }
 
-/** Ítem hoja con sub-rutas propias */
-interface NavLeafWithSubs extends Omit<NavLeaf, 'kind'> {
+/**
+ * Ítem que enlaza a una ruta y despliega sub-rutas al estar activo.
+ * Puede usarse tanto como hijo de un NavGroup como a nivel raíz.
+ */
+interface NavLeafWithSubs {
   kind: 'leaf-group'
+  href: string
+  icon: string
+  label: string
+  section: AdminSection
   children: NavSubLeaf[]
 }
 
@@ -41,7 +48,8 @@ interface NavGroup {
   children: (NavLeaf | NavLeafWithSubs)[]
 }
 
-type NavNode = NavLeaf | NavGroup
+/** Un nodo a nivel raíz puede ser hoja, grupo, o hoja expandible */
+type NavNode = NavLeaf | NavGroup | NavLeafWithSubs
 
 // ── Estructura de navegación ─────────────────────────────────────────────────
 
@@ -57,10 +65,11 @@ const NAV: NavNode[] = [
     kind: 'group',
     icon: '☕',
     label: 'Catálogo',
-    sections: ['productos', 'categorias'],
+    sections: ['productos', 'categorias', 'variantes'],
     children: [
-      { kind: 'leaf', href: '/productos',  icon: '☕', label: 'Productos',  section: 'productos' },
-      { kind: 'leaf', href: '/categorias', icon: '📂', label: 'Categorías', section: 'categorias' },
+      { kind: 'leaf', href: '/productos',  icon: '☕', label: 'Productos',   section: 'productos' },
+      { kind: 'leaf', href: '/categorias', icon: '📂', label: 'Categorías',  section: 'categorias' },
+      { kind: 'leaf', href: '/variantes',  icon: '🎛️', label: 'Variantes',   section: 'variantes' },
     ],
   },
   {
@@ -78,44 +87,53 @@ const NAV: NavNode[] = [
     kind: 'group',
     icon: '🖼️',
     label: 'Contenido',
-    sections: ['banners', 'secciones', 'blog', 'newsletter', 'testimonios'],
+    sections: ['contenido', 'blog', 'newsletter'],
     children: [
-      { kind: 'leaf', href: '/banners',    icon: '🖼️', label: 'Banners',    section: 'banners' },
-      { kind: 'leaf', href: '/secciones',  icon: '🗂️', label: 'Secciones',  section: 'secciones' },
+      { kind: 'leaf', href: '/contenido',  icon: '📄', label: 'Páginas',    section: 'contenido' },
       { kind: 'leaf', href: '/blog',       icon: '✍️', label: 'Blog',       section: 'blog' },
-      { kind: 'leaf', href: '/newsletter', icon: '📧', label: 'Newsletter',  section: 'newsletter' },
-      { kind: 'leaf', href: '/testimonios',icon: '⭐', label: 'Testimonios',section: 'testimonios' },
+      { kind: 'leaf', href: '/newsletter', icon: '📧', label: 'Newsletter', section: 'newsletter' },
     ],
   },
   {
     kind: 'group',
-    icon: '🔧',
-    label: 'Administración',
-    sections: ['usuarios', 'configuracion'],
+    icon: '🎨',
+    label: 'Apariencia',
+    sections: ['apariencia', 'media'],
     children: [
-      { kind: 'leaf', href: '/usuarios', icon: '🔐', label: 'Usuarios', section: 'usuarios' },
-      {
-        kind: 'leaf-group',
-        href: '/configuracion',
-        icon: '⚙️',
-        label: 'Configuración',
-        section: 'configuracion',
-        children: [
-          { href: '/configuracion/general', label: 'General' },
-          { href: '/configuracion/temas',   label: 'Temas' },
-          { href: '/configuracion/envios',  label: 'Envíos',  fullAccessOnly: true },
-          { href: '/configuracion/pagos',   label: 'Pagos',   fullAccessOnly: true },
-          { href: '/configuracion/emails',  label: 'Emails',  fullAccessOnly: true },
-          { href: '/configuracion/legal',   label: 'Legal' },
-        ],
-      },
+      { kind: 'leaf', href: '/configuracion/temas', icon: '🎨', label: 'Temas',    section: 'apariencia' },
+      { kind: 'leaf', href: '/media',               icon: '🖼️', label: 'Archivos', section: 'media' },
+    ],
+  },
+  // Configuración como nodo raíz expandible — evita el doble nivel "Configuración > Configuración"
+  {
+    kind: 'leaf-group',
+    href: '/configuracion',
+    icon: '⚙️',
+    label: 'Configuración',
+    section: 'configuracion',
+    children: [
+      { href: '/configuracion/general', label: 'General' },
+      { href: '/configuracion/envios',  label: 'Envíos',  fullAccessOnly: true },
+      { href: '/configuracion/pagos',   label: 'Pagos',   fullAccessOnly: true },
+      { href: '/configuracion/emails',  label: 'Emails',  fullAccessOnly: true },
+      { href: '/configuracion/legal',   label: 'Legal' },
+    ],
+  },
+  {
+    kind: 'group',
+    icon: '🔐',
+    label: 'Sistema',
+    sections: ['usuarios', 'sistema'],
+    children: [
+      { kind: 'leaf', href: '/usuarios',          icon: '🔐', label: 'Usuarios',   section: 'usuarios' },
+      { kind: 'leaf', href: '/sistema/apariencia', icon: '🎛️', label: 'Apariencia', section: 'sistema' },
     ],
   },
 ]
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/** Devuelve el id de grupo si el pathname pertenece a alguno de sus hijos */
+/** Devuelve el label del grupo activo si el pathname pertenece a alguno de sus hijos */
 function getActiveGroupId(nodes: NavNode[], pathname: string): string | null {
   for (const node of nodes) {
     if (node.kind === 'group') {
@@ -164,12 +182,13 @@ export default function AdminSidebar({ role }: Props) {
   // Filtra los nodos visibles según el rol
   const visibleNodes = NAV.filter((node) => {
     if (node.kind === 'leaf') return allowedSections.includes(node.section)
+    if (node.kind === 'leaf-group') return allowedSections.includes(node.section)
     // Grupo: visible si el usuario tiene acceso a al menos un hijo
     return node.sections.some((s) => allowedSections.includes(s))
   })
 
   return (
-    <aside className="w-56 flex-shrink-0 bg-brand-primary min-h-screen flex flex-col">
+    <aside className="w-56 flex-shrink-0 bg-brand-sidebar min-h-screen flex flex-col">
       {/* Logo */}
       <div className="p-5 border-b border-brand-cream/10">
         <Link href="/dashboard" className="flex items-center gap-2">
@@ -183,6 +202,8 @@ export default function AdminSidebar({ role }: Props) {
       {/* Nav */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
         {visibleNodes.map((node) => {
+
+          // ── Hoja simple ─────────────────────────────────────────────────────
           if (node.kind === 'leaf') {
             const isActive = pathname === node.href || pathname.startsWith(node.href + '/')
             return (
@@ -201,7 +222,59 @@ export default function AdminSidebar({ role }: Props) {
             )
           }
 
-          // Grupo
+          // ── Hoja expandible a nivel raíz (ej. Configuración) ───────────────
+          if (node.kind === 'leaf-group') {
+            const isActive = pathname === node.href || pathname.startsWith(node.href + '/')
+            return (
+              <div key={node.href}>
+                <Link
+                  href={node.href}
+                  className={`flex items-center gap-3 px-3 py-2.5 rounded-xl font-brand text-sm transition-colors ${
+                    isActive
+                      ? 'bg-brand-dark text-brand-cream font-semibold'
+                      : 'text-brand-cream/60 hover:text-brand-cream hover:bg-brand-cream/10'
+                  }`}
+                >
+                  <span className="text-base leading-none">{node.icon}</span>
+                  <span className="flex-1">{node.label}</span>
+                  <svg
+                    className={`w-3 h-3 transition-transform duration-200 ${isActive ? 'rotate-90' : ''}`}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth={2.5}
+                    viewBox="0 0 24 24"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                  </svg>
+                </Link>
+
+                {isActive && (
+                  <div className="mt-0.5 ml-3 pl-3 border-l border-brand-cream/15 space-y-0.5">
+                    {node.children
+                      .filter((sub) => !sub.fullAccessOnly || fullAccess)
+                      .map((sub) => {
+                        const subActive = pathname === sub.href
+                        return (
+                          <Link
+                            key={sub.href}
+                            href={sub.href}
+                            className={`flex items-center px-2 py-1.5 rounded-md font-brand text-xs transition-colors ${
+                              subActive
+                                ? 'text-brand-cream font-semibold'
+                                : 'text-brand-cream/40 hover:text-brand-cream'
+                            }`}
+                          >
+                            {sub.label}
+                          </Link>
+                        )
+                      })}
+                  </div>
+                )}
+              </div>
+            )
+          }
+
+          // ── Grupo contenedor ────────────────────────────────────────────────
           const isOpen = openGroups.has(node.label)
           const visibleChildren = node.children.filter((child) =>
             allowedSections.includes(child.section)
@@ -240,69 +313,69 @@ export default function AdminSidebar({ role }: Props) {
               {isOpen && (
                 <div className="mt-0.5 ml-3 pl-3 border-l border-brand-cream/15 space-y-0.5">
                   {visibleChildren.map((child) => {
-                    if (child.kind === 'leaf') {
-                      const isActive = pathname === child.href || pathname.startsWith(child.href + '/')
+                    // leaf-group hijo (extensibilidad futura)
+                    if (child.kind === 'leaf-group') {
+                      const isLeafActive = pathname === child.href || pathname.startsWith(child.href + '/')
                       return (
-                        <Link
-                          key={child.href}
-                          href={child.href}
-                          className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg font-brand text-xs transition-colors ${
-                            isActive
-                              ? 'bg-brand-cream/15 text-brand-cream font-semibold'
-                              : 'text-brand-cream/50 hover:text-brand-cream hover:bg-brand-cream/10'
-                          }`}
-                        >
-                          <span className="text-sm leading-none">{child.icon}</span>
-                          {child.label}
-                        </Link>
+                        <div key={child.href}>
+                          <Link
+                            href={child.href}
+                            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg font-brand text-xs transition-colors ${
+                              isLeafActive
+                                ? 'bg-brand-cream/15 text-brand-cream font-semibold'
+                                : 'text-brand-cream/50 hover:text-brand-cream hover:bg-brand-cream/10'
+                            }`}
+                          >
+                            <span className="text-sm leading-none">{child.icon}</span>
+                            {child.label}
+                            <svg
+                              className={`ml-auto w-2.5 h-2.5 transition-transform ${isLeafActive ? 'rotate-90' : ''}`}
+                              fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"
+                            >
+                              <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
+                            </svg>
+                          </Link>
+                          {isLeafActive && (
+                            <div className="mt-0.5 ml-3 pl-2.5 border-l border-brand-cream/10 space-y-0.5">
+                              {child.children
+                                .filter((sub) => !sub.fullAccessOnly || fullAccess)
+                                .map((sub) => {
+                                  const subActive = pathname === sub.href
+                                  return (
+                                    <Link
+                                      key={sub.href}
+                                      href={sub.href}
+                                      className={`flex items-center px-2 py-1.5 rounded-md font-brand text-xs transition-colors ${
+                                        subActive
+                                          ? 'text-brand-cream font-semibold'
+                                          : 'text-brand-cream/40 hover:text-brand-cream'
+                                      }`}
+                                    >
+                                      {sub.label}
+                                    </Link>
+                                  )
+                                })}
+                            </div>
+                          )}
+                        </div>
                       )
                     }
 
-                    // leaf-group (Configuración con sub-rutas)
-                    const isLeafActive = pathname === child.href || pathname.startsWith(child.href + '/')
+                    // leaf hijo normal
+                    const isActive = pathname === child.href || pathname.startsWith(child.href + '/')
                     return (
-                      <div key={child.href}>
-                        <Link
-                          href={child.href}
-                          className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg font-brand text-xs transition-colors ${
-                            isLeafActive
-                              ? 'bg-brand-cream/15 text-brand-cream font-semibold'
-                              : 'text-brand-cream/50 hover:text-brand-cream hover:bg-brand-cream/10'
-                          }`}
-                        >
-                          <span className="text-sm leading-none">{child.icon}</span>
-                          {child.label}
-                          <svg
-                            className={`ml-auto w-2.5 h-2.5 transition-transform ${isLeafActive ? 'rotate-90' : ''}`}
-                            fill="none" stroke="currentColor" strokeWidth={2.5} viewBox="0 0 24 24"
-                          >
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
-                          </svg>
-                        </Link>
-
-                        {isLeafActive && (
-                          <div className="mt-0.5 ml-3 pl-2.5 border-l border-brand-cream/10 space-y-0.5">
-                            {child.children
-                              .filter((sub) => !sub.fullAccessOnly || fullAccess)
-                              .map((sub) => {
-                                const subActive = pathname === sub.href
-                                return (
-                                  <Link
-                                    key={sub.href}
-                                    href={sub.href}
-                                    className={`flex items-center px-2 py-1.5 rounded-md font-brand text-xs transition-colors ${
-                                      subActive
-                                        ? 'text-brand-cream font-semibold'
-                                        : 'text-brand-cream/40 hover:text-brand-cream'
-                                    }`}
-                                  >
-                                    {sub.label}
-                                  </Link>
-                                )
-                              })}
-                          </div>
-                        )}
-                      </div>
+                      <Link
+                        key={child.href}
+                        href={child.href}
+                        className={`flex items-center gap-2.5 px-2.5 py-2 rounded-lg font-brand text-xs transition-colors ${
+                          isActive
+                            ? 'bg-brand-cream/15 text-brand-cream font-semibold'
+                            : 'text-brand-cream/50 hover:text-brand-cream hover:bg-brand-cream/10'
+                        }`}
+                      >
+                        <span className="text-sm leading-none">{child.icon}</span>
+                        {child.label}
+                      </Link>
                     )
                   })}
                 </div>

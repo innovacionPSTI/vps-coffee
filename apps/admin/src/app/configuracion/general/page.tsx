@@ -4,6 +4,7 @@ import { getStoreConfig } from '@vps/database'
 import { getAdminUser } from '@/lib/auth'
 import { canAccess } from '@/lib/roles'
 import StoreConfigForm from '../StoreConfigForm'
+import DataTransferWidget from '../DataTransferWidget'
 
 export const metadata: Metadata = { title: 'General · Configuración' }
 export const dynamic = 'force-dynamic'
@@ -28,6 +29,16 @@ export default async function ConfigGeneralPage() {
 
       <div className="bg-white rounded-2xl p-6 shadow-sm">
         <StoreConfigForm initialConfig={storeConfig} />
+      </div>
+
+      <div className="mt-8">
+        <h2 className="font-display text-brand-primary text-xl mb-1">Datos y respaldos</h2>
+        <p className="font-brand text-sm text-brand-primary/50 mb-4">
+          Exporta o importa el contenido del sitio (páginas, navegación, banners, secciones).
+        </p>
+        <div className="bg-white rounded-2xl p-6 shadow-sm">
+          <DataTransferWidget />
+        </div>
       </div>
     </div>
   )

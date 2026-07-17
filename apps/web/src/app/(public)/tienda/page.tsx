@@ -12,8 +12,11 @@ export const revalidate = 60
 export default async function TiendaPage({
   searchParams,
 }: {
-  searchParams: Record<string, string | string[] | undefined>
+  searchParams: Promise<Record<string, string | string[] | undefined>>
 }) {
-  const products = await getProducts().catch(() => [])
-  return <ShopClient products={products} searchParams={searchParams} />
+  const [products, sp] = await Promise.all([
+    getProducts().catch(() => []),
+    searchParams,
+  ])
+  return <ShopClient products={products} searchParams={sp} />
 }

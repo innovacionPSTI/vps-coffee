@@ -133,12 +133,34 @@ async function getGestorData() {
   const db = createServerClient()
   const in7days = new Date(); in7days.setDate(in7days.getDate() + 7)
 
-  const [sections, blogPublished, blogDraft, herobanners, inactiveTestimonials, expiringCoupons] = await Promise.all([
-    db.from('section_settings').select('key, label, enabled').order('order_index'),
+  const [sections, blogPublished, blogDraft, heroItems, expiringCoupons] = await Promise.all([
+    // page_sections for the home page (replaces section_settings)
+    db.from('page_sections')
+      .select('id, section_type, title, enabled')
+      .eq('page_key', 'home')
+      .order('order_index'),
     db.from('blog_posts').select('*', { count: 'exact', head: true }).eq('published', true),
     db.from('blog_posts').select('*', { count: 'exact', head: true }).eq('published', false),
-    db.from('banners').select('*', { count: 'exact', head: true }).eq('section', 'hero').eq('active', true),
-    db.from('testimonials').select('author_name, rating').eq('active', false).limit(8),
+    // Count enabled hero slides (replaces banners count)
+    (async () => {
+      try {
+        const { data: heroSection } = await db.from('page_sections')
+          .select('id')
+          .eq('page_key', 'home')
+          .eq('section_type', 'hero')
+          .limit(1)
+          .single()
+        if (!heroSection) return { count: 0 }
+        const res = await db
+          .from('section_items')
+          .select('*', { count: 'exact', head: true })
+          .eq('section_id', heroSection.id)
+          .eq('enabled', true)
+        return { count: res.count ?? 0 }
+      } catch {
+        return { count: 0 }
+      }
+    })(),
     db.from('coupons')
       .select('code, expires_at, discount_type, discount_value, current_uses, max_uses')
       .eq('active', true)
@@ -152,8 +174,7 @@ async function getGestorData() {
     sections: sections.data ?? [],
     blogPublished: blogPublished.count ?? 0,
     blogDraft: blogDraft.count ?? 0,
-    heroBanners: herobanners.count ?? 0,
-    inactiveTestimonials: inactiveTestimonials.data ?? [],
+    heroSlides: heroItems.count,
     expiringCoupons: expiringCoupons.data ?? [],
   }
 }
@@ -420,8 +441,10 @@ async function GestorDashboard() {
   const d = await getGestorData().catch(() => null)
   if (!d) return <p className="font-brand text-brand-primary/40">Error cargando datos.</p>
 
-  const enabledCount  = d.sections.filter((s) => s.enabled).length
-  const disabledCount = d.sections.filter((s) => !s.enabled).length
+  type SectionRow = { id: number; section_type: string; title: string | null; enabled: boolean }
+  const sections = d.sections as SectionRow[]
+  const enabledCount  = sections.filter((s) => s.enabled).length
+  const disabledCount = sections.filter((s) => !s.enabled).length
 
   return (
     <div className="space-y-8">
@@ -429,10 +452,10 @@ async function GestorDashboard() {
       <div>
         <SectionTitle>Estado del sitio</SectionTitle>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          <StatCard label="Secciones activas"    value={fmtNum(enabledCount)}        icon="✅" href="/secciones" color="bg-green-50" />
-          <StatCard label="Secciones inactivas"  value={fmtNum(disabledCount)}       icon="⛔" href="/secciones" color={disabledCount > 0 ? 'bg-red-50' : 'bg-white'} />
-          <StatCard label="Banners hero activos" value={fmtNum(d.heroBanners)}       icon="🖼️" href="/banners" />
-          <StatCard label="Testimonios sin activar" value={fmtNum(d.inactiveTestimonials.length)} icon="⭐" href="/testimonios" color={d.inactiveTestimonials.length > 0 ? 'bg-yellow-50' : 'bg-white'} />
+          <StatCard label="Secciones activas"   value={fmtNum(enabledCount)}  icon="✅" href="/contenido" color="bg-green-50" />
+          <StatCard label="Secciones inactivas" value={fmtNum(disabledCount)} icon="⛔" href="/contenido" color={disabledCount > 0 ? 'bg-red-50' : 'bg-white'} />
+          <StatCard label="Slides hero activos" value={fmtNum(d.heroSlides)}  icon="🖼️" href="/contenido" />
+          <StatCard label="Artículos publicados" value={fmtNum(d.blogPublished)} icon="📰" href="/blog" color="bg-green-50" />
         </div>
       </div>
 
@@ -452,12 +475,12 @@ async function GestorDashboard() {
 
           {/* Secciones del sitio */}
           <div>
-            <SectionTitle>Secciones configuradas</SectionTitle>
+            <SectionTitle>Secciones del home</SectionTitle>
             <Card>
               <ul className="divide-y divide-gray-50">
-                {d.sections.map((s: any) => (
-                  <li key={s.key} className="flex items-center justify-between px-5 py-3">
-                    <span className="font-brand text-sm text-brand-primary">{s.label}</span>
+                {sections.map((s) => (
+                  <li key={s.id} className="flex items-center justify-between px-5 py-3">
+                    <span className="font-brand text-sm text-brand-primary">{s.title ?? s.section_type}</span>
                     <span className={`font-brand text-xs font-semibold rounded-full px-2.5 py-0.5 ${s.enabled ? 'bg-green-100 text-green-600' : 'bg-red-100 text-red-500'}`}>
                       {s.enabled ? 'Activa' : 'Inactiva'}
                     </span>
@@ -469,25 +492,7 @@ async function GestorDashboard() {
         </div>
 
         <div className="space-y-6">
-          {/* Testimonios pendientes */}
-          {d.inactiveTestimonials.length > 0 && (
-            <div>
-              <div className="flex items-center justify-between mb-4">
-                <SectionTitle>⭐ Testimonios sin activar</SectionTitle>
-                <Link href="/testimonios" className="font-brand text-xs text-brand-primary underline">Revisar</Link>
-              </div>
-              <Card>
-                <ul className="divide-y divide-gray-50">
-                  {(d.inactiveTestimonials as any[]).map((t, i) => (
-                    <li key={i} className="flex items-center justify-between px-5 py-3">
-                      <span className="font-brand text-sm text-brand-primary">{t.author_name}</span>
-                      <span className="font-brand text-xs text-brand-primary/40">{'★'.repeat(t.rating)}{'☆'.repeat(5 - t.rating)}</span>
-                    </li>
-                  ))}
-                </ul>
-              </Card>
-            </div>
-          )}
+          {/* placeholder — previous "testimonios pendientes" panel removed (now managed via /contenido) */}
 
           {/* Cupones por vencer */}
           {d.expiringCoupons.length > 0 && (

@@ -1,29 +1,5 @@
 import Link from 'next/link'
-
-const footerLinks = {
-  Tienda: [
-    { href: '/tienda?tueste=claro', label: 'Café Claro' },
-    { href: '/tienda?tueste=medio', label: 'Café Medio' },
-    { href: '/tienda?tueste=oscuro', label: 'Café Oscuro' },
-  ],
-  Blog: [
-    { href: '/blog?categoria=origenes', label: 'Orígenes' },
-    { href: '/blog?categoria=preparacion', label: 'Preparación' },
-    { href: '/blog', label: 'Todos los artículos' },
-  ],
-  Servicios: [
-    { href: '/maquila', label: 'Maquila & Tueste' },
-    { href: '/asesorias', label: 'Asesorías' },
-  ],
-  Nosotros: [
-    { href: '/nosotros', label: 'Historia' },
-    { href: '/nosotros#contacto', label: 'Contacto' },
-  ],
-  Legal: [
-    { href: '/terminos', label: 'Términos' },
-    { href: '/privacidad', label: 'Privacidad' },
-  ],
-}
+import type { Page } from '@vps/database'
 
 /* ── SVG brand icons ────────────────────────────────────────────────────── */
 
@@ -62,17 +38,37 @@ interface SocialConfig {
   tiktokEnabled?: boolean
 }
 
+interface FooterFlags {
+  showStore?: boolean
+  showBlog?: boolean
+  showLegal?: boolean
+}
+
 interface FooterProps {
   logoUrl?: string | null
   storeName?: string | null
   whatsapp?: string | null
   social?: SocialConfig
+  /** Páginas con show_in_footer=true, agrupadas por categoría en el footer */
+  pages?: Pick<Page, 'key' | 'label' | 'slug'>[]
+  /** Visibilidad de columnas estáticas del footer */
+  footerFlags?: FooterFlags
 }
 
 /* ── Component ──────────────────────────────────────────────────────────── */
 
-export default function Footer({ logoUrl, storeName, whatsapp, social }: FooterProps) {
+export default function Footer({
+  logoUrl,
+  storeName,
+  whatsapp,
+  social,
+  pages = [],
+  footerFlags = {},
+}: FooterProps) {
   const wa = whatsapp ?? '573XXXXXXXXX'
+  const showStore = footerFlags.showStore ?? true
+  const showBlog  = footerFlags.showBlog  ?? true
+  const showLegal = footerFlags.showLegal ?? true
 
   const socialNetworks = [
     {
@@ -97,6 +93,10 @@ export default function Footer({ logoUrl, storeName, whatsapp, social }: FooterP
       icon: <TikTokIcon />,
     },
   ].filter((sn) => sn.enabled && sn.href)
+
+  // Separate pages by group: 'asesorias'/'maquila' → Servicios; 'nosotros' → Nosotros
+  const servicioPages = pages.filter((p) => ['asesorias', 'maquila'].includes(p.key))
+  const nosotrosPages = pages.filter((p) => p.key === 'nosotros')
 
   return (
     <footer className="bg-brand-dark text-brand-cream">
@@ -137,26 +137,103 @@ export default function Footer({ logoUrl, storeName, whatsapp, social }: FooterP
             )}
           </div>
 
-          {/* Links */}
-          {Object.entries(footerLinks).map(([section, links]) => (
-            <div key={section}>
-              <h4 className="font-brand font-semibold text-sm mb-3 text-brand-cream/80">
-                {section}
-              </h4>
+          {/* Tienda */}
+          {showStore && (
+            <div>
+              <h4 className="font-brand font-semibold text-sm mb-3 text-brand-cream/80">Tienda</h4>
               <ul className="space-y-2">
-                {links.map((link) => (
-                  <li key={link.href}>
+                <li>
+                  <Link href="/tienda" className="font-brand text-xs text-brand-cream/50 hover:text-brand-cream transition-colors">
+                    Todos los productos
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/tienda" className="font-brand text-xs text-brand-cream/50 hover:text-brand-cream transition-colors">
+                    Novedades
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {/* Blog */}
+          {showBlog && (
+            <div>
+              <h4 className="font-brand font-semibold text-sm mb-3 text-brand-cream/80">Blog</h4>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/blog" className="font-brand text-xs text-brand-cream/50 hover:text-brand-cream transition-colors">
+                    Todos los artículos
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {/* Servicios — desde pages dinámicas */}
+          {servicioPages.length > 0 && (
+            <div>
+              <h4 className="font-brand font-semibold text-sm mb-3 text-brand-cream/80">Servicios</h4>
+              <ul className="space-y-2">
+                {servicioPages.map((p) => (
+                  <li key={p.key}>
                     <Link
-                      href={link.href}
+                      href={`/${p.slug}`}
                       className="font-brand text-xs text-brand-cream/50 hover:text-brand-cream transition-colors"
                     >
-                      {link.label}
+                      {p.label}
                     </Link>
                   </li>
                 ))}
               </ul>
             </div>
-          ))}
+          )}
+
+          {/* Nosotros — desde pages dinámicas */}
+          {nosotrosPages.length > 0 && (
+            <div>
+              <h4 className="font-brand font-semibold text-sm mb-3 text-brand-cream/80">Nosotros</h4>
+              <ul className="space-y-2">
+                {nosotrosPages.map((p) => (
+                  <li key={p.key}>
+                    <Link
+                      href={`/${p.slug}`}
+                      className="font-brand text-xs text-brand-cream/50 hover:text-brand-cream transition-colors"
+                    >
+                      Historia
+                    </Link>
+                  </li>
+                ))}
+                <li>
+                  <Link
+                    href="/nosotros#contacto"
+                    className="font-brand text-xs text-brand-cream/50 hover:text-brand-cream transition-colors"
+                  >
+                    Contacto
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
+
+          {/* Legal */}
+          {showLegal && (
+            <div>
+              <h4 className="font-brand font-semibold text-sm mb-3 text-brand-cream/80">Legal</h4>
+              <ul className="space-y-2">
+                <li>
+                  <Link href="/terminos" className="font-brand text-xs text-brand-cream/50 hover:text-brand-cream transition-colors">
+                    Términos
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/privacidad" className="font-brand text-xs text-brand-cream/50 hover:text-brand-cream transition-colors">
+                    Privacidad
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          )}
         </div>
 
         {/* WhatsApp bar */}

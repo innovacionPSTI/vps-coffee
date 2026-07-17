@@ -15,6 +15,7 @@ export interface CreateOrderInput {
   payment_method?: 'wompi' | 'mercadopago'
   skydropx_rate_id?: string | null
   carrier_name?: string | null
+  coupon_code?: string | null
 }
 
 export async function createOrder(input: CreateOrderInput): Promise<Order> {

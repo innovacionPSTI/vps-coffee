@@ -6,12 +6,16 @@ export interface CartItem {
   productId?: number
   productSlug: string
   productName: string
-  variantLabel: string  // "500g · Grano · Claro"
+  variantLabel: string
   price: number
   qty: number
   imageUrl?: string
-  /** Legacy label weight for fallback shipping calculation */
-  weight: '250g' | '500g' | '1kg'
+  /**
+   * Legacy weight label — only used as last-resort fallback in shipping calc
+   * when weight_kg is not set on the variant. For new products, configure
+   * weight_kg on the variant instead.
+   */
+  weight?: string
   /** Real weight in kg (from product_variants.weight_kg) */
   weight_kg?: number | null
   /** Packed dimensions in cm (from product_variants.*_cm) */
@@ -124,7 +128,7 @@ export const useCartStore = create<CartState>()(
                 price: Number(si.price),
                 qty: si.qty,
                 imageUrl: si.image_url ?? undefined,
-                weight: '500g',    // default; label contains real weight info
+                weight: undefined,
               })
             }
           }

@@ -13,13 +13,13 @@ import type { CartItem } from '../cart'
 // ─────────────────────────────────────────────
 const makeItem = (overrides: Partial<CartItem> = {}): CartItem => ({
   variantId: 1,
-  productSlug: 'cafe-origen-huila',
-  productName: 'Café Origen Huila',
-  variantLabel: '500g · Grano · Claro',
+  productSlug: 'producto-ejemplo',
+  productName: 'Producto Ejemplo',
+  variantLabel: 'Variante A',
   price: 45000,
   qty: 1,
-  imageUrl: '/img/huila.jpg',
-  weight: '500g',
+  imageUrl: '/img/producto.jpg',
+  weight_kg: 0.5,
   ...overrides,
 })
 
@@ -54,12 +54,12 @@ describe('addItem', () => {
 
   it('agrega variantes distintas como items separados', () => {
     act(() => { useCartStore.getState().addItem(makeItem({ variantId: 1 })) })
-    act(() => { useCartStore.getState().addItem(makeItem({ variantId: 2, variantLabel: '250g · Molido · Medio' })) })
+    act(() => { useCartStore.getState().addItem(makeItem({ variantId: 2, variantLabel: 'Variante B' })) })
     expect(useCartStore.getState().items).toHaveLength(2)
   })
 
   it('preserva todos los campos del item al agregar', () => {
-    const item = makeItem({ price: 32000, weight: '250g', imageUrl: '/img/test.jpg' })
+    const item = makeItem({ price: 32000, weight_kg: 0.25, imageUrl: '/img/test.jpg' })
     act(() => { useCartStore.getState().addItem(item) })
     expect(useCartStore.getState().items[0]).toMatchObject(item)
   })

@@ -2,9 +2,45 @@
 @tailwind components;
 @tailwind utilities;
 
+/* ─── CSS Custom Properties: Tema por defecto del panel admin ─────────────────
+ *
+ * Paleta corporativa slate/indigo — sobria, profesional e independiente
+ * de los temas del sitio web público.
+ *
+ * Valores en canales RGB sin comas (requerido por Tailwind /alpha-value).
+ * El layout.tsx sobreescribe --brand-primary, --brand-dark y --brand-sidebar
+ * con los valores de admin_config almacenados en la BD.
+ *
+ * ┌─────────────────────────────────────────────────────┐
+ * │  brand-primary  → acento (botones, nav activo)      │
+ * │  brand-dark     → hover del acento                  │
+ * │  brand-sidebar  → fondo del sidebar                 │
+ * │  brand-cream    → texto claro, superficies blancas  │
+ * └─────────────────────────────────────────────────────┘
+ * ──────────────────────────────────────────────────────────────────────────── */
+:root {
+  /* Acento indigo */
+  --brand-primary:      79  70 229;   /* #4F46E5 indigo-600 */
+  --brand-dark:         67  56 202;   /* #4338CA indigo-700 */
 
+  /* Sidebar slate-900 */
+  --brand-sidebar:      15  23  42;   /* #0F172A slate-900 */
+
+  /* Superficies y texto */
+  --brand-cream:       248 250 252;   /* #F8FAFC slate-50  — texto sidebar */
+  --brand-cream-warm:  241 245 249;   /* #F1F5F9 slate-100 */
+  --brand-yellow:      226 232 240;   /* #E2E8F0 slate-200 */
+  --brand-yellow-pale: 248 250 252;   /* #F8FAFC */
+  --brand-text:         15  23  42;   /* #0F172A slate-900 */
+
+  /* Tipografía */
+  --font-display: var(--font-ahsing), Georgia, serif;
+  --font-body:    var(--font-geeeki), system-ui, sans-serif;
+}
+
+/* ─── Base ─────────────────────────────────────────────────────────────────── */
 @layer base {
   body {
-    @apply bg-[#F9F5F0] text-brand-text font-brand antialiased;
+    @apply bg-gray-50 text-brand-text font-brand antialiased;
   }
 }

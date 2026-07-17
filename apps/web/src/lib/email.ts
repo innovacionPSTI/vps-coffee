@@ -1,24 +1,29 @@
+/**
+ * Utilidades de email para apps/web.
+ *
+ * Las funciones compartidas (sendShippingNotification, sendStatusNotification,
+ * EmailConfig) provienen de @vps/database y se re-exportan aquí para que los
+ * callers internos no cambien su ruta de importación.
+ *
+ * Este archivo define únicamente las funciones exclusivas de la tienda web:
+ * buildEmailConfig, sendOrderConfirmation, sendNewsletterConfirmation, sendWelcomeEmail.
+ */
+
 import type { Order } from '@vps/database'
+
+export type { EmailConfig } from '@vps/database'
+export { sendShippingNotification, sendStatusNotification } from '@vps/database'
+
+import type { EmailConfig } from '@vps/database'
+
+// ── sendEmail helper (privado — solo para funciones web-only) ────────────────
 
 const RESEND_API_URL = 'https://api.resend.com/emails'
 
-export interface EmailConfig {
-  apiKey: string
-  fromEmail: string
-  /** Nombre de la tienda — desde store_config.store_name */
-  storeName?: string
-  /** URL base del sitio — desde NEXT_PUBLIC_SITE_URL */
-  siteUrl?: string
-}
-
-interface EmailPayload {
-  from: string
-  to: string[]
-  subject: string
-  html: string
-}
-
-async function sendEmail(config: EmailConfig, payload: EmailPayload): Promise<void> {
+async function sendEmail(
+  config: EmailConfig,
+  payload: { from: string; to: string[]; subject: string; html: string },
+): Promise<void> {
   const res = await fetch(RESEND_API_URL, {
     method: 'POST',
     headers: {
@@ -27,12 +32,13 @@ async function sendEmail(config: EmailConfig, payload: EmailPayload): Promise<vo
     },
     body: JSON.stringify(payload),
   })
-
   if (!res.ok) {
     const err = await res.text()
     throw new Error(`Resend error ${res.status}: ${err}`)
   }
 }
+
+// ── Helpers de plantilla (privados — solo usados en funciones web-only) ──────
 
 function formatCOP(amount: number): string {
   return new Intl.NumberFormat('es-CO', {
@@ -105,7 +111,9 @@ function baseTemplate(content: string, config: EmailConfig): string {
 </html>`
 }
 
-/** Construye un EmailConfig con los campos opcionales desde store_config y env */
+// ── Funciones exclusivas de la tienda web ────────────────────────────────────
+
+/** Construye un EmailConfig con siteUrl desde NEXT_PUBLIC_SITE_URL */
 export function buildEmailConfig(
   apiKey: string,
   fromEmail: string,
@@ -161,44 +169,6 @@ export async function sendOrderConfirmation(order: Order, config: EmailConfig): 
     from: `${name} <${config.fromEmail}>`,
     to: [order.customer_email],
     subject: `Pedido confirmado ${order.order_number} — ${name}`,
-    html: baseTemplate(content, config),
-  })
-}
-
-/** Email con número de tracking cuando el pedido es despachado */
-export async function sendShippingNotification(
-  order: Order & { tracking_number: string; carrier_name: string | null; label_url?: string | null },
-  config: EmailConfig,
-): Promise<void> {
-  const name = config.storeName ?? 'Mi Tienda'
-
-  const content = `
-    <h2 style="margin: 0 0 8px; color: #614a2a; font-size: 20px; font-family: sans-serif;">¡Tu pedido está en camino!</h2>
-    <p style="margin: 0 0 24px; color: #8a6a4a; font-size: 14px; font-family: sans-serif;">
-      Tu pedido ${order.order_number} ha sido despachado.
-    </p>
-    <div style="background: #fff8ec; border-radius: 12px; padding: 20px; margin-bottom: 24px; text-align: center;">
-      <p style="margin: 0 0 4px; font-size: 13px; color: #8a6a4a; font-family: sans-serif;">Número de tracking</p>
-      <p style="margin: 0 0 8px; font-size: 24px; font-weight: 700; color: #614a2a; letter-spacing: 0.05em; font-family: monospace;">${order.tracking_number}</p>
-      ${order.carrier_name ? `<p style="margin: 0; font-size: 13px; color: #8a6a4a; font-family: sans-serif;">Transportadora: <strong>${order.carrier_name}</strong></p>` : ''}
-    </div>
-    ${
-      order.label_url
-        ? `<div style="text-align: center; margin-bottom: 24px;">
-        <a href="${order.label_url}" style="display: inline-block; background: #614a2a; color: #fff8ec; text-decoration: none; padding: 12px 28px; border-radius: 50px; font-size: 14px; font-weight: 600; font-family: sans-serif;">
-          Descargar guía de envío
-        </a>
-      </div>`
-        : ''
-    }
-    <p style="margin: 0; font-size: 13px; color: #8a6a4a; text-align: center; font-family: sans-serif;">
-      Pedido: <strong>${order.order_number}</strong> · ${order.customer_name}
-    </p>`
-
-  await sendEmail(config, {
-    from: `${name} <${config.fromEmail}>`,
-    to: [order.customer_email],
-    subject: `Tu pedido ${order.order_number} ha sido despachado — ${name}`,
     html: baseTemplate(content, config),
   })
 }

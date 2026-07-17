@@ -2,346 +2,278 @@
 
 Paquete compartido que centraliza el cliente de Supabase, los tipos TypeScript del schema y las funciones de query para todas las apps del monorepo.
 
-```
-import { getProducts, getOrderById } from '@vps/database'
-import type { Product, Order } from '@vps/database'
+```ts
+import { getWebHomeData, getPageWithSections, createServerClient } from '@vps/database'
+import type { Product, Order, PageSection, SectionItem } from '@vps/database'
 ```
 
 ---
 
-## Estructura
+## Modelo de datos
+
+### Arquitectura CMS unificado (v13)
+
+El modelo central sigue una jerarquía de tres niveles. No existen tablas de contenido paralelas — todo el contenido gestionable vive en este árbol:
 
 ```
-packages/database/src/
-├── client.ts               ← Factories de cliente Supabase (browser / server)
-├── types.ts                ← Tipos de todas las tablas (Row, Insert, Update)
-├── queries/
-│   ├── index.ts            ← Re-exporta todos los módulos de queries
-│   ├── products.ts         ← Catálogo, variantes, slugs, featured
-│   ├── orders.ts           ← createOrder, getAllOrders, updateOrderStatus, etc.
-│   ├── blog.ts             ← Artículos, slugs, draft mode
-│   ├── banners.ts          ← Banners por sección (hero, maquila, asesorias, services)
-│   ├── shipping-config.ts  ← Proveedor de envíos + credenciales Skydropx (singleton)
-│   ├── store-config.ts     ← Logo, WhatsApp, nombre, Resend, redes, mantenimiento (singleton)
-│   ├── payment-config.ts   ← Wompi + MercadoPago (singleton)
-│   ├── coupons.ts          ← getCoupons, validateCoupon (pura), CRUD, incrementCouponUsage
-│   ├── testimonials.ts     ← getTestimonials(onlyActive), CRUD
-│   ├── cart.ts             ← getCartItems, upsertCartItem, removeCartItem, clearCart, replaceCart
-│   ├── sections.ts         ← getSectionSettings(), isSectionEnabled() (fail-open)
-│   └── themes.ts           ← getThemes(), getActiveTheme(), createTheme(), updateTheme(), setActiveTheme(), deleteTheme()
+pages
+  └─ page_sections   (bloques de una página, tipo definido por section_type)
+       └─ section_items  (ítems individuales: slides, tarjetas, FAQ, testimonios, servicios)
+```
+
+Tablas eliminadas en v13: `banners`, `section_settings`, `testimonials` (el contenido equivalente vive en `page_sections` / `section_items`).
+
+**Tipos de sección (`section_type`):**
+
+| Tipo | Descripción | Items |
+|------|-------------|-------|
+| `hero` | Carrusel de imágenes principal | `slide` |
+| `services` | Paneles de servicio con imagen | `service` |
+| `testimonials` | Carrusel de testimonios | `testimonial` |
+| `cards` | Grid de tarjetas de contenido | `card` |
+| `faq` | Acordeón de preguntas | `faq` |
+| `cta` | Llamada a acción centrada | — |
+| `text` | Bloque de texto/Markdown | — |
+| `whatsapp` | Botón de contacto WhatsApp | — |
+| `featured_products` | Grid de productos destacados | — (query automática) |
+| `best_sellers` | Grid de más vendidos | — (query automática) |
+| `historia` | Bloque "Nuestra historia" | — (settings JSONB) |
+| `blog_preview` | Vista previa del blog | — (query automática) |
+| `newsletter` | Formulario de suscripción | — |
+
+**Metadatos variables en `section_items.metadata` (JSONB):**
+- `slide` / `service` → `{ "bg_color": "#614A2A" }`
+- `testimonial` → `{ "rating": 5, "role": "Barista profesional" }`
+
+**Configuración libre en `page_sections.settings` (JSONB):**
+- `whatsapp` → `{ "message_type": "asesoria" | "maquila" | "general" }`
+- `historia` → `{ "title": "...", "subtitle": "...", "cta_text": "...", "cta_url": "..." }`
+- `testimonials` → `{ "filter_by_page": true }`
+
+### Tablas de soporte
+
+| Tabla | Patrón | Descripción |
+|-------|--------|-------------|
+| `profiles` | FK Stack Auth por email | Usuarios del panel admin |
+| `customers` | Mirror Stack Auth | Compradores web |
+| `orders` | Snapshot inmutable | Pedidos con `shipping_addr` JSONB |
+| `cart_items` | FK ON DELETE CASCADE | Carrito persistente |
+| `customer_addresses` | FK customer | Direcciones guardadas para checkout |
+| `store_config` | Singleton (`CHECK id=1`) | Branding, Resend, redes sociales, toggles |
+| `shipping_config` | Singleton (`CHECK id=1`) | Proveedor, tarifa, credenciales Skydropx |
+| `payment_config` | Singleton (`CHECK id=1`) | Credenciales Wompi y MercadoPago |
+| `themes` | Uno activo a la vez | Paleta CSS y tipografía inyectadas en `<head>` |
+| `nav_items` | Árbol de 1 nivel | Menú de navegación con `nav_key` estable |
+| `media_assets` | Inventario | Assets subidos con referencias `used_in` JSONB |
+
+---
+
+## Estructura de archivos
+
+```
+packages/database/
+├── src/
+│   ├── client.ts               ← createBrowserClient() + createServerClient()
+│   ├── types.ts                ← Tipos de todas las tablas (Row, Insert, Update)
+│   ├── index.ts                ← Re-exporta todo
+│   ├── lib/
+│   │   └── email.ts            ← sendShippingNotification, sendStatusNotification
+│   └── queries/
+│       ├── home.ts             ← getWebHomeData() — consolida home en una llamada
+│       ├── content.ts          ← getPages, getPageWithSections, CRUD pages/sections/items
+│       ├── nav.ts              ← getNavItems, CRUD nav_items
+│       ├── products.ts         ← getProducts, getFeaturedProducts, getBestSellingProducts
+│       ├── orders.ts           ← getOrders, getOrderById, createOrder, updateOrderStatus
+│       ├── blog.ts             ← getBlogPosts, getBlogPostBySlug
+│       ├── store-config.ts     ← getStoreConfig, updateStoreConfig
+│       ├── shipping-config.ts  ← getShippingConfig, updateShippingConfig
+│       ├── coupons.ts          ← validateCoupon (pura), CRUD, incrementCouponUsage
+│       ├── cart.ts             ← getCartItems, upsertCartItem, clearCart, replaceCart
+│       ├── themes.ts           ← getActiveTheme, setActiveTheme, CRUD
+│       ├── media.ts            ← getMediaAssets, CRUD media_assets
+│       └── variant-types.ts    ← getVariantTypes, CRUD
 └── supabase/
-    └── migrations/         ← Ejecutar en orden en el SQL Editor de Supabase
-        ├── 1_initial_schema.sql
-        ├── 2_shipping_config.sql
-        ├── 3_banner_mobile_image.sql
-        ├── 4_store_config.sql
-        ├── 5_payment_config.sql
-        ├── 6_shipping_profiles.sql
-        ├── 7_customers.sql
-        ├── 8_customer_addresses.sql
-        ├── 9_section_settings.sql
-        ├── 10_coupons.sql
-        ├── 11_testimonials.sql
-        ├── 12_cart_items.sql
-        ├── 13_themes.sql
-        └── 14_product_variants_extended.sql
+    ├── migrations/
+    │   ├── 01_schema.sql       ← ★ ESQUEMA CANÓNICO — usar para despliegue nuevo
+    │   └── 1_initial_schema.sql … 20_integrity_and_indexes.sql  ← historial evolutivo
+    └── seeds/
+        ├── 01_config.sql       ← Tema, variantes, categorías, nav base
+        └── 02_content.sql      ← Páginas, secciones e ítems CMS de VPS Coffee
 ```
 
 ---
 
-## Cliente Supabase
+## Despliegue desde cero
 
-Se exportan dos factories según el contexto de ejecución:
+Para un entorno nuevo (staging, local, CI), ejecutar en orden en el SQL Editor de Supabase:
 
-```typescript
-import { createBrowserClient, createServerClient } from '@vps/database'
+```sql
+-- 1. Schema completo (tablas, índices, RLS, triggers, constraints)
+\i packages/database/supabase/migrations/01_schema.sql
 
-// En un componente cliente (React)
-const supabase = createBrowserClient()
+-- 2. Configuración base (tema, variantes, categorías, nav)
+\i packages/database/supabase/seeds/01_config.sql
 
-// En un Server Component o Route Handler de Next.js
-// Requiere la cookie store de next/headers
-import { cookies } from 'next/headers'
-const supabase = createServerClient(cookies())
+-- 3. Contenido CMS (páginas, secciones, ítems)
+\i packages/database/supabase/seeds/02_content.sql
 ```
 
-Internamente usan `@supabase/supabase-js` con las variables de entorno `NEXT_PUBLIC_SUPABASE_URL` y `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` / `SUPABASE_SERVICE_ROLE_KEY`.
+Los archivos `1_initial_schema.sql` … `20_integrity_and_indexes.sql` documentan la evolución histórica y se aplican automáticamente en entornos Supabase con historial existente. Para un despliegue limpio, usar únicamente `01_schema.sql` + los seeds — el resultado es idéntico.
 
 ---
 
-## Tipos
+## Integridad referencial
 
-Todos los tipos están definidos en `src/types.ts` y reflejan el schema de Supabase:
+El schema aplica las siguientes garantías a nivel de base de datos, sin depender de la lógica de aplicación:
 
-```typescript
-// Patrón: Row (SELECT), Insert (INSERT), Update (PATCH)
-type Product = {
-  id: number
-  name: string
-  slug: string
-  description: string | null
-  category_id: number | null
-  is_active: boolean
-  is_featured: boolean
-  created_at: string
-}
+### Claves foráneas con política de borrado
 
-type ProductVariant = {
-  id: number
-  product_id: number
-  roast_level: RoastLevel | null   // heredado: 'light' | 'medium' | 'dark' | 'extra_dark'
-  weight: string | null            // heredado: '250g' | '500g' | '1kg' | '2kg'
-  grind_type: GrindType | null     // heredado: 'whole_bean' | 'fine' | 'medium' | 'coarse' | null
-  brew_method: BrewMethod | null
-  attributes: Record<string, string> | null  // sistema genérico: { color: 'Rojo', talla: 'M' }
-  weight_kg: number | null         // para cotización real con Skydropx
-  length_cm: number | null
-  width_cm: number | null
-  height_cm: number | null
-  price: number
-  stock: number
-  is_available: boolean
-}
+| Relación | Política |
+|----------|----------|
+| `product_variants → products` | CASCADE |
+| `cart_items → customers / products / product_variants` | CASCADE |
+| `customer_addresses → customers` | CASCADE |
+| `page_sections → pages` | CASCADE |
+| `section_items → page_sections` | CASCADE |
+| `orders → customers` | SET NULL — el pedido se conserva aunque se elimine el cliente |
+| `nav_items → pages (page_key)` | SET NULL |
+| `blog_posts → profiles (author_id)` | SET NULL |
+| `media_assets → profiles (uploaded_by)` | SET NULL |
 
-type Order = {
-  id: number
-  order_number: string             // 'VPS-XXXX'
-  user_id: string | null
-  customer_email: string
-  customer_name: string
-  status: OrderStatus              // 'pending' | 'processing' | 'shipped' | ...
-  items: OrderItem[]               // JSONB
-  shipping_address: ShippingAddress // JSONB
-  subtotal: number
-  shipping_cost: number
-  discount: number
-  total: number
-  payment_method: string | null
-  tracking_number: string | null
-  carrier_name: string | null      // transportadora elegida por el cliente (ej: 'Servientrega')
-  skydropx_rate_id: string | null  // ID de tarifa Skydropx para crear la guía
-  skydropx_quotation_id: string | null
-  skydropx_shipment_id: string | null
-  created_at: string
-}
+### CHECK constraints
 
-type ShippingConfig = {
-  id: number
-  provider: ShippingProviderType   // 'fixed' | 'skydropx'
-  fixed_rate: number
-  skydropx_client_id: string | null
-  skydropx_client_secret: string | null
-  skydropx_address_from_id: string | null
-  skydropx_base_url: string
-  updated_at: string
-}
+```sql
+-- Roles del panel admin
+profiles.role IN ('super_admin','admin','vendedor','gestor_tienda','miembro','customer')
 
-type StoreConfig = {
-  id: number
-  whatsapp_number: string | null   // 10–15 dígitos, ej. '573001234567'
-  store_name: string               // por defecto 'VPS Coffee'
-  store_email: string | null
-  logo_url: string | null          // URL pública del bucket 'logos'
-  updated_at: string
-}
+-- Estados del ciclo de vida del pedido
+orders.status IN ('pending','processing','shipped','delivered','cancelled','exception')
+orders.payment_status IN ('pending','approved','rejected','refunded')
+
+-- Tipos de sección CMS (13 valores fijos)
+page_sections.section_type IN (
+  'hero','text','cards','faq','cta','testimonials','whatsapp',
+  'services','featured_products','best_sellers','historia','blog_preview','newsletter'
+)
+
+-- Singletons de configuración
+store_config.id = 1
+payment_config.id = 1
+shipping_config.id = 1
 ```
+
+### Índices de rendimiento
+
+```sql
+-- Catálogo
+products (category_id) WHERE category_id IS NOT NULL
+
+-- Pedidos
+orders (customer_email)
+orders (status)
+orders (created_at DESC)
+orders (coupon_code) WHERE coupon_code IS NOT NULL
+
+-- CMS (filtrado frecuente por habilitado + orden)
+page_sections (page_key, enabled, order_index) WHERE enabled = true
+page_sections (page_key, section_type)
+section_items (section_id, enabled, order_index) WHERE enabled = true
+section_items (section_id, item_type)
+
+-- Media (búsquedas de contenedor JSONB)
+media_assets.used_in  -- índice GIN para @> containment
+```
+
+### Triggers `updated_at`
+
+Una función genérica `set_updated_at()` aplica el trigger en: `orders`, `customers`, `nav_items`, `page_sections`, `section_items`, `media_assets`, `themes`, `pages`, `store_config`.
 
 ---
 
-## Queries disponibles
+## Seguridad y RLS
 
-### Productos
+### Modelo de dos llaves
 
-```typescript
-// Catálogo activo (con variantes)
-getProducts(filters?: { categorySlug?: string; roast?: string }): Promise<Product[]>
+| Variable | Acceso | Dónde se usa |
+|----------|--------|--------------|
+| `SUPABASE_SERVICE_ROLE_KEY` | Bypasea RLS — acceso total a todas las tablas | Solo en el backend (API routes, server components). **Nunca enviar al cliente.** |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Solo políticas `anon` | Frontend si se instancia un browser client |
 
-// Un producto por slug (con variantes y productos relacionados)
-getProductBySlug(slug: string): Promise<Product | null>
+En la práctica, el 95% de las queries del proyecto usan `createServerClient()` con `SERVICE_ROLE_KEY` desde API routes de Next.js, lo que elimina la necesidad de políticas anon elaboradas para escritura.
 
-// Productos destacados para la home
-getFeaturedProducts(limit?: number): Promise<Product[]>
+### Políticas anon (lectura pública)
 
-// Slugs para generateStaticParams
-getProductSlugs(): Promise<{ slug: string }[]>
+```sql
+-- Catálogo
+SELECT en categories, products (active=true), product_variants (active=true), variant_types
+
+-- CMS y navegación
+SELECT en pages (enabled), nav_items (enabled), page_sections (enabled), section_items (enabled)
+
+-- Blog
+SELECT en blog_posts (published=true)
+
+-- Configuración visual
+SELECT en themes, media_assets
+
+-- Checkout (tarifa antes del login)
+SELECT en shipping_config
+
+-- Newsletter
+INSERT en newsletter_subscribers
 ```
 
-### Órdenes
+### Sin políticas anon
 
-```typescript
-// Crear una nueva orden (asigna número correlativo VPS-XXXX)
-// CreateOrderInput incluye carrier_name y skydropx_rate_id opcionales
-createOrder(input: CreateOrderInput): Promise<Order>
-
-// Obtener una orden por ID
-getOrderById(id: number): Promise<Order | null>
-
-// Historial de órdenes de un usuario
-getOrdersByUser(userId: string): Promise<Order[]>
-
-// Todas las órdenes para el admin (con filtro por status)
-getAllOrders(status?: OrderStatus): Promise<Order[]>
-
-// Actualizar el estado de una orden
-updateOrderStatus(id: number, status: OrderStatus, trackingNumber?: string): Promise<Order>
-```
-
-### Blog
-
-```typescript
-// Lista de artículos publicados
-getBlogPosts(params?: { category?: string; limit?: number }): Promise<BlogPost[]>
-
-// Un artículo por slug
-getBlogPostBySlug(slug: string): Promise<BlogPost | null>
-
-// Artículo destacado (para preview en home)
-getFeaturedBlogPost(): Promise<BlogPost | null>
-
-// Slugs para generateStaticParams
-getBlogSlugs(): Promise<{ slug: string }[]>
-```
-
-### Banners
-
-```typescript
-// Banners activos de una sección
-getBanners(section: 'hero' | 'maquila' | 'asesorias'): Promise<Banner[]>
-```
-
-### Configuración de envíos
-
-```typescript
-// Lee el singleton (siempre devuelve un objeto — nunca lanza)
-getShippingConfig(): Promise<ShippingConfig>
-
-// Actualiza la configuración
-updateShippingConfig(input: Partial<ShippingConfig>): Promise<ShippingConfig>
-```
-
-`getShippingConfig()` tiene un fallback seguro: si la tabla no existe o hay un error de conexión, devuelve un objeto con valores por defecto (`provider: 'fixed'`, `fixed_rate: 8000`).
-
-### Configuración de la tienda
-
-```typescript
-// Lee el singleton; si hay error o tabla vacía devuelve DEFAULT_CONFIG
-getStoreConfig(): Promise<StoreConfig>
-
-// Upsert del registro id=1 — nunca falla si la fila ya existe
-updateStoreConfig(input: UpdateStoreConfigInput): Promise<StoreConfig>
-
-// Tipos de input
-type UpdateStoreConfigInput = Partial<{
-  whatsapp_number: string | null
-  store_name: string
-  store_email: string | null
-  logo_url: string | null
-}>
-```
-
-`getStoreConfig()` es llamada una vez por request desde los layouts `(public)/layout.tsx` y `(account)/layout.tsx`. El resultado se pasa como prop a `Navbar` y `Footer`, evitando consultas duplicadas a la BD.
+`profiles`, `customers`, `orders`, `cart_items`, `customer_addresses`, `store_config`, `payment_config` — solo accesibles via `service_role`.
 
 ---
 
-## Migraciones
+## Patrones de diseño
 
-**14 archivos en total.** Ejecutar en el SQL Editor de Supabase en orden numérico:
+### Singleton de configuración
 
-### `1_initial_schema.sql`
-Schema base: `profiles`, `categories`, `products`, `product_variants`, `banners`, `orders`, `blog_posts`, `newsletter_subscribers`. RLS habilitado. Buckets de Storage (`products`, `banners`, `blog`, `private`). Diseñado para Stack Auth (sin FK a `auth.users`, sin trigger de Supabase Auth).
+`store_config`, `payment_config` y `shipping_config` tienen `CHECK (id = 1)` y siempre contienen exactamente una fila. Las queries nunca hacen INSERT — solo UPDATE o upsert con `id=1`. Esto elimina el caso "sin configuración" y hace las queries triviales.
 
-### `2_shipping_config.sql`
-Tabla `shipping_config` con enum `shipping_provider_type` (`fixed`/`skydropx`), tarifa fija, envío gratis configurable, credenciales Skydropx OAuth y **8 campos `origin_*`** para dirección de origen. Todo consolidado en una sola migración.
+### Fail-open en el home
 
-### `3_banner_mobile_image.sql`
-Campo `image_url_mobile` en `banners` para imágenes separadas web/mobile.
+`getWebHomeData()` usa `Promise.all` con `.catch(() => [])` en cada sub-query. Si una falla, las demás siguen y el home renderiza parcialmente en lugar de retornar 500.
 
-### `4_store_config.sql`
-Tabla `store_config` singleton (id=1) con branding, Resend (api_key + from_email), contenido legal (Markdown), redes sociales, modo mantenimiento y analytics. Todo consolidado.
+### Snapshot inmutable de pedidos
 
-### `5_payment_config.sql`
-Tabla `payment_config` singleton con credenciales Wompi y MercadoPago.
+`orders.shipping_addr` (JSONB) guarda la dirección en el momento del pedido. No se actualiza si el cliente cambia `customer_addresses`. El historial de pedidos es siempre auditable.
 
-### `6_shipping_profiles.sql`
-Tabla `shipping_profiles` para perfiles de envío por zona.
+### Claves estables para export/import
 
-### `7_customers.sql`
-Tabla `customers` (mirror de compradores web desde Stack Auth). FK `orders.customer_id → customers.id`.
+`nav_items.nav_key` (TEXT) y `page_sections.section_key` (UUID) son identificadores estables. El endpoint `/api/admin/export` los usa para producir snapshots idempotentes que se pueden reimportar sin crear duplicados.
 
-### `8_customer_addresses.sql`
-Tabla `customer_addresses` (N direcciones por cliente) para pre-llenar checkout.
+### JSONB para datos variables
 
-### `9_section_settings.sql`
-Tabla `section_settings` para habilitar/deshabilitar secciones del home. Seed con secciones por defecto.
-
-### `10_coupons.sql`
-Tabla `coupons`: código, tipo (`percentage`/`fixed`), valor, mínimo, usos máximos, expiración.
-
-### `11_testimonials.sql`
-Tabla `testimonials`: autor, cargo, texto, avatar, rating (1-5), orden, activo.
-
-### `12_cart_items.sql`
-Tabla `cart_items` para sincronizar carrito de usuarios logueados (FK a `customers`).
-
-### `13_themes.sql`
-Tabla `themes` con paleta de colores hex y selección de fuentes. Unique index parcial en `is_active = true`.
-
-### `14_product_variants_extended.sql`
-Dos extensiones sobre `product_variants`:
-- **Dimensiones físicas** (`weight_kg`, `length_cm`, `width_cm`, `height_cm`) para cotización real con Skydropx
-- **Sistema genérico de variantes**: columna `variant_options JSONB` en `products` + `attributes JSONB` en `product_variants`; retrocompatible con campos heredados `roast`/`weight`/`grind`
+`section_items.metadata` y `page_sections.settings` almacenan campos opcionales que varían por tipo. Esto evita columnas nulas en masa en tablas polimórficas y permite agregar propiedades nuevas sin migraciones.
 
 ---
 
-## Regenerar tipos
+## Queries principales
 
-Después de modificar el schema en Supabase:
+```ts
+// Home completo (paralelo, fail-open)
+const { homeSections, featuredProducts, bestSellers, blogPosts, categories }
+  = await getWebHomeData()
 
-```bash
-# Desde la raíz del monorepo
-pnpm db:generate
+// Página con secciones e ítems anidados
+const page = await getPageWithSections('nosotros')
+// page.sections[0].items[0].metadata?.bg_color
+
+// Validar cupón (función pura — sin side effects)
+const result = validateCoupon(coupon, cartTotal)
+// { valid: true, discount: 5000 } | { valid: false, reason: '...' }
+
+// Cliente server-side desde una API route
+const client = createServerClient()
+const { data } = await client
+  .from('section_items')
+  .select('*')
+  .eq('section_id', sectionId)
+  .eq('enabled', true)
+  .order('order_index')
 ```
-
-Esto ejecuta `supabase gen types typescript` y sobrescribe `src/types.ts`.
-
----
-
-## Tests
-
-Los tests mockean el cliente de Supabase para ser completamente independientes de la red:
-
-```bash
-cd packages/database
-pnpm test
-pnpm test:coverage
-```
-
-El mock está configurado en `jest.setup.ts`:
-
-```typescript
-jest.mock('./src/client', () => ({
-  createServerClient: jest.fn(() => mockSupabaseClient),
-}))
-```
-
-Archivos de test:
-
-| Archivo | Casos | Cobertura |
-|---------|-------|-----------|
-| `queries/__tests__/products.test.ts` | 8 | Filtros, slug, featured, errores |
-| `queries/__tests__/orders.test.ts` | 12 | Número correlativo, discount default, updateOrderStatus |
-| `queries/__tests__/blog.test.ts` | 10 | Filtro categoría, limit, getFeaturedPost null-safe |
-| `queries/__tests__/store-config.test.ts` | 10 | getStoreConfig: fallback DEFAULT_CONFIG, datos reales; updateStoreConfig: upsert id=1, errores |
-| `queries/__tests__/coupons.test.ts` | 14 | validateCoupon: porcentaje, fijo, inactivo, expirado, usos, mínimo pedido |
-| `queries/__tests__/themes.test.ts` | 14 | getThemes, getActiveTheme, createTheme (is_active=false forzado), setActiveTheme (dos ops), deleteTheme (guards) |
-
----
-
-## Agregar una nueva tabla
-
-1. Crear la migración en `supabase/migrations/15_<nombre>.sql` (siguiente número disponible)
-2. Agregar los tipos (Row/Insert/Update) en `src/types.ts`
-3. Crear `src/queries/<tabla>.ts` con las funciones de acceso
-4. Exportar desde `src/queries/index.ts`
-5. Ejecutar `pnpm db:generate` para sincronizar tipos
-6. Escribir tests en `src/queries/__tests__/<tabla>.test.ts`

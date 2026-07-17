@@ -2,8 +2,7 @@
 
 import { useState, useTransition } from 'react'
 import type { ShippingConfig } from '@vps/database'
-import SearchableSelect from '@/components/ui/SearchableSelect'
-import { DEPARTMENTS, getCitiesForDepartment } from '@/lib/colombia-locations'
+import { SearchableSelect, DEPARTMENTS, getCitiesForDepartment } from '@vps/ui'
 
 interface Props {
   initialConfig: ShippingConfig | null

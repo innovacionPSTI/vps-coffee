@@ -7,9 +7,11 @@ export const metadata: Metadata = { title: 'Pedido confirmado' }
 export default async function ConfirmacionPage({
   searchParams,
 }: {
-  searchParams: { order?: string }
+  searchParams: Promise<{ order?: string }>
 }) {
+  const { order } = await searchParams
   const whatsapp = await getWhatsAppNumber()
+
   return (
     <div className="bg-brand-cream min-h-screen flex items-center justify-center px-6">
       <div className="text-center max-w-md">
@@ -23,9 +25,9 @@ export default async function ConfirmacionPage({
           ¡Pedido confirmado!
         </h1>
 
-        {searchParams.order && (
+        {order && (
           <p className="font-brand text-brand-primary/60 text-lg mb-2">
-            Orden <strong className="text-brand-primary">{searchParams.order}</strong>
+            Orden <strong className="text-brand-primary">{order}</strong>
           </p>
         )}
 

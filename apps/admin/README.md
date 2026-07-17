@@ -64,7 +64,8 @@ src/app/
 │   ├── page.tsx                  → /productos
 │   ├── nuevo/page.tsx            → /productos/nuevo
 │   └── [id]/page.tsx             → /productos/[id]
-├── categorias/page.tsx           → /categorias
+├── categorias/page.tsx           → /categorias (con imagen de portada y drag-to-reorder)
+├── variantes/page.tsx            → /variantes (CRUD de tipos de variante globales)
 ├── pedidos/
 │   ├── page.tsx                  → /pedidos (con modal "Programar recolección")
 │   └── [id]/page.tsx             → /pedidos/[id]

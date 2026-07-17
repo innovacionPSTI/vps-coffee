@@ -107,17 +107,22 @@ export interface ParcelItem {
  *   > 1.5  → large box  35×25×15 cm
  */
 export function calculateParcel(items: ParcelItem[]): ShippingParcel {
-  const WEIGHT_MAP: Record<string, number> = {
+  // Legacy weight-string → kg map. Only used when weight_kg is not set on the variant.
+  // These values are left for backwards compatibility with old cart items stored in
+  // localStorage. New variants should always have weight_kg configured.
+  // Unknown strings fall back to 0.5 kg.
+  const LEGACY_WEIGHT_MAP: Record<string, number> = {
     '250g': 0.3,
     '500g': 0.6,
     '1kg':  1.1,
+    '2kg':  2.1,
   }
 
-  // Total weight: use weight_kg when available, else fall back to label
+  // Total weight: use weight_kg when available, else fall back to legacy label
   const totalWeight = items.reduce((sum, item) => {
     const kg = (item.weight_kg != null && item.weight_kg > 0)
       ? item.weight_kg
-      : (WEIGHT_MAP[item.weight ?? ''] ?? 0.5)
+      : (LEGACY_WEIGHT_MAP[item.weight ?? ''] ?? 0.5)
     return sum + kg * item.qty
   }, 0)
 

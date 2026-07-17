@@ -1,4 +1,4 @@
-import { getBanners, getFeaturedProducts, getBlogPosts, getBestSellingProducts, getSectionSettings } from '@vps/database'
+import { getWebHomeData } from '@vps/database'
 import HeroCarousel from '@/components/home/HeroCarousel'
 import FeaturedProducts from '@/components/home/FeaturedProducts'
 import ServicesSection from '@/components/home/ServicesSection'
@@ -9,30 +9,35 @@ import Image from 'next/image'
 export const revalidate = 60 // ISR cada 60 segundos
 
 export default async function HomePage() {
-  const [banners, products, posts, bestSellers, sectionSettings] = await Promise.all([
-    getBanners('hero').catch(() => []),
-    getFeaturedProducts(3).catch(() => []),
-    getBlogPosts({ limit: 2 }).catch(() => []),
-    getBestSellingProducts(4).catch(() => []),
-    getSectionSettings().catch(() => []),
-  ])
+  const { homeSections, featuredProducts: products, blogPosts: posts, bestSellers, categories } =
+    await getWebHomeData()
 
-  // Mapa rápido: key → enabled (fail-open si no existe)
-  const enabled = (key: string) => {
-    const s = sectionSettings.find((s) => s.key === key)
-    return s ? s.enabled : true
-  }
+  // Helpers para encontrar secciones por tipo
+  const getSection = (type: string) => homeSections.find((s) => s.section_type === type)
+  const enabled    = (type: string) => getSection(type)?.enabled ?? true
+
+  // Secciones con ítems
+  const heroSection     = getSection('hero')
+  const servicesSection = getSection('services')
+
+  // Historia: contenido libre en settings de la sección
+  const historiaSection  = getSection('historia')
+  const historiaMeta     = historiaSection?.settings as Record<string, string> | null | undefined
+  const historiaTitle    = historiaMeta?.title    ?? 'Vivir para Servir'
+  const historiaSubtitle = historiaMeta?.subtitle ?? 'Cada taza que preparamos lleva el compromiso de la excelencia y el cuidado desde el origen hasta tu mesa.'
+  const historiaCtaText  = historiaMeta?.cta_text ?? 'Conoce nuestra historia →'
+  const historiaCtaUrl   = historiaMeta?.cta_url  ?? '/nosotros'
 
   return (
     <>
       {/* 1. Hero */}
-      {enabled('hero') && <HeroCarousel banners={banners} />}
+      {enabled('hero') && <HeroCarousel items={heroSection?.items ?? []} />}
 
       {/* 2. Productos destacados */}
       {enabled('featured_products') && <FeaturedProducts products={products} />}
 
       {/* 3. Servicios */}
-      {enabled('services') && <ServicesSection />}
+      {enabled('services') && <ServicesSection items={servicesSection?.items ?? []} />}
 
       {/* 4. Más vendidos / Preview tienda */}
       {enabled('best_sellers') && (
@@ -45,13 +50,13 @@ export default async function HomePage() {
                   Tienda
                 </h2>
                 <div className="space-y-4">
-                  {['Café Claro', 'Café Medio', 'Café Oscuro'].map((cat) => (
-                    <div key={cat} className="border-b border-brand-primary/15 pb-4">
+                  {categories.map((cat) => (
+                    <div key={cat.id} className="border-b border-brand-primary/15 pb-4">
                       <Link
-                        href={`/tienda?tueste=${cat.split(' ')[1].toLowerCase()}`}
+                        href={`/tienda?categoria=${cat.slug}`}
                         className="font-brand text-brand-primary hover:text-brand-dark transition-colors flex items-center gap-2"
                       >
-                        → {cat}
+                        → {cat.name}
                       </Link>
                     </div>
                   ))}
@@ -97,25 +102,26 @@ export default async function HomePage() {
       )}
 
       {/* 5. Historia */}
-      <section className="relative py-40 overflow-hidden bg-brand-dark">
-        <div className="absolute inset-0 bg-brand-text/60" />
-        <div className="relative z-10 text-center px-6">
-          <h2 className="font-display text-brand-cream leading-none mb-6"
-              style={{ fontSize: 'clamp(3rem, 8vw, 7rem)' }}>
-            Vivir para Servir
-          </h2>
-          <p className="font-brand text-brand-cream/70 max-w-xl mx-auto mb-8">
-            Cada taza que preparamos lleva el compromiso de la excelencia y el cuidado
-            desde el origen hasta tu mesa.
-          </p>
-          <Link
-            href="/nosotros"
-            className="inline-block border border-brand-cream text-brand-cream rounded-full px-8 py-3 font-brand font-medium hover:bg-brand-cream/10 transition-colors"
-          >
-            Conoce nuestra historia →
-          </Link>
-        </div>
-      </section>
+      {enabled('historia') && (
+        <section className="relative py-40 overflow-hidden bg-brand-dark">
+          <div className="absolute inset-0 bg-brand-text/60" />
+          <div className="relative z-10 text-center px-6">
+            <h2 className="font-display text-brand-cream leading-none mb-6"
+                style={{ fontSize: 'clamp(3rem, 8vw, 7rem)' }}>
+              {historiaTitle}
+            </h2>
+            <p className="font-brand text-brand-cream/70 max-w-xl mx-auto mb-8">
+              {historiaSubtitle}
+            </p>
+            <Link
+              href={historiaCtaUrl}
+              className="inline-block border border-brand-cream text-brand-cream rounded-full px-8 py-3 font-brand font-medium hover:bg-brand-cream/10 transition-colors"
+            >
+              {historiaCtaText}
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* 6. Blog preview */}
       {enabled('blog_preview') && posts.length > 0 && (

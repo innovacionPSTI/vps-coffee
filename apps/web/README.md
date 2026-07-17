@@ -88,6 +88,8 @@ import { useCartStore } from '@/store/cart'
 const { items, addItem, removeItem, updateQty, clearCart, subtotal } = useCartStore()
 ```
 
+`CartItem` incluye `productId` (requerido para la sincronización con BD). Todos los call sites de `addItem` — `ProductDetail`, `ShopClient` y `FeaturedProducts` — pasan `productId: product.id`. La API route `POST /api/account/cart` filtra ítems sin `productId` válido antes de insertar en Supabase (defensa contra FK violations).
+
 ---
 
 ## Capa de envíos

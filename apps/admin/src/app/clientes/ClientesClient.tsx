@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
+import Link from 'next/link'
 
 export type ClientType = 'con_cuenta' | 'sin_cuenta'
 
@@ -143,15 +144,23 @@ export default function ClientesClient({ clients }: Props) {
           <tbody className="divide-y divide-gray-50">
             {filtered.length > 0 ? (
               filtered.map((c) => (
-                <tr key={c.email} className="hover:bg-gray-50 transition-colors">
+                <tr
+                  key={c.email}
+                  className="hover:bg-brand-cream/30 transition-colors cursor-pointer group"
+                >
                   <td className="px-6 py-4">
-                    <p className="font-brand font-semibold text-sm text-brand-primary">
-                      {c.name ?? '(Sin nombre)'}
-                    </p>
-                    <p className="font-brand text-xs text-brand-primary/40">{c.email}</p>
-                    {c.phone && (
-                      <p className="font-brand text-xs text-brand-primary/30">{c.phone}</p>
-                    )}
+                    <Link
+                      href={`/clientes/${encodeURIComponent(c.email)}`}
+                      className="block"
+                    >
+                      <p className="font-brand font-semibold text-sm text-brand-primary group-hover:text-brand-dark">
+                        {c.name ?? '(Sin nombre)'}
+                      </p>
+                      <p className="font-brand text-xs text-brand-primary/40">{c.email}</p>
+                      {c.phone && (
+                        <p className="font-brand text-xs text-brand-primary/30">{c.phone}</p>
+                      )}
+                    </Link>
                   </td>
                   <td className="px-6 py-4">
                     {c.type === 'con_cuenta' ? (

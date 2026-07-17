@@ -1,4 +1,4 @@
-import type { Metadata } from 'next'
+import type { Metadata, ResolvingMetadata } from 'next'
 import { Suspense } from 'react'
 import { Cormorant_Garamond, DM_Sans, Playfair_Display, Inter } from 'next/font/google'
 import { StackProvider, StackTheme } from '@stackframe/stack'
@@ -92,25 +92,40 @@ function buildThemeCSS(theme: Theme): string {
 
 const BASE_URL = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
 
-export const metadata: Metadata = {
-  title: {
-    default: 'Tienda en línea',
-    template: '%s | Tienda',
-  },
-  description: 'Bienvenido a nuestra tienda en línea. Explora nuestros productos y realiza tu pedido de forma segura.',
-  keywords: ['tienda online', 'ecommerce', 'compras en línea'],
-  metadataBase: BASE_URL ? new URL(BASE_URL) : undefined,
-  openGraph: {
-    locale: 'es_CO',
-    type: 'website',
-    ...(BASE_URL && { url: BASE_URL }),
-    images: [{ url: '/og-default.jpg', width: 1200, height: 630, alt: 'Tienda en línea' }],
-  },
-  twitter: {
-    card: 'summary_large_image',
-    images: ['/og-default.jpg'],
-  },
-  robots: { index: true, follow: true },
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+export async function generateMetadata(_props: object, _parent: ResolvingMetadata): Promise<Metadata> {
+  const config = await getStoreConfig().catch(() => null)
+
+  const storeName   = config?.store_name   ?? 'Tienda en línea'
+  const description = config?.store_description ?? 'Bienvenido a nuestra tienda en línea. Explora nuestros productos y realiza tu pedido de forma segura.'
+  const keywords    = config?.seo_keywords
+    ? config.seo_keywords.split(',').map((k) => k.trim()).filter(Boolean)
+    : ['tienda online', 'ecommerce', 'compras en línea']
+
+  return {
+    title: {
+      default: storeName,
+      template: `%s | ${storeName}`,
+    },
+    description,
+    keywords,
+    metadataBase: BASE_URL ? new URL(BASE_URL) : undefined,
+    openGraph: {
+      locale: 'es_CO',
+      type: 'website',
+      siteName: storeName,
+      ...(BASE_URL && { url: BASE_URL }),
+      images: [{ url: '/og-default.jpg', width: 1200, height: 630, alt: storeName }],
+    },
+    twitter: {
+      card: 'summary_large_image',
+      images: ['/og-default.jpg'],
+    },
+    robots: { index: true, follow: true },
+    icons: config?.favicon_url
+      ? { icon: config.favicon_url, shortcut: config.favicon_url }
+      : undefined,
+  }
 }
 
 // ── Root Layout ───────────────────────────────────────────────────────────────
@@ -135,6 +150,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   return (
     <html lang="es" className={fontVars}>
       <head>
+        {/* Favicon dinámico desde store_config */}
+        {config?.favicon_url && (
+          <link rel="icon" href={config.favicon_url} />
+        )}
         {/* Tema activo: sobreescribe las CSS vars definidas en globals.css */}
         {themeCSS && <style dangerouslySetInnerHTML={{ __html: themeCSS }} />}
       </head>

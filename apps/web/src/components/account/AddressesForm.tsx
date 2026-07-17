@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react'
 import type { CustomerAddress } from '@vps/database'
 import SearchableSelect from '@/components/ui/SearchableSelect'
-import { DEPARTMENTS, getCitiesForDepartment } from '@/lib/colombia-locations'
+import { DEPARTMENTS, getCitiesForDepartment } from '@vps/ui'
 
 interface AddrForm {
   label:       string

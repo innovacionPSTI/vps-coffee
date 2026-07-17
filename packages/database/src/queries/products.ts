@@ -1,5 +1,5 @@
 import { createServerClient } from '../client'
-import type { ProductWithVariants } from '../types'
+import type { Category, ProductWithVariants } from '../types'
 
 export async function getProducts(filters?: {
   roast?: string
@@ -131,4 +131,19 @@ export async function getBestSellingProducts(limit = 4): Promise<BestSellingProd
       total_sold: 0,
     }
   })
+}
+
+/**
+ * Devuelve todas las categorías activas ordenadas por order_index.
+ * Usado en la home para los links de la sección "Tienda".
+ */
+export async function getCategories(): Promise<Category[]> {
+  const supabase = createServerClient()
+  const { data, error } = await supabase
+    .from('categories')
+    .select('*')
+    .eq('active', true)
+    .order('order_index', { ascending: true })
+  if (error) throw error
+  return (data ?? []) as Category[]
 }

@@ -17,24 +17,34 @@ export function getProductOptions(product: ProductWithVariants): string[] {
 }
 
 /**
- * Returns the attribute map for a variant.
- * Uses JSONB attributes when set, falls back to legacy fields.
+ * Returns the attribute map for a variant, filtered to declared option keys only.
+ *
+ * Filtering is critical: the attributes JSONB may contain extra fields (e.g. notes,
+ * internal SKU annotations, etc.) that are NOT variant dimensions. Including those
+ * fields in availability checks would make every variant appear incompatible with
+ * every other, causing all options to show as blocked in the selector.
  */
 export function getVariantAttrs(variant: ProductVariant, options: string[]): Record<string, string> {
+  let raw: Record<string, string> = {}
+
   if (
     variant.attributes &&
     typeof variant.attributes === 'object' &&
     !Array.isArray(variant.attributes) &&
     Object.keys(variant.attributes as object).length > 0
   ) {
-    return variant.attributes as Record<string, string>
+    raw = variant.attributes as Record<string, string>
+  } else {
+    // Legacy coffee fields
+    if (variant.roast) raw['Tueste'] = variant.roast
+    if (variant.weight) raw['Peso'] = variant.weight
+    if (variant.grind) raw['Molienda'] = variant.grind
   }
-  // Legacy coffee fields
-  const legacy: Record<string, string> = {}
-  if (variant.roast) legacy['Tueste'] = variant.roast
-  if (variant.weight) legacy['Peso'] = variant.weight
-  if (variant.grind) legacy['Molienda'] = variant.grind
-  return legacy
+
+  // When options are declared, return only those keys — strip any extra JSONB fields
+  // (e.g. sku, notes) that would corrupt the compatibility checks in the selector.
+  if (options.length === 0) return raw
+  return Object.fromEntries(options.flatMap((o) => (raw[o] ? [[o, raw[o]]] : [])))
 }
 
 /**

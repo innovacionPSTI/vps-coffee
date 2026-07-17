@@ -36,6 +36,23 @@ export async function POST(req: NextRequest) {
 
   const { data: { publicUrl } } = supabase.storage.from(bucket).getPublicUrl(filename)
 
+  // Registrar en media_assets si se solicitó (ej: desde la media library)
+  const register = formData.get('register') === 'true'
+  if (register) {
+    const altText  = (formData.get('alt_text') as string | null) ?? ''
+    const assetKey = `${bucket}/${filename}`
+    await supabase.from('media_assets').insert({
+      key:       assetKey,
+      url:       publicUrl,
+      bucket,
+      mime_type: file.type,
+      size_bytes: file.size,
+      alt_text:  altText || null,
+      used_in:   [],
+    }).select().single()
+    // Ignoramos el error — si falla el registro, el upload sigue siendo válido
+  }
+
   return NextResponse.json({ url: publicUrl, filename })
 }
 

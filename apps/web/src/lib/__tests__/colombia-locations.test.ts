@@ -3,7 +3,7 @@
  * Covers: DEPARTMENTS list, getCitiesForDepartment, completeness
  */
 
-import { DEPARTMENTS, getCitiesForDepartment, COLOMBIA_LOCATIONS } from '../colombia-locations'
+import { DEPARTMENTS, getCitiesForDepartment, COLOMBIA_LOCATIONS } from '@vps/ui'
 
 describe('DEPARTMENTS', () => {
   it('contains 33 departments', () => {

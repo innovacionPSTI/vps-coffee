@@ -2,6 +2,7 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { getCoupons } from '@vps/database'
 import { getAdminUser } from '@/lib/auth'
+import { canAccess } from '@/lib/roles'
 import CuponesClient from './CuponesClient'
 
 export const metadata: Metadata = { title: 'Cupones' }
@@ -9,7 +10,7 @@ export const dynamic = 'force-dynamic'
 
 export default async function CuponesPage() {
   const adminUser = await getAdminUser()
-  if (!adminUser || (adminUser.role !== 'super_admin' && adminUser.role !== 'admin')) {
+  if (!adminUser || !canAccess(adminUser.role, 'cupones')) {
     redirect('/no-autorizado')
   }
 

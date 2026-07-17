@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useTransition } from 'react'
-import type { StoreConfig } from '@vps/database'
+import type { StoreConfig, TrustBadge } from '@vps/database'
 import ImageUpload from '@/components/ImageUpload'
 
 interface Props {
@@ -9,10 +9,13 @@ interface Props {
 }
 
 export default function StoreConfigForm({ initialConfig }: Props) {
-  const [logoUrl, setLogoUrl]     = useState(initialConfig?.logo_url     ?? '')
-  const [whatsapp, setWhatsapp]   = useState(initialConfig?.whatsapp_number ?? '')
-  const [storeName, setStoreName] = useState(initialConfig?.store_name   ?? '')
-  const [storeEmail, setStoreEmail] = useState(initialConfig?.store_email ?? '')
+  const [logoUrl, setLogoUrl]           = useState(initialConfig?.logo_url         ?? '')
+  const [faviconUrl, setFaviconUrl]     = useState(initialConfig?.favicon_url       ?? '')
+  const [whatsapp, setWhatsapp]         = useState(initialConfig?.whatsapp_number   ?? '')
+  const [storeName, setStoreName]       = useState(initialConfig?.store_name        ?? '')
+  const [storeDescription, setStoreDescription] = useState(initialConfig?.store_description ?? '')
+  const [seoKeywords, setSeoKeywords]   = useState(initialConfig?.seo_keywords      ?? '')
+  const [storeEmail, setStoreEmail]     = useState(initialConfig?.store_email       ?? '')
 
   // Redes sociales
   const [igUrl, setIgUrl]         = useState(initialConfig?.instagram_url ?? '')
@@ -25,6 +28,38 @@ export default function StoreConfigForm({ initialConfig }: Props) {
   // Operaciones
   const [maintenanceMode, setMaintenanceMode] = useState(initialConfig?.maintenance_mode ?? false)
   const [analyticsEnabled, setAnalyticsEnabled] = useState(initialConfig?.analytics_enabled ?? false)
+
+  // Navbar
+  const [navShowCart, setNavShowCart] = useState(initialConfig?.nav_show_cart ?? true)
+  const [navShowAuth, setNavShowAuth] = useState(initialConfig?.nav_show_auth ?? true)
+
+  // Footer
+  const [footerShowStore, setFooterShowStore] = useState(initialConfig?.footer_show_store ?? true)
+  const [footerShowBlog,  setFooterShowBlog]  = useState(initialConfig?.footer_show_blog  ?? true)
+  const [footerShowLegal, setFooterShowLegal] = useState(initialConfig?.footer_show_legal ?? true)
+
+  // Badges de confianza
+  const [badges, setBadges] = useState<TrustBadge[]>(initialConfig?.trust_badges ?? [])
+  const [newBadgeText, setNewBadgeText] = useState('')
+
+  function addBadge() {
+    const text = newBadgeText.trim()
+    if (!text) return
+    setBadges((prev) => [...prev, { text, enabled: true }])
+    setNewBadgeText('')
+  }
+
+  function removeBadge(i: number) {
+    setBadges((prev) => prev.filter((_, idx) => idx !== i))
+  }
+
+  function toggleBadge(i: number) {
+    setBadges((prev) => prev.map((b, idx) => idx === i ? { ...b, enabled: !b.enabled } : b))
+  }
+
+  function updateBadgeText(i: number, text: string) {
+    setBadges((prev) => prev.map((b, idx) => idx === i ? { ...b, text } : b))
+  }
 
   const [status, setStatus] = useState<'idle' | 'saving' | 'saved' | 'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -39,10 +74,13 @@ export default function StoreConfigForm({ initialConfig }: Props) {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          logo_url:           logoUrl    || null,
-          whatsapp_number:    whatsapp   || null,
-          store_name:         storeName  || 'Mi Tienda',
-          store_email:        storeEmail || null,
+          logo_url:           logoUrl           || null,
+          favicon_url:        faviconUrl        || null,
+          whatsapp_number:    whatsapp          || null,
+          store_name:         storeName         || 'Mi Tienda',
+          store_description:  storeDescription  || null,
+          seo_keywords:       seoKeywords       || null,
+          store_email:        storeEmail        || null,
           instagram_url:      igUrl      || null,
           instagram_enabled:  igEnabled,
           facebook_url:       fbUrl      || null,
@@ -51,6 +89,12 @@ export default function StoreConfigForm({ initialConfig }: Props) {
           tiktok_enabled:     ttEnabled,
           maintenance_mode:   maintenanceMode,
           analytics_enabled:  analyticsEnabled,
+          nav_show_cart:      navShowCart,
+          nav_show_auth:      navShowAuth,
+          footer_show_store:  footerShowStore,
+          footer_show_blog:   footerShowBlog,
+          footer_show_legal:  footerShowLegal,
+          trust_badges:       badges,
         }),
       })
       const data = await res.json()
@@ -90,6 +134,31 @@ export default function StoreConfigForm({ initialConfig }: Props) {
         </div>
       </div>
 
+      {/* Favicon */}
+      <div className="border-t border-gray-100 pt-5">
+        <p className="font-brand text-xs font-semibold text-brand-primary mb-1">Favicon</p>
+        <p className="font-brand text-xs text-brand-primary/40 mb-3">
+          Icono que aparece en la pestaña del navegador y en marcadores. PNG cuadrado recomendado.
+          Dimensiones: <strong>64 × 64 px</strong>. Si no se sube, se usa el <code>favicon.ico</code> estático.
+        </p>
+        <div className="w-24">
+          <ImageUpload
+            value={faviconUrl}
+            onChange={setFaviconUrl}
+            bucket="logos"
+            label=""
+            sizeClass="w-24 h-24"
+          />
+        </div>
+        {faviconUrl && (
+          <p className="font-brand text-xs text-brand-primary/40 mt-2">
+            Vista previa del favicon:{' '}
+            {/* eslint-disable-next-line @next/next/no-img-element */}
+            <img src={faviconUrl} alt="favicon" className="inline-block w-6 h-6 align-middle rounded" />
+          </p>
+        )}
+      </div>
+
       <div className="border-t border-gray-100 pt-5 space-y-4">
         {/* WhatsApp */}
         <div>
@@ -119,6 +188,44 @@ export default function StoreConfigForm({ initialConfig }: Props) {
             onChange={(e) => setStoreName(e.target.value)}
             placeholder="Nombre de la tienda"
             className="w-64 border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
+          />
+        </div>
+
+        {/* Descripción SEO */}
+        <div>
+          <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">
+            Descripción SEO
+          </label>
+          <p className="font-brand text-xs text-brand-primary/40 mb-2">
+            Se usa en &lt;meta description&gt; y Open Graph. Máx. 160 caracteres recomendado.
+          </p>
+          <textarea
+            value={storeDescription}
+            onChange={(e) => setStoreDescription(e.target.value)}
+            placeholder="Bienvenido a nuestra tienda. Explora productos de calidad y realiza tu pedido de forma segura."
+            rows={3}
+            maxLength={300}
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary resize-none"
+          />
+          <p className="text-xs text-brand-primary/30 mt-1 text-right">
+            {storeDescription.length}/300
+          </p>
+        </div>
+
+        {/* Keywords SEO */}
+        <div>
+          <label className="font-brand text-xs font-semibold text-brand-primary block mb-1">
+            Palabras clave SEO
+          </label>
+          <p className="font-brand text-xs text-brand-primary/40 mb-2">
+            Separadas por comas. Ej: café de especialidad, tienda online, maquila de café.
+          </p>
+          <input
+            type="text"
+            value={seoKeywords}
+            onChange={(e) => setSeoKeywords(e.target.value)}
+            placeholder="café, tienda online, ecommerce"
+            className="w-full border border-gray-200 rounded-xl px-4 py-2.5 font-brand text-sm focus:outline-none focus:border-brand-primary"
           />
         </div>
 
@@ -261,6 +368,145 @@ export default function StoreConfigForm({ initialConfig }: Props) {
               Activa el seguimiento de visitas con Vercel Analytics. No requiere cookies ni afecta la privacidad del usuario.
             </p>
           </div>
+        </div>
+      </div>
+
+      {/* Navbar */}
+      <div className="border-t border-gray-100 pt-5 space-y-4">
+        <div>
+          <p className="font-brand text-xs font-semibold text-brand-primary mb-0.5">Navbar</p>
+          <p className="font-brand text-xs text-brand-primary/40">
+            Los ítems del menú se configuran desde{' '}
+            <a href="/nav" className="underline hover:text-brand-primary">Navegación</a>.
+            Aquí puedes mostrar u ocultar el carrito y el botón de acceso.
+          </p>
+        </div>
+        {[
+          { label: 'Mostrar carrito', val: navShowCart, set: setNavShowCart },
+          { label: 'Mostrar acceso / cuenta', val: navShowAuth, set: setNavShowAuth },
+        ].map((col) => (
+          <div key={col.label} className="flex items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={col.val}
+              onClick={() => col.set((v: boolean) => !v)}
+              className={`relative flex-shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                col.val ? 'bg-brand-primary' : 'bg-brand-primary/20'
+              }`}
+            >
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                col.val ? 'translate-x-4' : 'translate-x-0.5'
+              }`} />
+            </button>
+            <span className={`font-brand text-sm font-semibold ${col.val ? 'text-brand-primary' : 'text-brand-primary/30'}`}>
+              {col.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Columnas del footer */}
+      <div className="border-t border-gray-100 pt-5 space-y-4">
+        <div>
+          <p className="font-brand text-xs font-semibold text-brand-primary mb-0.5">Columnas del footer</p>
+          <p className="font-brand text-xs text-brand-primary/40">
+            Las columnas de Servicios y Nosotros se controlan desde <strong>Páginas</strong>. Aquí puedes mostrar u ocultar las columnas estáticas.
+          </p>
+        </div>
+        {[
+          { label: 'Tienda', val: footerShowStore, set: setFooterShowStore },
+          { label: 'Blog',   val: footerShowBlog,  set: setFooterShowBlog },
+          { label: 'Legal',  val: footerShowLegal, set: setFooterShowLegal },
+        ].map((col) => (
+          <div key={col.label} className="flex items-center gap-3">
+            <button
+              type="button"
+              role="switch"
+              aria-checked={col.val}
+              onClick={() => col.set((v: boolean) => !v)}
+              className={`relative flex-shrink-0 inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                col.val ? 'bg-brand-primary' : 'bg-brand-primary/20'
+              }`}
+            >
+              <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                col.val ? 'translate-x-4' : 'translate-x-0.5'
+              }`} />
+            </button>
+            <span className={`font-brand text-sm font-semibold ${col.val ? 'text-brand-primary' : 'text-brand-primary/30'}`}>
+              {col.label}
+            </span>
+          </div>
+        ))}
+      </div>
+
+      {/* Badges de confianza */}
+      <div className="border-t border-gray-100 pt-5 space-y-4">
+        <div>
+          <p className="font-brand text-xs font-semibold text-brand-primary mb-0.5">Badges de confianza</p>
+          <p className="font-brand text-xs text-brand-primary/40">
+            Se muestran en la página de cada producto. Incluye emoji si quieres (ej: 🚚 Envío gratis · ✓ Garantía).
+          </p>
+        </div>
+
+        {/* Lista */}
+        <div className="space-y-2">
+          {badges.map((badge, i) => (
+            <div key={i} className="flex items-center gap-2">
+              {/* Toggle activo */}
+              <button
+                type="button"
+                role="switch"
+                aria-checked={badge.enabled}
+                onClick={() => toggleBadge(i)}
+                className={`flex-shrink-0 relative inline-flex h-5 w-9 items-center rounded-full transition-colors ${
+                  badge.enabled ? 'bg-brand-primary' : 'bg-brand-primary/20'
+                }`}
+              >
+                <span className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+                  badge.enabled ? 'translate-x-4' : 'translate-x-0.5'
+                }`} />
+              </button>
+
+              {/* Texto editable */}
+              <input
+                type="text"
+                value={badge.text}
+                onChange={(e) => updateBadgeText(i, e.target.value)}
+                className="flex-1 border border-gray-200 rounded-xl px-3 py-2 font-brand text-sm focus:outline-none focus:border-brand-primary"
+              />
+
+              {/* Eliminar */}
+              <button
+                type="button"
+                onClick={() => removeBadge(i)}
+                aria-label="Eliminar badge"
+                className="text-brand-primary/30 hover:text-red-500 transition-colors text-lg leading-none px-1"
+              >
+                ×
+              </button>
+            </div>
+          ))}
+        </div>
+
+        {/* Agregar nuevo */}
+        <div className="flex items-center gap-2">
+          <input
+            type="text"
+            value={newBadgeText}
+            onChange={(e) => setNewBadgeText(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && (e.preventDefault(), addBadge())}
+            placeholder="ej: ✓ Calidad garantizada"
+            className="flex-1 border border-gray-200 rounded-xl px-3 py-2 font-brand text-sm focus:outline-none focus:border-brand-primary"
+          />
+          <button
+            type="button"
+            onClick={addBadge}
+            disabled={!newBadgeText.trim()}
+            className="font-brand text-sm bg-brand-primary text-brand-cream px-4 py-2 rounded-xl hover:bg-brand-dark transition-colors disabled:opacity-40"
+          >
+            + Agregar
+          </button>
         </div>
       </div>
 

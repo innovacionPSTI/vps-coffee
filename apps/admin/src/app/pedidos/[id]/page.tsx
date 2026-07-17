@@ -3,6 +3,7 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import type { Metadata } from 'next'
 import OrderStatusUpdater from './OrderStatusUpdater'
+import OrderNotes from './OrderNotes'
 
 export const metadata: Metadata = { title: 'Detalle de pedido' }
 
@@ -161,6 +162,9 @@ export default async function PedidoDetailPage({ params }: { params: Promise<{ i
               </div>
             </div>
           </div>
+
+          {/* Notas internas */}
+          <OrderNotes orderId={order.id} initialNotes={(order as any).internal_notes ?? null} />
         </div>
       </div>
     </div>

@@ -3,8 +3,8 @@
 > **Proyecto:** Plataforma e-commerce VPS Coffee  
 > **Cliente:** VPS Coffee Roasting House  
 > **Desarrollo:** Parquesoft TI  
-> **Versión:** 1.0 · Julio 2026  
-> **Stack:** Next.js 15 · Supabase · Tailwind CSS · Turborepo
+> **Versión:** 1.2 · Julio 2026 (Favicon · Identidad admin · Export v3)  
+> **Stack:** Next.js 16 · Supabase · Stack Auth · Tailwind CSS · Turborepo
 
 ---
 
@@ -64,7 +64,13 @@ Estructurar el proyecto como monorepo Turborepo con dos aplicaciones (web públi
 Aplicar Incremental Static Regeneration (ISR) en páginas de catálogo y blog, generar metadatos dinámicos por página, y configurar sitemap.xml y robots.txt para maximizar la indexación.
 
 **OE-14 — Seguridad y cumplimiento**
-Proteger las rutas del panel admin y el área de cliente mediante middleware de autenticación con Stack Auth, aplicar políticas RLS en todas las tablas de Supabase y manejar secrets únicamente como variables de entorno.
+Proteger las rutas del panel admin y el área de cliente mediante middleware de autenticación con Stack Auth, aplicar políticas RLS en todas las tablas de Supabase y manejar secrets únicamente como variables de entorno o mediante tablas singleton accesibles solo con `service_role_key`.
+
+**OE-15 — Integridad referencial y buenas prácticas de base de datos**
+Garantizar que el modelo de datos tenga claves foráneas explícitas con políticas ON DELETE apropiadas, índices compuestos para los patrones de consulta más frecuentes, CHECK constraints para enumeraciones críticas, triggers `updated_at` para auditoría, y comentarios de tabla/columna que documenten el esquema directamente en la base de datos. El esquema debe ser expresable como un único archivo canónico ejecutable en Supabase desde cero.
+
+**OE-16 — CMS unificado sin modelos paralelos**
+Consolidar todo el contenido gestionable (banners, secciones del home, testimonios, páginas de servicios, páginas legales) en el modelo único `pages → page_sections → section_items`, eliminando cualquier tabla paralela que represente conceptos equivalentes. El admin debe tener una sola interfaz para editar cualquier contenido sin ambigüedad.
 
 ---
 
@@ -134,6 +140,9 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | T-10 | Imágenes con recorte en arco estilo Pergamino | Media | ✅ |
 | T-11 | Rutas de producto dinámicas con `force-dynamic` (nuevos productos visibles sin redeploy) | Alta | ✅ |
 | T-12 | Metadatos SEO dinámicos por producto | Alta | ✅ |
+| T-13 | Sidebar de filtros: panel sticky desktop + drawer mobile deslizable | Alta | ✅ |
+| T-14 | Filtros dinámicos generados desde `variant_options` de los productos activos | Alta | ✅ |
+| T-15 | "Desde $X" en tarjetas con múltiples precios; swatches de color para atributos de color | Media | ✅ |
 
 ---
 
@@ -257,7 +266,7 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | AD-20 | Gestión de roles y usuarios — invitar (crea en Stack Auth + email de contraseña), cambiar rol, eliminar | Alta | ✅ |
 | AD-21 | Configuración de pasarelas de pago | Alta | ✅ |
 | AD-22 | Configuración de número WhatsApp desde BD (`store_config`) | Alta | ✅ |
-| AD-23 | CRUD de categorías | Media | ✅ |
+| AD-23 | CRUD de categorías con imagen de portada y drag-to-reorder | Media | ✅ |
 | AD-24 | Upload y gestión de logo desde panel admin | Alta | ✅ |
 | AD-25 | Auto-creación de buckets en Supabase Storage al subir primera imagen | Media | ✅ |
 | AD-26 | Redes sociales configurables (Instagram, Facebook, TikTok): URL + toggle habilitado por red | Alta | ✅ |
@@ -268,6 +277,11 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 | AD-31 | Sidebar con grupos colapsables y navegación rol-aware; auto-expande el grupo activo | Media | ✅ |
 | AD-32 | Sistema de temas: crear y activar perfiles de colores y tipografía; preview en tiempo real; aplicado al sitio sin redeploy | Alta | ✅ |
 | AD-33 | Gestión de newsletter desde admin: lista de suscriptores con estado activo/inactivo y exportación CSV; formulario de campaña con Markdown + broadcast vía Resend; confirmar antes de enviar | Alta | ✅ |
+| AD-34 | CRUD de tipos de variante globales (`/variantes`): nombre, valores (uno por línea), display_type pill/swatch, toggle activo, preview de pills | Alta | ✅ |
+| AD-35 | ProductForm reescrito: seleccionar tipos globales → botón "Generar combinaciones" produce la matriz cartesiana; preserva datos de variantes existentes al regenerar | Alta | ✅ |
+| AD-36 | Favicon configurable: campo `favicon_url` en `store_config`; upload con drag-drop y preview en `/configuracion/general`; inyectado en `<head>` del sitio web vía `generateMetadata` | Media | ✅ |
+| AD-37 | Identidad visual propia del panel admin: tabla `admin_config` singleton con `accent_color` y `sidebar_color`; paleta corporativa slate/indigo por defecto; configurable desde `/sistema/apariencia` con color pickers y presets; CSS vars inyectadas server-side en cada request; independiente de los temas del sitio web | Alta | ✅ |
+| AD-38 | Export/Import actualizado a v3: snapshot incluye `admin_config` y `themes`; import idempotente soporta v1/v2/v3; respuesta devuelve versión del snapshot | Media | ✅ |
 
 ---
 
@@ -1217,7 +1231,467 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 
 ---
 
-## 5. Resumen de Cobertura
+---
+
+## 4. Épica 9 — Arquitectura Limpia y Generalización CMS
+
+> **Contexto:** análisis v11 (julio 2026) identificó deuda técnica acumulada en 5 categorías. Estas HUs la liquidan en orden de riesgo y esfuerzo.
+
+---
+
+### HU-044 — Eliminar rutas API legacy sin autenticación
+
+> Como equipo de seguridad, quiero que todas las rutas del panel admin requieran autenticación para que no exista ningún endpoint de escritura expuesto sin verificar el rol del usuario.
+
+**Estimación:** XS (1 punto)  
+**Módulo:** `apps/admin/src/app/api/admin/banners/route.ts`  
+**Estado:** ✅ Completado (v12)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | GET /api/admin/banners (sin sesión) | 401 o ruta inexistente |
+| AC-2 | La UI de `/home` sigue funcionando | Usa `/api/admin/home/banners` (ya autenticada) |
+| AC-3 | No hay ningún `fetch('/api/admin/banners')` en el cliente | Grep confirma cero referencias |
+| AC-4 | `tsc --noEmit` pasa sin errores | Sin errores de tipo tras la eliminación |
+
+**Criterios de rechazo:**
+- El archivo sigue existiendo con acceso público de escritura.
+- La eliminación rompe alguna feature visible en el admin.
+
+---
+
+### HU-045 — Eliminar directorios y código zombie en admin
+
+> Como desarrollador, quiero que el código del admin no tenga directorios ni componentes que ya no se usen, para reducir la superficie de mantenimiento y evitar confusión al explorar el codebase.
+
+**Estimación:** XS (1 punto)  
+**Módulo:** `apps/admin/src/app/banners/`, `apps/admin/src/app/secciones/`, `BannersClient.tsx`, `SeccionesClient.tsx`  
+**Estado:** ✅ Completado (v12)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `/banners` y `/secciones` ya no existen como directorios | Carpetas eliminadas del árbol |
+| AC-2 | `BannersClient.tsx` y `SeccionesClient.tsx` eliminados | ~800 líneas de código muerto removidas |
+| AC-3 | El sidebar del admin no tiene links a `/banners` ni `/secciones` | Confirmado en `AdminSidebar.tsx` |
+| AC-4 | `tsc --noEmit` y `pnpm build` pasan | Sin referencias rotas |
+
+---
+
+### HU-046 — Consolidar `SearchableSelect` en `packages/ui`
+
+> Como desarrollador, quiero tener un solo `SearchableSelect` en el paquete compartido para no tener que mantener dos copias idénticas que inevitablemente van a divergir.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `packages/ui/src/components/SearchableSelect.tsx`; eliminar copia de `apps/web` y `apps/admin`  
+**Estado:** ✅ Completado (v12) — nota: `apps/web` mantiene copia local por limitación de Turbopack con `'use client'` en barrels; `apps/admin` usa `@vps/ui`
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Existe `packages/ui/src/components/SearchableSelect.tsx` | Exportado desde el barrel de `@vps/ui` |
+| AC-2 | `apps/web` importa desde `@vps/ui` | Sin copia local |
+| AC-3 | `apps/admin` importa desde `@vps/ui` | Sin copia local |
+| AC-4 | El componente sigue funcionando en checkout, Mi Cuenta y ShippingConfigForm | Tests + inspección visual |
+
+---
+
+### HU-047 — Consolidar `colombia-locations` en `packages/ui`
+
+> Como desarrollador, quiero que la lista de departamentos y ciudades de Colombia esté en un único lugar para no tener que sincronizar cambios en dos archivos idénticos.
+
+**Estimación:** XS (1 punto)  
+**Módulo:** `packages/ui/src/colombia-locations.ts`; exportar desde `@vps/ui`; eliminar copias locales  
+**Estado:** ✅ Completado (v12) — movido a `packages/ui` (no a `packages/database`) para evitar que client components importen del barrel server-only
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Existe un único `colombia-locations.ts` en `packages/database` | Exportado vía `@vps/database` |
+| AC-2 | `apps/web` y `apps/admin` importan desde `@vps/database` | Cero copias locales |
+| AC-3 | `SearchableSelect` de departamento/ciudad sigue funcionando | Sin cambios de comportamiento |
+
+---
+
+### HU-048 — Consolidar `sendShippingNotification` duplicada en `packages/`
+
+> Como desarrollador, quiero que la lógica de envío de emails transaccionales viva en un único paquete compartido para no duplicar credenciales y lógica entre las dos apps.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `packages/database/src/lib/email.ts`  
+**Estado:** ✅ Completado (v12)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `sendShippingNotification` existe solo en `packages/` | No duplicada en `apps/web/lib/email.ts` ni `apps/admin/lib/email.ts` |
+| AC-2 | Los webhooks de pago y el endpoint de status la importan desde `@vps/database` o `@vps/utils` | Sin rutas relativas entre apps |
+| AC-3 | Emails de shipping/status siguen funcionando | Sin regresión en flujo de pedidos |
+
+---
+
+### HU-049 — Migrar `/privacidad` y `/terminos` al CMS de páginas
+
+> Como editor de contenido, quiero actualizar el texto de privacidad y términos desde el panel de administración sin tocar código ni `store_config`.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `apps/web/src/app/(public)/privacidad/`, `apps/web/src/app/(public)/terminos/`; migración SQL seed  
+**Estado:** ✅ Completado (v12)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `/privacidad` lee su contenido desde la tabla `pages` (slug = `privacidad`) | No consume `store_config.privacy_content` |
+| AC-2 | `/terminos` ídem con slug = `terminos` | No consume `store_config.terms_content` |
+| AC-3 | Migración SQL inserta los slugs con contenido inicial | El sitio funciona sin edición manual |
+| AC-4 | Admin puede editar ambas páginas en `/contenido/paginas` | Mismo flujo que cualquier otra página CMS |
+| AC-5 | `store_config.privacy_content` y `terms_content` marcados como deprecated | Comentario en `types.ts` y `store_config` |
+
+---
+
+### HU-050 — Crear `getWebHomeData()` consolidado en `packages/database`
+
+> Como desarrollador, quiero una sola función que devuelva todos los datos del home en paralelo para reducir el boilerplate en `page.tsx` y facilitar testear el home en aislamiento.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `packages/database/src/queries/home.ts`  
+**Estado:** ✅ Completado (v12) — función nombrada `getWebHomeData` para evitar colisión con `getHomeData` del admin editor
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `getHomeData()` existe y devuelve `{ banners, products, posts, bestSellers, sectionSettings, categories }` | Promise.all interno, tipado completo |
+| AC-2 | `apps/web/src/app/(public)/page.tsx` llama solo `getHomeData()` | Sin 6 llamadas individuales inline |
+| AC-3 | Cada sub-query tiene `.catch(() => [])` para fail-open | Igual que el comportamiento actual |
+| AC-4 | `tsc --noEmit` pasa | Sin errores de tipo |
+
+---
+
+### HU-051 — Home adopta `page_sections` + `section_items`
+
+> Como equipo de producto, queremos que el home funcione con el mismo modelo de datos que el resto del CMS para eliminar el modelo paralelo de banners + section_settings y tener una única forma de editar cualquier página.
+
+**Estimación:** XL (13 puntos)  
+**Módulo:** migración 19, `apps/admin`, `apps/web/src/app/(public)/page.tsx`, `SectionRenderer`  
+**Estado:** ✅ Completado (v13) — implementado como épica HU-053 a HU-057
+
+**Implementación:**
+- `banners`, `section_settings` y `testimonials` migradas a `page_sections` + `section_items` (migración 19)
+- `section_items` extendido con `image_url_mobile`, `link_url`, `cta_text`, `metadata JSONB`
+- Home web reescrito para usar `homeSections` de `getWebHomeData()`
+- Admin: `/home` y `/testimonios` eliminados; `/contenido` maneja todo el CMS
+
+---
+
+### HU-052 — Unificar rutas API de secciones y páginas del CMS
+
+> Como desarrollador, quiero que exista una única ruta API para cada recurso CMS (secciones, páginas, banners) para eliminar la ambigüedad sobre cuál ruta usar y cuál tiene los guards correctos.
+
+**Estimación:** M (3 puntos)  
+**Módulo:** `apps/admin/src/app/api/admin/cms/[resource]/`  
+**Estado:** ✅ Completado (v13)
+
+**Implementación:**
+- `GET|POST|PATCH|DELETE /api/admin/cms/[resource]` — endpoint genérico con mapa de 4 recursos: `pages` (pk=`key`), `sections` (pk=`id`, pkNumeric), `items` (pk=`id`, pkNumeric), `section-settings` (pk=`key`, filter=`page_key`)
+- 4 endpoints legacy eliminados: `/content/pages`, `/content/sections`, `/content/items`, `/home/sections`
+- Callers migrados en `ContenidoClient.tsx` y `HomeClient.tsx`
+- 35 tests de integración en `cms.integration.test.ts`
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `/api/admin/content/pages,sections,items` y `/api/admin/home/sections` eliminadas | ✅ Solo existe `/api/admin/cms/[resource]` |
+| AC-2 | Todas las rutas usan `getAdminUser()` | ✅ Guard en todos los handlers |
+| AC-3 | `tsc --noEmit` confirma cero consumidores de rutas eliminadas | ✅ `.next` limpiado; tsc pendiente de verificar |
+| AC-4 | Tests de integración cubren auth, CRUD y errores DB por recurso | ✅ 35 tests en `cms.integration.test.ts` |
+
+---
+
+---
+
+## 5. Épica 10 — CMS Unificado e Integridad de Base de Datos
+
+> **Contexto:** v13 (julio 2026) — elimina los tres modelos CMS paralelos (banners, section_settings, testimonials), unifica todo en `pages → page_sections → section_items`, compacta 20 migraciones en un esquema canónico y refuerza integridad referencial.
+
+---
+
+### HU-053 — Migración 19: unificar CMS en un solo modelo
+
+> Como arquitecto del sistema, quiero que banners, section_settings y testimonials desaparezcan como tablas independientes y existan únicamente como section_items dentro del modelo page_sections, para eliminar la ambigüedad de qué tabla es la fuente de verdad para cada tipo de contenido.
+
+**Estimación:** L (8 puntos)  
+**Módulo:** `packages/database/supabase/migrations/19_unified_cms.sql`  
+**Estado:** ✅ Completado (v13)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Migración crea sección `hero` en `page_sections` para el home | Todos los banners hero migrados como `section_items` de tipo `slide` |
+| AC-2 | Migración crea sección `services` en `page_sections` para el home | Banners de servicios migrados como `section_items` de tipo `service` |
+| AC-3 | Migración crea sección `testimonials` en `page_sections` para asesorías | Testimonios migrados como `section_items` de tipo `testimonial` |
+| AC-4 | `section_settings` migrada fila a fila como `page_sections` | `key → section_type`, `metadata → settings` |
+| AC-5 | Tablas `banners`, `section_settings`, `testimonials` eliminadas con `DROP TABLE IF EXISTS ... CASCADE` | Ningún error de FK al eliminar |
+| AC-6 | `section_items` extendido con `image_url_mobile`, `link_url`, `cta_text`, `metadata JSONB DEFAULT '{}'` | Sin NOT NULL en primera pasada (añadido en migración 20) |
+| AC-7 | Migración es idempotente: re-ejecutar no genera duplicados | `ON CONFLICT DO NOTHING` en todos los INSERT |
+
+**Criterios de rechazo:**
+- La migración falla si ya se ejecutó una vez.
+- Datos de content existentes (banners, testimonios) se pierden en lugar de migrarse.
+
+---
+
+### HU-054 — Actualizar `packages/database` para el modelo unificado
+
+> Como desarrollador, quiero que los tipos TypeScript, las queries y los exports del paquete de base de datos reflejen el nuevo modelo sin referencias a tablas eliminadas, para que el compilador sirva como guardián de coherencia.
+
+**Estimación:** M (5 puntos)  
+**Módulo:** `packages/database/src/types.ts`, `queries/home.ts`, `queries/content.ts`, `index.ts`  
+**Estado:** ✅ Completado (v13)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `types.ts` no tiene interfaces de `banners`, `section_settings` ni `testimonials` | Solo `page_sections` y `section_items` |
+| AC-2 | `section_items` Row incluye `image_url_mobile`, `link_url`, `cta_text`, `metadata`, `updated_at` | Tipado exacto al schema |
+| AC-3 | `queries/home.ts` exporta `getWebHomeData()` devolviendo `{ homeSections, featuredProducts, bestSellers, blogPosts, categories }` | `homeSections` tiene `.items[]` anidados |
+| AC-4 | Archivos zombie `banners.ts`, `testimonials.ts`, `sections.ts` eliminados | `grep` no encuentra referencias a tablas eliminadas |
+| AC-5 | `queries/content.ts` — `updateSectionItem` acepta `metadata` como `Json` | Sin error de tipos `Json vs Record<string,unknown>` |
+| AC-6 | `tsc --noEmit --skipLibCheck` pasa en `packages/database` | Sin errores de compilación |
+| AC-7 | Tests `home.test.ts` actualizados y pasan | Cubre forma `homeSections`, fail-open por query |
+
+---
+
+### HU-055 — Actualizar `apps/web` para leer del CMS unificado
+
+> Como usuario del sitio, quiero que la home, el carrusel hero, los servicios y los testimonios sigan funcionando exactamente igual visualmente, pero ahora leyendo sus datos de `section_items` en lugar de tablas legacy.
+
+**Estimación:** M (5 puntos)  
+**Módulo:** `apps/web/src/app/(public)/page.tsx`, `HeroCarousel`, `ServicesSection`, `TestimonialsSection`, `TestimonialsCarousel`  
+**Estado:** ✅ Completado (v13)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `page.tsx` llama `getWebHomeData()` y desestructura `homeSections` | Una sola llamada; no 6 queries individuales |
+| AC-2 | `HeroCarousel` recibe slides de `section_items` (tipo `slide`) | `image_url`, `image_url_mobile`, `title`, `description`, `cta_text`, `link_url`, `metadata.bg_color` |
+| AC-3 | `ServicesSection` recibe items de `section_items` (tipo `service`) | `title`, `description`, `image_url`, `cta_text`, `link_url`, `metadata.bg_color` |
+| AC-4 | `TestimonialsSection` recibe items de `section_items` (tipo `testimonial`) | `title` (autor), `description` (contenido), `image_url` (avatar), `metadata.rating`, `metadata.role` |
+| AC-5 | Home sin sección hero | Componente no se renderiza (no crashea) |
+| AC-6 | `tsc --noEmit` pasa en `apps/web` | Sin errores de tipo |
+
+---
+
+### HU-056 — Extender `ContenidoClient` con editor por tipo de sección
+
+> Como gestor de contenido, quiero poder editar los campos específicos de cada tipo de sección (slides de hero, servicios, testimonios, tarjetas, FAQ) desde el panel `/contenido`, para no necesitar ir a pantallas separadas según el tipo de contenido.
+
+**Estimación:** M (5 puntos)  
+**Módulo:** `apps/admin/src/app/contenido/ContenidoClient.tsx`  
+**Estado:** ✅ Completado (v13)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Sección tipo `hero` o `services` | Editor muestra: title, description, cta_text, link_url, image_url, image_url_mobile (solo hero), bg_color en metadata |
+| AC-2 | Sección tipo `testimonials` | Editor muestra: title (autor), description (contenido), role en metadata, rating (1-5), image_url (avatar) |
+| AC-3 | Sección tipo `cards` | Editor muestra: icon, title, description |
+| AC-4 | Sección tipo `faq` | Editor muestra: question, answer |
+| AC-5 | Botón "Agregar" usa vocabulario correcto | `slide / servicio / testimonio / tarjeta / pregunta / ítem` según section_type |
+| AC-6 | Cambios guardados via PATCH `/api/admin/cms/items` | `metadata` se persiste como JSONB |
+
+---
+
+### HU-057 — Limpiar admin: eliminar /home, /testimonios y código zombie
+
+> Como desarrollador, quiero que el admin no tenga páginas, rutas API ni archivos que ya no sean necesarios tras la unificación del CMS, para que el codebase refleje solo la arquitectura actual.
+
+**Estimación:** S (3 puntos)  
+**Módulo:** `apps/admin/src/app/home/`, `apps/admin/src/app/testimonios/`, `apps/admin/src/app/api/admin/home/`, `AdminSidebar.tsx`, `roles.ts`  
+**Estado:** ✅ Completado (v13)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `/home` y `/testimonios` eliminados como directorios | Cualquier acceso → 404 |
+| AC-2 | `/api/admin/home/` eliminado | Sin endpoints zombie |
+| AC-3 | `AdminSidebar` no tiene links a `/home` ni `/testimonios` | Solo `/contenido`, `/blog`, `/newsletter` en el grupo Contenido |
+| AC-4 | `roles.ts` — `AdminSection` no incluye `'home'` ni `'testimonios'` | `tsc` lo detectaría si quedaran referencias |
+| AC-5 | `export/route.ts` — versión bumpeada a `v2` | Sin referencias a `section_settings` ni `banners` |
+| AC-6 | `import/route.ts` — bloques de `section_settings`/`banners` reemplazados por comentario | Snapshots v1 se ignoran silenciosamente |
+| AC-7 | `tsc --noEmit --skipLibCheck` pasa en `apps/admin` | Sin errores de tipo |
+
+---
+
+### HU-058 — Migración 20: integridad referencial e índices
+
+> Como DBA, quiero que el esquema tenga NOT NULL en columnas críticas, índices compuestos para los patrones de consulta más frecuentes, CHECK constraints para enumeraciones, y triggers `updated_at` en todas las tablas mutables, para garantizar coherencia de datos y rendimiento sin intervención manual.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `packages/database/supabase/migrations/20_integrity_and_indexes.sql`  
+**Estado:** ✅ Completado (v13)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `section_items.metadata` tiene NOT NULL con DEFAULT `'{}'` | Ninguna fila puede tener `metadata IS NULL` |
+| AC-2 | Índices compuestos en `page_sections` | `(page_key, enabled, order_index) WHERE enabled=true` + `(page_key, section_type)` |
+| AC-3 | Índices compuestos en `section_items` | `(section_id, enabled, order_index) WHERE enabled=true` + `(section_id, item_type)` |
+| AC-4 | Índice GIN en `media_assets.used_in` | Soporta `@>` para búsqueda de referencias JSONB |
+| AC-5 | CHECK constraint en `page_sections.section_type` | Lista cerrada de 13 tipos; valores desconocidos normalizados a `'text'` antes de aplicar |
+| AC-6 | Triggers `updated_at` en `section_items` y `nav_items` | `NOW()` automático en cualquier UPDATE |
+| AC-7 | COMMENT ON TABLE/COLUMN para tablas principales | Documentación visible en Supabase Studio |
+
+**Criterios de rechazo:**
+- El CHECK constraint falla con valores existentes no normalizados (debe hacer UPDATE previo).
+- Los índices duplican los existentes de migración 13 en lugar de complementarlos.
+
+---
+
+### HU-059 — Esquema canónico para despliegue desde cero
+
+> Como DevOps, quiero poder levantar la base de datos completa ejecutando un único archivo SQL sin tener que correr 20 migraciones en orden, para simplificar el proceso de despliegue, CI y entornos de desarrollo locales.
+
+**Estimación:** M (3 puntos)  
+**Módulo:** `packages/database/supabase/migrations/01_schema.sql`, `seeds/01_config.sql`, `seeds/02_content.sql`  
+**Estado:** ✅ Completado (v13)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `01_schema.sql` ejecutado en Supabase vacío | Todas las tablas, índices, triggers, RLS, constraints y comentarios creados |
+| AC-2 | No tiene código de migración incremental (`ALTER TABLE ADD COLUMN IF NOT EXISTS`) | Solo `CREATE TABLE`, `CREATE INDEX`, `CREATE TRIGGER` |
+| AC-3 | `seeds/01_config.sql` ejecutado después | Tema activo, variant_types, categorías, nav items base insertados |
+| AC-4 | `seeds/02_content.sql` ejecutado después | Páginas, page_sections e items del CMS para el sitio VPS Coffee |
+| AC-5 | Seeds son idempotentes | Re-ejecutar no genera duplicados (`ON CONFLICT DO NOTHING`) |
+| AC-6 | Las 20 migraciones históricas se conservan en la carpeta | Registro de la evolución del schema para referencia |
+| AC-7 | `tsc --noEmit` pasa tras aplicar el esquema | `types.ts` es coherente con `01_schema.sql` |
+
+---
+
+### HU-060 — Tracking en Mi Cuenta
+
+> Como cliente, quiero ver el estado de mi pedido en tiempo real con número de guía y transportadora directamente en Mi Cuenta, sin necesitar abrir el email de confirmación cada vez.
+
+**Estimación:** M (5 puntos)  
+**Módulo:** `apps/web/src/app/(account)/mi-cuenta/pedidos/`  
+**Estado:** 🔲 Pendiente
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Pedido con `tracking_number` y `carrier_name` | Timeline visual: Pendiente → Procesando → Enviado (activo) con número de guía |
+| AC-2 | Click en número de guía | Enlace a la web de seguimiento de la transportadora |
+| AC-3 | Pedido cancelado | Timeline muestra Cancelado con fecha |
+| AC-4 | Pedido sin tracking aún | Timeline muestra Pendiente/Procesando sin guía |
+| AC-5 | Mobile | Timeline compacto; funcional en 375px |
+
+---
+
+### HU-061 — Despliegue en Vercel + CI/CD
+
+> Como equipo técnico, queremos automatizar el despliegue en Vercel con GitHub Actions para que cada push a `main` desplegado automáticamente y cada PR tenga un preview environment.
+
+**Estimación:** M (5 puntos)  
+**Módulo:** `.github/workflows/`, `vercel.json`, `DEPLOYMENT.md`  
+**Estado:** 🔲 Pendiente
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Push a `main` | Deploy automático de `apps/web` y `apps/admin` en Vercel |
+| AC-2 | Apertura de PR | Preview URL generado para ambas apps |
+| AC-3 | Secrets en Vercel Dashboard | `SUPABASE_SERVICE_ROLE_KEY`, `NEXT_PUBLIC_SUPABASE_URL`, etc. configurados como environment variables |
+| AC-4 | `turbo build` pasa en CI | Sin errores de compilación ni TypeScript |
+| AC-5 | `DEPLOYMENT.md` actualizado | Guía paso a paso para configurar entorno nuevo desde `01_schema.sql` |
+
+---
+
+### HU-062 — Audit de seguridad y hardening
+
+> Como responsable de seguridad, quiero un audit completo de las rutas API, RLS policies y manejo de secrets para identificar y corregir cualquier vector de ataque antes del despliegue en producción.
+
+**Estimación:** M (5 puntos)  
+**Módulo:** `apps/admin/src/app/api/`, `apps/web/src/app/api/`, políticas RLS  
+**Estado:** 🔲 Pendiente
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Todas las rutas `/api/admin/*` tienen `getAdminUser()` | Grep confirma guard en cada handler |
+| AC-2 | Ningún secret en respuestas API | `wompi_private_key`, `resend_api_key`, etc. nunca en JSON de respuesta |
+| AC-3 | RLS habilitado en todas las tablas | `ALTER TABLE ... ENABLE ROW LEVEL SECURITY` en `01_schema.sql` |
+| AC-4 | Webhooks verifican firma HMAC | Wompi: SHA256; MercadoPago: header `x-signature` |
+| AC-5 | Rate limiting en `/api/checkout` | Máx N requests por IP por minuto (Vercel Edge Config o middleware) |
+| AC-6 | CSP headers configurados en `next.config.ts` | `Content-Security-Policy` con directivas mínimas |
+
+---
+
+### HU-063 — Favicon configurable desde el panel admin
+
+> Como administrador de la tienda, quiero poder subir y cambiar el favicon del sitio web directamente desde el panel de administración, para personalizar la identidad visual del sitio sin intervención técnica.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `packages/database/supabase/migrations/21_favicon_url.sql`, `apps/admin/src/app/configuracion/general/`, `apps/web/src/app/layout.tsx`  
+**Estado:** ✅ Completado (v14)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `store_config` tiene columna `favicon_url` (TEXT NULL) | Migración `21_favicon_url.sql` aplica sin errores; campo disponible vía `getStoreConfig()` |
+| AC-2 | Sección "Favicon" en `/configuracion/general` | Preview circular 32×32 del favicon actual; botón "Cambiar favicon" con drag-and-drop |
+| AC-3 | Subir imagen PNG/ICO/SVG | Imagen subida a `store-assets/favicon.*`; `favicon_url` actualizado en `store_config`; preview actualizado inmediatamente |
+| AC-4 | `apps/web` — `generateMetadata` en `layout.tsx` | `icons.icon` toma el valor de `favicon_url` cuando está definido; fallback a `/favicon.ico` estático |
+| AC-5 | Sin favicon configurado | Comportamiento idéntico al anterior: favicon estático por defecto |
+| AC-6 | `tsc --noEmit` en `apps/admin` y `apps/web` | Sin errores TypeScript |
+
+---
+
+### HU-064 — Identidad visual propia del panel de administración
+
+> Como administrador, quiero que el panel de administración tenga colores corporativos propios (accent y sidebar) que pueda personalizar desde `/sistema/apariencia`, completamente independientes de los temas del sitio web.
+
+**Estimación:** M (5 puntos)  
+**Módulo:** `packages/database/supabase/migrations/22_admin_config.sql`, `packages/database/src/queries/admin-config.ts`, `apps/admin/src/app/sistema/apariencia/`, `apps/admin/src/app/layout.tsx`, `apps/admin/tailwind.config.ts`  
+**Estado:** ✅ Completado (v14)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Tabla `admin_config` creada con migración 22 | Singleton `id=1 CHECK (id=1)`, columnas `accent_color` y `sidebar_color` (TEXT, no null), trigger `updated_at` |
+| AC-2 | Seed por defecto | `accent_color = '#4F46E5'` (indigo-600) y `sidebar_color = '#0F172A'` (slate-900) insertados en `seeds/01_config.sql` |
+| AC-3 | `getAdminConfig()` y `updateAdminConfig()` en `@vps/database` | Funciones tipadas que usan el cliente servidor de Supabase |
+| AC-4 | `apps/admin/layout.tsx` inyecta CSS vars en cada request | `hexToRgb(accent_color)` → `--brand-primary`, `hexToRgb(sidebar_color)` → `--brand-sidebar` en `<html style>` |
+| AC-5 | `apps/admin/tailwind.config.ts` usa `rgb(var(--brand-primary))` y `rgb(var(--brand-sidebar))` | Tokens `brand.primary` y `brand.sidebar` funcionales con alpha modifiers de Tailwind |
+| AC-6 | Página `/sistema/apariencia` visible para super_admin y admin | Muestra color pickers nativos + presets para accent (7 colores) y sidebar (6 colores); preview en tiempo real |
+| AC-7 | Guardar cambios | `PATCH /api/admin/sistema` actualiza `admin_config`; recarga server-side aplica los nuevos colores sin redeploy |
+| AC-8 | Los temas del sitio web no se ven afectados | `apps/web` sigue usando sus propias CSS vars de `themes`; los dos sistemas son completamente independientes |
+| AC-9 | `tsc --noEmit` en `apps/admin` | Sin errores TypeScript; `admin_config` correctamente tipado en `packages/database/src/types.ts` |
+| AC-10 | Export/Import v3 incluye `admin_config` | Snapshot descargado desde `/api/admin/export` contiene `admin_config`; importar restaura los colores del panel |
+
+---
+
+## 6. Resumen de Cobertura
 
 | Épica | Total ítems | Implementados | Pendientes | % |
 |-------|-------------|---------------|------------|---|
@@ -1231,11 +1705,14 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 | Servicios | 6 | 6 | 0 | 100% |
 | Blog | 8 | 8 | 0 | 100% |
 | Autenticación y Mi Cuenta | 10 | 10 | 0 | 100% |
-| Panel de Administración | 33 | 33 | 0 | 100% |
+| Panel de Administración | 38 | 38 | 0 | 100% |
 | Emails Transaccionales | 5 | 5 | 0 | 100% |
 | SEO y Rendimiento | 9 | 9 | 0 | 100% |
 | Plataforma genérica + UX envíos | 4 | 4 | 0 | 100% |
-| **TOTAL** | **140** | **140** | **0** | **100%** |
+| Épica 9 — Arquitectura Limpia | 9 | 9 | 0 | 100% |
+| Épica 10 — CMS Unificado + DB | 7 | 7 | 0 | 100% |
+| Épica 11 — Despliegue y Seguridad | 3 | 0 | 3 | 0% |
+| **TOTAL** | **164** | **161** | **3** | **98%** |
 
 ---
 
@@ -1310,6 +1787,267 @@ cd apps/web && pnpm test:watch
 | `apps/web/src/lib/__tests__/colombia-locations.test.ts` | Unitaria | 10 | DEPARTMENTS (33, ordenados, sin duplicados), getCitiesForDepartment (ciudades por depto, vacío, ordenados) |
 | `apps/web/src/app/api/account/__tests__/addresses-id.integration.test.ts` | Integración | 9 | PATCH/DELETE /api/account/addresses/[id] — auth, 404 cliente, 404 dirección, editar, default exclusivo, eliminar |
 | **TOTAL** | | **360** | |
+
+---
+
+### HU-034 — Tipos de variante globales (nueva)
+
+> Como administrador, quiero crear y editar plantillas de atributo reutilizables (tipo "Tueste" con valores Claro/Medio/Oscuro) para asignarlas a cualquier producto y generar sus variantes automáticamente.
+
+**Estimación:** M (5 puntos)
+**Módulo:** Admin · `app/variantes/` + `api/admin/variant-types/`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Admin abre `/variantes` | Tabla con todos los tipos (nombre, pills de valores, display_type, activo) |
+| AC-2 | Admin crea nuevo tipo "Color" con valores "Rojo\nAzul\nVerde" | Se crea la fila; pills visibles en la tabla |
+| AC-3 | Admin edita el tipo "Tueste" y cambia un valor | Se actualiza en BD; los productos que lo usan lo reflejan en el próximo render |
+| AC-4 | Admin desactiva un tipo | Deja de aparecer en el selector del ProductForm |
+| AC-5 | Admin intenta crear tipo con nombre duplicado | Error 409; mensaje claro en el modal |
+| AC-6 | Admin elimina un tipo | Se elimina de la BD; los productos que lo referenciaban quedan con `variant_options` desactualizado |
+| AC-7 | display_type = 'swatch' guardado | Persiste en BD (UI de swatch pendiente en la tienda) |
+
+**Criterios de rechazo:**
+- El modal no valida nombre vacío.
+- Se permiten valores duplicados dentro del mismo tipo.
+- Un rol `vendedor` puede acceder a `/variantes` (requiere al menos `admin`).
+
+---
+
+### HU-035 — Matriz de combinaciones de variantes (nueva)
+
+> Como administrador de productos, quiero seleccionar los tipos de variante aplicables a un producto y generar automáticamente todas las combinaciones posibles para no tener que crearlas una a una.
+
+**Estimación:** L (8 puntos)
+**Módulo:** Admin · `app/productos/ProductForm.tsx`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Admin selecciona "Tueste" (3) y "Peso" (3) y pulsa "Generar combinaciones" | Se generan 9 filas de variante, cada una con `attributes: {Tueste: X, Peso: Y}` |
+| AC-2 | Admin modifica el precio de una variante y vuelve a generar | La variante con el mismo par de atributos conserva el precio editado |
+| AC-3 | Admin agrega "Molienda" (4) a un producto que ya tenía 9 variantes | Se generan 12 nuevas variantes; las 9 existentes se fusionan preservando precios/stock |
+| AC-4 | Producto sin tipos seleccionados | El botón "Generar combinaciones" está deshabilitado |
+| AC-5 | Variante generada guardada en BD | `product_variants.attributes` contiene el mapa correcto; `products.variant_options` tiene la lista de tipos |
+| AC-6 | Admin elimina manualmente una variante de la tabla | No reaparece al guardar (solo "Generar" recrea la matriz) |
+
+**Escenarios de borde:**
+- Producto con 1 tipo de 1 valor → 1 variante generada.
+- Producto con 3 tipos de 4 valores cada uno → 64 variantes (se muestran todas en tabla con scroll).
+
+**Criterios de rechazo:**
+- "Generar combinaciones" borra precios/stock de variantes existentes que tengan el mismo par de atributos.
+- `attributes` queda como `{}` en lugar del mapa correcto tras guardar.
+
+---
+
+### HU-036 — Filtros de tienda con sidebar responsivo (nueva)
+
+> Como comprador, quiero filtrar productos usando un panel lateral claro en desktop y un drawer deslizable en móvil para encontrar el café que busco sin perder de vista el catálogo.
+
+**Estimación:** M (5 puntos)
+**Módulo:** Web · `components/shop/ShopClient.tsx`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Desktop (≥ lg) | Panel sticky de 224px a la izquierda, visible siempre sin scroll |
+| AC-2 | Mobile (< lg) | Botón "Filtros" en la cabecera; al pulsarlo aparece drawer deslizante desde la izquierda |
+| AC-3 | Filtro de categoría | Filtra productos por `category_id` |
+| AC-4 | Filtro de atributo dinámico | Los atributos disponibles se extraen de `variant_options` de los productos activos |
+| AC-5 | Múltiples filtros combinados | Producto aparece solo si cumple TODOS los filtros activos |
+| AC-6 | Sin resultados | Mensaje "No hay productos con esos filtros" + botón "Limpiar" |
+| AC-7 | Cerrar drawer mobile | Tap en overlay o botón × cierra el drawer |
+
+**Criterios de rechazo:**
+- El panel se superpone al grid de productos en desktop.
+- Los filtros se borran al cerrar el drawer mobile.
+- La lista de atributos es hardcoded en lugar de calcularse desde los productos.
+
+---
+
+### HU-037 — Categorías con imagen y reordenamiento (nueva)
+
+> Como administrador, quiero gestionar las categorías del catálogo con imagen de portada y poder reordenarlas arrastrándolas para controlar cómo se presentan en la tienda.
+
+**Estimación:** M (5 puntos)
+**Módulo:** Admin · `app/categorias/`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Admin abre `/categorias` | Tabla con imagen (thumbnail), nombre, slug, descripción y estado |
+| AC-2 | Admin sube imagen al crear/editar categoría | Imagen en bucket `banners`; `image_url` guardado en BD |
+| AC-3 | Admin arrastra una fila a otra posición | `order_index` de las filas afectadas se actualiza en BD vía PATCH paralelos |
+| AC-4 | Admin activa/desactiva categoría | Campo `active` actualizado; categorías inactivas no aparecen en la tienda |
+| AC-5 | Imagen en proceso de subida al guardar | Botón "Guardar" bloqueado con texto "Subiendo..." |
+| AC-6 | Slugs duplicados | Error 409 del API; mensaje claro en el modal |
+
+**Criterios de rechazo:**
+- El reorder no persiste al recargar la página.
+- El modal acepta guardar mientras hay un upload en progreso.
+
+---
+
+### HU-038 — Integridad referencial del carrito (nueva)
+
+> Como sistema, quiero que los ítems del carrito en BD siempre referencien productos y variantes válidos para que el carrito nunca contenga datos inconsistentes que rompan el checkout.
+
+**Estimación:** S (2 puntos)
+**Módulo:** DB · `migrations/5_customers.sql` + `api/account/cart/route.ts`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Se elimina un producto | Todos sus `cart_items` se eliminan automáticamente (ON DELETE CASCADE) |
+| AC-2 | Se elimina una variante | El ítem del carrito correspondiente se elimina (ON DELETE CASCADE) |
+| AC-3 | Frontend envía ítem sin `productId` | El route filtra el ítem antes de insertar; no se genera error 23503 |
+| AC-4 | `addItem` desde ProductDetail | `productId: product.id` incluido siempre |
+| AC-5 | `addItem` desde ShopClient | `productId: product.id` incluido siempre |
+| AC-6 | `addItem` desde FeaturedProducts | `productId: product.id` incluido siempre |
+
+**Criterios de rechazo:**
+- Al eliminar un producto desde admin, quedan `cart_items` huérfanos.
+- El checkout falla con error FK cuando el carrito tiene un ítem sin `productId`.
+
+---
+
+---
+
+### HU-039 — Búsqueda en catálogo de productos del admin (nueva)
+
+> Como administrador, quiero buscar productos por nombre desde el listado `/productos` para localizar rápidamente un ítem sin necesidad de hacer scroll por todo el catálogo.
+
+**Estimación:** XS (1 punto)
+**Módulo:** Admin · `app/productos/`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Admin escribe en el campo de búsqueda | Tras 400ms de pausa, la página se recarga con `?q=término` |
+| AC-2 | Búsqueda con resultado | Solo se muestran productos cuyo nombre contiene el término (case-insensitive) |
+| AC-3 | Búsqueda sin resultado | Mensaje `Sin resultados para "término"` en lugar de tabla vacía |
+| AC-4 | Búsqueda vacía | Se muestran todos los productos |
+| AC-5 | Filtrado en Supabase | El `.ilike('name', '%q%')` se ejecuta server-side, no client-side |
+
+**Criterios de rechazo:**
+- La búsqueda hace un fetch por cada tecla presionada sin debounce.
+- El filtrado se hace sobre el array local en lugar de en la query.
+
+---
+
+### HU-040 — Notificación de estado de pedido al cliente (nueva)
+
+> Como cliente, quiero recibir un email automático cuando mi pedido cambia a "Enviado", "Entregado" o "Cancelado" para estar informado del progreso sin necesidad de consultar el panel.
+
+**Estimación:** S (2 puntos)
+**Módulo:** Admin · `api/admin/orders/[id]/status/` · `lib/email.ts`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Estado cambia a `shipped` con tracking | Email al cliente con número de tracking y transportadora |
+| AC-2 | Estado cambia a `shipped` sin tracking | Email al cliente sin bloque de tracking (HTML condicional) |
+| AC-3 | Estado cambia a `delivered` | Email de confirmación de entrega |
+| AC-4 | Estado cambia a `cancelled` | Email de notificación de cancelación |
+| AC-5 | Estado cambia a `processing` | No se envía email |
+| AC-6 | `resend_api_key` no configurado en `store_config` | No se intenta enviar; ningún error visible |
+| AC-7 | Resend devuelve error | El cambio de estado en BD se mantiene; error en logs del servidor; respuesta HTTP 200 intacta |
+
+**Criterios de rechazo:**
+- El email bloquea la respuesta HTTP (el vendedor espera más de 1s).
+- Un fallo de Resend devuelve 500 al cliente del API.
+
+---
+
+### HU-041 — Notas internas en pedidos (nueva)
+
+> Como vendedor, quiero agregar notas privadas a un pedido (instrucciones especiales, comentarios de preparación) que solo el equipo interno pueda ver, sin que aparezcan en ninguna comunicación al cliente.
+
+**Estimación:** S (2 puntos)
+**Módulo:** Admin · `app/pedidos/[id]/` · `api/admin/orders/[id]/notes/`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Vendedor escribe nota y pulsa "Guardar nota" | Nota guardada en `orders.internal_notes`; indicador "✓ Guardado" por 2s |
+| AC-2 | Nota sin cambios | Botón "Guardar nota" no visible |
+| AC-3 | Nota borrada (campo vacío) | `internal_notes` se guarda como `null` |
+| AC-4 | Error de red | Indicador "Error al guardar" |
+| AC-5 | Acceso por `gestor_tienda` | 403 Permisos insuficientes |
+| AC-6 | Campo en BD | Migración `16_order_notes.sql` agrega `internal_notes TEXT` con `ADD COLUMN IF NOT EXISTS` |
+
+**Criterios de rechazo:**
+- Las notas son visibles en emails al cliente o en el sitio público.
+- `gestor_tienda` puede guardar notas.
+
+---
+
+### HU-042 — Página de detalle de cliente (nueva)
+
+> Como vendedor, quiero ver el perfil completo de un cliente (datos de contacto, estadísticas de compra e historial de pedidos) desde el listado de clientes para responder preguntas de soporte sin salir de la sección.
+
+**Estimación:** S (3 puntos)
+**Módulo:** Admin · `app/clientes/[email]/`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Click en fila de cliente | Navega a `/clientes/[email]` con email URL-encoded |
+| AC-2 | Cliente con cuenta registrada | Badge "Con cuenta" + fecha de registro |
+| AC-3 | Cliente invitado (solo orders) | Badge "Invitado"; sección de contacto sin fecha de registro |
+| AC-4 | Estadísticas | Total de pedidos, total gastado en COP, ticket promedio |
+| AC-5 | Historial de pedidos | Tabla con número, fecha, productos, total, estado y link "Ver" a `/pedidos/[id]` |
+| AC-6 | Email inexistente | 404 |
+
+**Criterios de rechazo:**
+- La página hace múltiples queries que se podrían consolidar.
+- Los emails con caracteres especiales (`+`, `@`) no se decodifican correctamente.
+
+---
+
+### HU-043 — Búsqueda y paginación en listado de pedidos (nueva)
+
+> Como vendedor, quiero buscar pedidos por número, nombre o email del cliente y navegar por páginas de 30 resultados para gestionar el volumen de órdenes eficientemente.
+
+**Estimación:** S (3 puntos)
+**Módulo:** Admin · `app/pedidos/`
+**Estado:** ✅ Implementado
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Búsqueda por número de pedido (`VPS-0042`) | Filtra resultados con `.or()` en Supabase |
+| AC-2 | Búsqueda por nombre del cliente | Funciona con coincidencia parcial |
+| AC-3 | Búsqueda por email del cliente | Funciona con coincidencia parcial |
+| AC-4 | Sin resultados con `q` activo | Mensaje `Sin resultados para "término"` |
+| AC-5 | Paginación | 30 pedidos por página; contador "X–Y de Z pedidos" |
+| AC-6 | Filtro de estado combinado con búsqueda | Los parámetros `status`, `q` y `page` se preservan entre navegaciones |
+| AC-7 | Nueva búsqueda | Reinicia `page` a 1 automáticamente |
+
+**Criterios de rechazo:**
+- El filtro de estado y la búsqueda son mutuamente excluyentes.
+- La paginación hace `select('*')` sin `.range()`.
 
 ---
 

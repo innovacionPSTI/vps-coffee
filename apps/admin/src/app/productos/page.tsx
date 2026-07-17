@@ -1,16 +1,30 @@
 import { createServerClient } from '@vps/database'
 import Link from 'next/link'
 import type { Metadata } from 'next'
+import ProductosSearch from './ProductosSearch'
 
 export const metadata: Metadata = { title: 'Productos' }
 export const dynamic = 'force-dynamic'
 
-export default async function ProductosPage() {
+export default async function ProductosPage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | undefined>>
+}) {
+  const sp = await searchParams
+  const q = sp.q?.trim() ?? ''
+
   const supabase = createServerClient()
-  const { data: products } = await supabase
+  let query = supabase
     .from('products')
     .select('*, variants:product_variants(*), category:categories(name)')
     .order('created_at', { ascending: false })
+
+  if (q) {
+    query = query.ilike('name', `%${q}%`)
+  }
+
+  const { data: products } = await query
 
   const fmt = (n: number) =>
     new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
@@ -29,11 +43,7 @@ export default async function ProductosPage() {
 
       <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
         <div className="px-6 py-4 border-b border-gray-100 flex gap-3">
-          <input
-            type="search"
-            placeholder="Buscar producto..."
-            className="font-brand text-sm border border-gray-200 rounded-full px-4 py-2 w-64 focus:outline-none focus:border-brand-primary"
-          />
+          <ProductosSearch defaultQ={q} />
         </div>
 
         <table className="w-full">
@@ -50,7 +60,10 @@ export default async function ProductosPage() {
             {!products?.length ? (
               <tr>
                 <td colSpan={8} className="font-brand text-brand-primary/40 text-center py-12">
-                  No hay productos. <Link href="/productos/nuevo" className="underline">Crear el primero →</Link>
+                  {q
+                    ? `Sin resultados para "${q}"`
+                    : <><span>No hay productos. </span><Link href="/productos/nuevo" className="underline">Crear el primero →</Link></>
+                  }
                 </td>
               </tr>
             ) : (

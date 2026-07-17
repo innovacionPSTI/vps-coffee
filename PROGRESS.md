@@ -1,5 +1,5 @@
 # VPS Coffee — Estado del Proyecto
-> **Última actualización:** Julio 2026 (v8) · **Stack:** Next.js 15 · Supabase · Stack Auth · Tailwind · Turborepo
+> **Última actualización:** Julio 2026 (v14) · **Stack:** Next.js 16 · Supabase · Stack Auth · Tailwind · Turborepo
 
 ---
 
@@ -13,33 +13,31 @@
 - `.env.example` con todas las variables documentadas
 
 ### `packages/config`
-- `tailwind.config.ts` — paleta VPS completa (colores hardcoded para admin, fuentes, sombras, borderRadius arch)
+- `tailwind.config.ts` — paleta base compartida (fuentes, sombras, borderRadius arch). Los colores de web y admin son completamente independientes vía CSS custom properties.
 - `tsconfig.json` compartido
 
 ### `packages/database`
-- `src/types.ts` — tipos TypeScript completos de todas las tablas (incluye `payment_config`; campos Resend; `free_shipping_*` en `shipping_config`; `terms_content`, `privacy_content`, `instagram/facebook/tiktok_url/enabled` en `store_config`)
+- `src/types.ts` — tipos TypeScript completos de todas las tablas (incluye `payment_config`; campos Resend; `free_shipping_*` en `shipping_config`; `terms_content`, `privacy_content`, `instagram/facebook/tiktok_url/enabled` en `store_config`; `favicon_url` en `store_config`; tabla `admin_config` singleton)
 - `src/client.ts` — `createBrowserClient()` y `createServerClient()`
-- `src/queries/` — products, orders, blog, banners, shipping-config, store-config, **payment-config**
-- `supabase/migrations/1_initial_schema.sql` — schema completo para Stack Auth (sin FK a auth.users, sin trigger on_auth_user_created); RLS solo con políticas válidas; roles correctos incluido `miembro`
-- `supabase/migrations/2_shipping_config.sql` — tabla `shipping_config` con soporte multi-proveedor, reglas de envío gratis (`free_shipping_enabled`, `free_shipping_min_amount`) y dirección de origen Skydropx (8 campos `origin_*`); todo consolidado en una sola migración
-- `supabase/migrations/3_banner_mobile_image.sql` — tabla `banners` con campos de imagen web/mobile
-- `supabase/migrations/4_store_config.sql` — tabla `store_config` singleton (id=1) con branding, Resend (api_key + from_email), contenido legal (terms/privacy Markdown), redes sociales (instagram/facebook/tiktok), modo mantenimiento y analytics; todo consolidado en una sola migración
-- `supabase/migrations/5_payment_config.sql` — tabla `payment_config` singleton (id=1) con credenciales Wompi y MercadoPago
-- `supabase/migrations/6_shipping_profiles.sql` — tabla `shipping_profiles` para perfiles de envío; RLS habilitado
-- `supabase/migrations/7_customers.sql` — tabla `customers` (mirror de compradores web desde Stack Auth); FK `orders.customer_id → customers.id`; RLS habilitado (solo service_role)
-- `supabase/migrations/8_customer_addresses.sql` — tabla `customer_addresses` (1 cliente → N direcciones guardadas para pre-llenar checkout); RLS habilitado
-- `supabase/migrations/9_section_settings.sql` — tabla `section_settings` para habilitar/deshabilitar secciones del home; seed con secciones por defecto
-- `supabase/migrations/10_coupons.sql` — tabla `coupons` con código, tipo (percentage/fixed), valor, mínimo de pedido, usos máximos, contador de usos, expiración, estado activo
-- `supabase/migrations/11_testimonials.sql` — tabla `testimonials` con autor, cargo, contenido, avatar, rating (1-5), orden, estado activo
-- `supabase/migrations/12_cart_items.sql` — tabla `cart_items` para sincronizar carrito de usuarios logueados (FK a `customers`)
-- `supabase/migrations/13_themes.sql` — tabla `themes` con paleta hex completa (`color_primary`, `color_dark`, `color_cream`, `color_cream_warm`, `color_yellow`, `color_yellow_pale`, `color_text`) y selección de fuentes (`font_display`, `font_body`); seed con tema VPS Coffee original; unique index parcial `WHERE is_active = true`
-- `supabase/migrations/14_product_variants_extended.sql` — **dimensiones físicas** (`weight_kg`, `length_cm`, `width_cm`, `height_cm`) en `product_variants` para cotización real con Skydropx; **sistema de variantes genérico**: `variant_options JSONB` en `products` + `attributes JSONB` en `product_variants`; retrocompatible con campos heredados `roast`/`weight`/`grind` (14 archivos totales)
+- `src/queries/` — products, orders, blog, shipping-config, store-config, payment-config, **admin-config**
+- `supabase/migrations/21_favicon_url.sql` — columna `favicon_url TEXT` en `store_config`
+- `supabase/migrations/22_admin_config.sql` — tabla singleton `admin_config` (accent_color, sidebar_color) con CHECK constraint y RLS
+- `supabase/migrations/1_initial_schema.sql` — schema completo para Stack Auth: `products` con `variant_options JSONB`; `product_variants` con `attributes JSONB` + dimensiones de envío; `banners` con `image_url_mobile`; `orders` con `coupon_code`; RLS habilitado; buckets de Storage
+- `supabase/migrations/2_shipping_config.sql` — tabla `shipping_config` (multi-proveedor, envío gratis, credenciales Skydropx, 8 campos `origin_*`) + tabla `shipping_profiles`
+- `supabase/migrations/3_store_config.sql` — tabla `store_config` singleton con branding, Resend, contenido legal (Markdown), redes sociales, mantenimiento y analytics
+- `supabase/migrations/4_payment_config.sql` — tabla `payment_config` singleton con credenciales Wompi y MercadoPago
+- `supabase/migrations/5_customers.sql` — tabla `customers` (mirror Stack Auth) + FK `orders.customer_id → customers.id` + tabla `cart_items` con FKs a `customers`, `products` y `product_variants` (ON DELETE CASCADE)
+- `supabase/migrations/6_customer_addresses.sql` — tabla `customer_addresses` (N direcciones por cliente para pre-llenar checkout)
+- `supabase/migrations/7_content_settings.sql` — agrupa `section_settings` (toggles del home), `coupons`, `testimonials` y `themes`; seed de secciones y tema VPS Coffee por defecto
+- `supabase/migrations/8_variant_types.sql` — tabla `variant_types` (plantillas reutilizables de atributo); RLS SELECT público + escritura service_role; seed con Tueste/Peso/Molienda
+- `supabase/migrations/9_indexes.sql` — índices de rendimiento: `products.category_id`, `product_variants.product_id`, `orders.customer_id/customer_email/status/created_at/coupon_code`, `banners (section, active, order_index)`, `blog_posts (published, published_at)` (9 archivos totales — compactados en v9 desde los 16 originales)
 - `src/queries/coupons.ts` — `getCoupons`, `getCouponByCode`, **`validateCoupon` (función pura)**, `createCoupon`, `updateCoupon`, `deleteCoupon`, `incrementCouponUsage`
 - `src/queries/testimonials.ts` — `getTestimonials(onlyActive)`, `createTestimonial`, `updateTestimonial`, `deleteTestimonial`
 - `src/queries/cart.ts` — `getCartItems`, `upsertCartItem`, `removeCartItem`, `clearCart`, `replaceCart`
 - `src/queries/sections.ts` — `getSectionSettings()` (lista todas ordenadas por `order_index`), `isSectionEnabled(key)` (fail-open: devuelve `true` si la tabla no existe)
 - `src/queries/themes.ts` — `getThemes()`, `getActiveTheme()`, `createTheme()`, `updateTheme()`, `setActiveTheme()`, `deleteTheme()` (protege activo y predeterminado)
-- `src/queries/orders.ts` — `CreateOrderInput` incluye `carrier_name` y `skydropx_rate_id` para persistir la transportadora elegida por el cliente
+- `src/queries/orders.ts` — `CreateOrderInput` incluye `carrier_name`, `skydropx_rate_id` y `coupon_code` para persistir la transportadora y el cupón usados en el pedido
+- `src/queries/variant-types.ts` — `getVariantTypes(activeOnly?)`, `getVariantTypeById`, `createVariantType`, `updateVariantType`, `deleteVariantType`; helper `toVariantType()` deserializa JSONB `values` como `string[]`
 - `src/types.ts` — añadidas tablas `order_items` (con `image_url`), `section_settings`, `themes`; añadida función `increment_coupon_usage` en `Database['public']['Functions']`; `variant_options` en `products`, `attributes`+`weight_kg`+`length_cm`+`width_cm`+`height_cm` en `product_variants`
 
 ### `packages/ui`
@@ -161,8 +159,9 @@
 ### `apps/admin` — Panel de administración
 **Setup:**
 - `package.json`, `next.config.ts`, `tailwind.config.ts`, `tsconfig.json`
-- `globals.css` con fuentes VPS
-- `app/layout.tsx` — StackProvider/StackTheme; topbar con nombre/iniciales del usuario real
+- `globals.css` — **paleta corporativa slate/indigo** como CSS vars por defecto (`--brand-primary`: indigo-600 `#4F46E5`; `--brand-sidebar`: slate-900 `#0F172A`); independiente del sitio web
+- `tailwind.config.ts` — reescrito con tokens CSS var para todos los colores brand (incluye `brand-sidebar`); sin colores hardcoded
+- `app/layout.tsx` — StackProvider/StackTheme; inyecta `<style>` con CSS vars de `admin_config` en cada request; helpers `hexToRgb` + `darkenHex`
 
 **Auth (Stack Auth):**
 - `src/stack.ts` — `StackServerApp` (tokenStore: nextjs-cookie)
@@ -174,7 +173,7 @@
 - Roles disponibles: `super_admin`, `admin`, `vendedor`, `gestor_tienda`, `miembro` (sin acceso al panel), `customer`
 
 **Layout:**
-- `AdminSidebar` — sidebar `#614A2A`; **grupos colapsables** (Catálogo, Ventas, Contenido, Administración); visibilidad filtrada por rol; auto-expande el grupo activo; sub-ítems de Configuración (General, Temas, Envíos, Pagos, Emails, Legal); **Newsletter** añadido al grupo Contenido (visible para gestor_tienda, admin, super_admin)
+- `AdminSidebar` — sidebar `bg-brand-sidebar` (CSS var, configurable desde BD); **grupos colapsables** (Catálogo, Ventas, Contenido, Apariencia, Configuración, **Sistema**); visibilidad filtrada por rol; auto-expande el grupo activo; sub-ítems de Configuración (General, Envíos, Pagos, Emails, Legal); Sistema agrupa Usuarios + **Apariencia del Panel**; Newsletter en grupo Contenido
 - `AdminTopbar` — barra superior con búsqueda y avatar
 
 **Componentes:**
@@ -197,7 +196,8 @@
 | `/blog/nuevo` | Formulario de creación de artículo: título, slug auto-generado, imagen de portada, categoría, toggle publicado/borrador, extracto, contenido Markdown, SEO |
 | `/blog/[id]` | Formulario de edición de artículo; botón eliminar; botón "Previsualizar ↗" — activa Draft Mode mediante cookie |
 | `/configuracion` | → redirige a `/configuracion/general` |
-| `/configuracion/general` | `StoreConfigForm` — WhatsApp, logo, nombre, email, redes sociales, **modo mantenimiento**, **analytics toggle** |
+| `/configuracion/general` | `StoreConfigForm` — WhatsApp, logo, nombre, email, redes sociales, **modo mantenimiento**, **analytics toggle**, **favicon** (upload con preview) |
+| `/sistema/apariencia` | `AdminConfigForm` — color picker para acento (botones/nav) y sidebar del panel; presets de paleta; vista previa en tiempo real; guarda en `admin_config` |
 | `/configuracion/envios` | `ShippingConfigForm` — tarifa fija, envío gratis, Skydropx, dirección de origen con comboboxes departamento/ciudad Colombia (solo admin/super_admin) |
 | `/configuracion/pagos` | `PaymentConfigForm` — Wompi + MercadoPago (solo admin/super_admin) |
 | `/configuracion/emails` | `EmailConfigForm` — Resend (solo admin/super_admin) |
@@ -249,6 +249,13 @@
 | `DELETE /api/admin/themes/[id]` | Elimina tema (no permite borrar activo ni predeterminado) |
 | `GET /api/admin/newsletter` | Lista todos los suscriptores de newsletter ordenados por fecha descendente |
 | `POST /api/admin/newsletter/send` | Broadcast de email a todos los suscriptores activos vía Resend; lee credenciales desde `store_config`; envío en lotes de 50; retorna `{total, sent, failed}` |
+| `PATCH /api/admin/sistema` | Actualiza `admin_config` (accent_color, sidebar_color); solo super_admin y admin |
+| `GET /api/admin/export` | Snapshot JSON v3: store_config, **admin_config**, **themes**, nav_items, pages, page_sections, section_items |
+| `POST /api/admin/import` | Restaura snapshot v3 idempotente; compatible con v2 y v1 (legacy keys ignoradas) |
+| `GET /api/admin/cms/[resource]` | Lista todos los registros del recurso CMS (`pages`, `sections`, `items`, `section-settings`); soporta filtro por query param (`page_key`, `section_id`) |
+| `POST /api/admin/cms/[resource]` | Crea un nuevo registro; valida campos requeridos según config del recurso; retorna 201 con el registro creado |
+| `PATCH /api/admin/cms/[resource]` | Actualiza un registro por pk (`key` o `id`); require pk en body; retorna error si no hay campos para actualizar |
+| `DELETE /api/admin/cms/[resource]` | Elimina un registro por pk en query param; `pkNumeric` convierte id a número para `page_sections` y `section_items` |
 
 ---
 
@@ -299,11 +306,82 @@
 - [x] **Selector de tarifa en checkout** — paso 2 separado: "Ver opciones de envío →" carga tarifas Skydropx y las muestra con carrier, servicio, días y precio; usuario elige antes de continuar; `shipping_rate` completo (`id`, `carrier_name`, `service_name`, `days`) persistido en `orders.carrier_name` y `orders.skydropx_rate_id` ✅
 - [x] **Direcciones editables en Mi Cuenta** — `PATCH /api/account/addresses/[id]` (editar campos, manejar default exclusivo) + `DELETE /api/account/addresses/[id]`; `AddressesForm` reescrito con edición inline, botón Predeterminada y Eliminar ✅
 
-### Pendiente
+### Completado en v9
+- [x] **Tipos de variantes globales** — tabla `variant_types` (migración 15); CRUD completo en `/variantes` del admin; integrado en `ProductForm` con matriz cartesiana automática (Generar combinaciones → cada variante hereda `attributes` JSONB con los valores correctos); `AdminSidebar` + `roles.ts` actualizados; seed Tueste/Peso/Molienda ✅
+- [x] **ProductForm reescrito** — selección de tipos globales, botón "Generar combinaciones" (producto cartesiano), preserva datos existentes al re-generar, campo `attributes` por variante; páginas de nuevo/editar reciben `variantTypes: VariantType[]` ✅
+- [x] **ShopClient con sidebar de filtros** — layout sticky desktop + drawer mobile; `FilterPanel` compartido; checkboxes visuales; atributos dinámicos desde `variant_options` de los productos ✅
+- [x] **Categorías con imagen y drag-to-reorder** — `CategoryFormModal` con `ImageUpload` (bucket `banners`), `uploadsInProgress` counter, `SavedCategory` exportada; `CategoriasClient` con HTML5 drag-and-drop, handle visual, thumbnail, actualización paralela vía PATCH ✅
+- [x] **Auditoría DB e integridad referencial** — migración 16: FKs en `cart_items`, 6 índices de rendimiento, columna `orders.coupon_code` (bug fix: pérdida silenciosa de datos), RLS `variant_types`, índices compuestos para banners y blog_posts; `types.ts` y `queries/orders.ts` actualizados; ambas apps pasan `tsc --noEmit` ✅
+
+### Completado en v10
+- [x] **CMS de contenido y SEO por página** — migraciones 10–15: `trust_badges`, `pages`, `nav_items`, reestructuración de contenido (`page_sections` + `section_items` + `section_settings` unificados), `media_assets`, `store_seo`; editor unificado `/contenido` con árbol de navegación y editor de secciones; `/home` con editor de banners + section settings; rutas dinámicas `[slug]` con `generateMetadata()` leyendo `meta_title` y `meta_description` por página ✅
+- [x] **Export/Import de contenido (JSON)** — `GET /api/admin/export` genera snapshot de 7 tablas (`store_config`, `nav_items`, `pages`, `page_sections`, `section_items`, `section_settings`, `banners`) con `Content-Disposition: attachment`; `POST /api/admin/import` restaura idempotentemente usando upsert con claves estables (`nav_key`, `section_key`, `key`); widget `DataTransferWidget` en `/configuracion/general`; respuesta 207 en errores parciales ✅
+- [x] **Dashboard con stats reales** — `super_admin`/`admin` leen ventas hoy/semana/mes desde `orders`; `vendedor` ve conteo por estado y stock bajo; `gestor_tienda` ve banners home activos (filtro `page_key IS NULL`) ✅
+- [x] **Fix sidebar naming** — "Contenido > Contenido" renombrado a "Contenido > Páginas" (icono 📄); doble anidado "Configuración > Configuración" eliminado promoviendo `NavLeafWithSubs` a nivel raíz del NAV array; tipo `NavNode` extendido; auto-expande cuando `pathname` comienza con `/configuracion` ✅
+- [x] **Fix roles en /testimonios y /cupones** — guard hardcodeado `super_admin | admin` reemplazado por `canAccess()` de `lib/roles.ts`; `gestor_tienda` accede correctamente a ambas secciones ✅
+- [x] **Búsqueda y paginación en /pedidos** — `searchParams: Promise<...>` (Next.js 16); búsqueda `.or()` por `order_number`, `customer_name`, `customer_email`; paginación 30/página con count exacto; componente `PedidosSearch` client debounced 400ms; `filterHref()` helper preserva params al navegar ✅
+- [x] **Notas internas en pedidos** — migración `16_order_notes.sql` añade `internal_notes TEXT`; `PATCH /api/admin/orders/[id]/notes` (acceso vendedor+); componente `OrderNotes` con textarea auto-guardable y feedback "✓ Guardado" ✅
+- [x] **Email de notificación al cambiar estado** — `apps/admin/src/lib/email.ts` con `sendShippingNotification` y `sendStatusNotification` (fetch directo a Resend, credenciales desde `store_config`); `PATCH /orders/[id]/status` dispara email automático para `shipped` (tracking + carrier), `delivered` y `cancelled`; fire-and-forget, nunca bloquea la respuesta ✅
+- [x] **Búsqueda en /productos** — `searchParams: Promise<...>` en `ProductosPage`; filtro `.ilike('name', ...)` en Supabase; `ProductosSearch` client component debounced; empty state diferenciado con/sin búsqueda ✅
+- [x] **Página de detalle de cliente** — `/clientes/[email]` con datos de perfil (si existe en `customers`), estadísticas (pedidos, total gastado, ticket promedio) e historial de pedidos con link a `/pedidos/[id]`; badge "Con cuenta" / "Invitado"; 404 si el email no existe ✅
+- [x] **Filas clickeables en /clientes** — `Link` a `/clientes/[email]` con `encodeURIComponent`; hover suave; cursor pointer en toda la fila ✅
+- [x] **Fix OrderStatusUpdater** — `router.refresh()` después de guardar actualiza timeline y chip de estado sin reload manual; indicador "✓ Actualizado" / "Error al guardar" por 2.5s ✅
+- [x] **Next.js 16 compat** — todos los `params` y `searchParams` en page/route files tipados como `Promise<...>` y awaited ✅
+
+### Completado en v11
+- [x] **CMS Home — Parte A: imagen mobile en banners** — campo `image_url_mobile` en `BannerFormState`; estado `pickerTarget: 'desktop' | 'mobile'`; dos botones de picker separados (🖼️ desktop / 📱 mobile); `HomeClient.tsx` actualizado; export/import ya cubiertos por `select('*')` y upsert completo ✅
+- [x] **CMS Home — Categorías dinámicas** — `getCategories()` añadida a `packages/database/src/queries/products.ts`; `Promise.all` en `page.tsx` ahora incluye las categorías; sección "Tienda" en home renderiza links dinámicos desde BD (`.slug` + `.name`) en lugar de array hardcodeado ✅
+- [x] **CMS Home — Guard `enabled('historia')`** — sección Historia envuelta en `{enabled('historia') && ...}`, controlable desde el panel admin sin código ✅
+- [x] **Metadata JSONB generalizada en `section_settings`** — migración 17: columna `metadata JSONB NULL`; seed de sección 'historia' con título, subtítulo y CTA como JSON; admin muestra editor inline para cualquier sección que tenga metadata; web lee con fallbacks a strings hardcodeados; patrón extensible a cualquier sección futura ✅
+- [x] **Análisis arquitectural** — identificadas 5 categorías de deuda técnica: (1) rutas API zombie sin auth (`/api/admin/banners`), (2) directorios zombie `/banners/` y `/secciones/` con ~800 líneas de código muerto, (3) código duplicado entre apps (SearchableSelect, colombia-locations, email.ts, skydropx/auth.ts), (4) dos modelos CMS coexistentes (banners+section_settings vs pages+page_sections), (5) páginas legales /privacidad y /terminos fuera del CMS ✅
+
+### Completado en v13 — Épica 10: CMS Unificado + Limpieza Arquitectural
+
+- [x] **HU-052 — API CMS genérica** — `GET|POST|PATCH|DELETE /api/admin/cms/[resource]` maneja pages/sections/items; 4 endpoints legacy eliminados; 35 tests de integración ✅
+- [x] **HU-053 — Migración 19: CMS unificado** — banners, section_settings y testimonials migrados a `page_sections` + `section_items` y tablas eliminadas. `section_items` extendido con `image_url_mobile`, `link_url`, `cta_text`, `metadata JSONB` ✅
+- [x] **HU-054 — packages/database actualizado** — `types.ts` refleja el nuevo schema; `queries/home.ts` reescrito (`getWebHomeData` con `homeSections`); `queries/content.ts` actualizado (`updateSectionItem` con metadata como Json); archivos zombie `banners.ts`, `testimonials.ts`, `sections.ts` eliminados ✅
+- [x] **HU-055 — apps/web actualizado** — home reescrito para leer secciones del CMS unificado; `HeroCarousel`, `ServicesSection`, `TestimonialsSection` reciben datos de `section_items` ✅
+- [x] **HU-056/057 — apps/admin limpiado** — `ContenidoClient.tsx` extendido con editor por tipo (hero/services/testimonials/cards/faq); directorios zombie `/home`, `/testimonios` y sus API routes eliminados; `AdminSidebar` y `roles.ts` actualizados ✅
+- [x] **Migración 20 — integridad y rendimiento** — NOT NULL en metadata, índices compuestos, índice GIN (JSONB), triggers `updated_at` en section_items/nav_items, CHECK constraint `section_type` con normalización de valores desconocidos a `'text'` ✅
+- [x] **Esquema canónico compactado** — `01_schema.sql` unifica las 20 migraciones en un solo archivo limpio para despliegue desde cero; seeds separados `01_config.sql` y `02_content.sql` ✅
+- [x] **Limpieza total de código muerto** — export/import routes, cms route, dashboard actualizados; JSDoc actualizado para eliminar referencias a tablas eliminadas ✅
+- [x] **`tsc --noEmit --skipLibCheck` limpio** — sin errores en apps/web y apps/admin ✅
+- [x] **Tests `home.test.ts` reescritos** — cubre la nueva firma `getWebHomeData()` con `homeSections` anidados, fail-open por query y mocks de Supabase actualizados ✅
+
+### Completado en v12 — Épica 9: Arquitectura Limpia y Generalización CMS
+- [x] **HU-044 — Eliminar rutas API zombie** — eliminadas `/api/admin/banners/` (sin auth guard, security hole), `/api/admin/sections/` y `/api/admin/pages/` (legacy, sin usar); ~800 líneas de código muerto removidas ✅
+- [x] **HU-045 — Eliminar directorios zombie** — eliminados `/banners/`, `/secciones/` y `/paginas/` en apps/admin; las rutas en sidebar ya apuntaban a `/home` y `/contenido` ✅
+- [x] **HU-046 — Consolidar `SearchableSelect` en `packages/ui`** — componente movido a `packages/ui/src/SearchableSelect.tsx`; admin usa `@vps/ui`; web mantiene copia local por limitación de Turbopack con `'use client'` en barrels ✅
+- [x] **HU-047 — Consolidar `colombia-locations` en `packages/ui`** — `DEPARTMENTS`, `COLOMBIA_LOCATIONS`, `getCitiesForDepartment` movidos a `packages/ui/src/colombia-locations.ts`; eliminados de web, admin y database; tests actualizados al nuevo import ✅
+- [x] **HU-048 — Consolidar `email.ts` compartido** — creado `packages/database/src/lib/email.ts` con `EmailConfig`, `sendShippingNotification` y `sendStatusNotification` (unificadas con firma flexible); `apps/admin/src/lib/email.ts` reducido a 2 líneas de re-export; `apps/web/src/lib/email.ts` conserva solo funciones web-only (`buildEmailConfig`, `sendOrderConfirmation`, `sendNewsletterConfirmation`, `sendWelcomeEmail`) e importa el resto de `@vps/database` ✅
+- [x] **HU-049 — Migrar `/privacidad` y `/terminos` al CMS** — migración `18_legal_pages.sql`: seed idempotente de páginas + secciones de texto por defecto; rutas web actualizan a `getPageWithSections()` con fallback a `store_config` para compatibilidad retroactiva; `meta_title` y `meta_description` desde la página del CMS ✅
+- [x] **HU-050 — Crear `getWebHomeData()`** — `packages/database/src/queries/home.ts` consolida las 6 queries paralelas del home; `apps/web/(public)/page.tsx` hace una sola llamada; nombre `getWebHomeData` evita colisión con `getHomeData` existente en `sections.ts` (admin editor) ✅
+- [x] **`packages/ui` zero-dependency** — `cn.ts` reescrito en JS puro sin `clsx`/`tailwind-merge`; resuelve fallo de build por resolución estricta de pnpm en Vercel ✅
+- [x] **`tsc --noEmit` limpio** — sin errores en apps/web y apps/admin después de todos los cambios ✅
+
+### Completado en v14 — Favicon + Identidad corporativa del panel
+- [x] **HU-058 — Favicon configurable** — migración `21_favicon_url.sql`; campo `favicon_url` en `store_config` + tipo; UI `ImageUpload` en `/configuracion/general` con preview inline; `generateMetadata` en `apps/web` inyecta `icons: { icon, shortcut }` y `<link rel="icon">` en `<head>` ✅
+- [x] **HU-059 — Admin con identidad visual propia** — separación total de temas web y admin:
+  - `admin_config` singleton (migración `22_admin_config.sql`): `accent_color` y `sidebar_color`; CHECK constraint; RLS; seed corporativo `#4F46E5` / `#0F172A`
+  - `packages/database/src/queries/admin-config.ts`: `AdminConfig`, `getAdminConfig()`, `updateAdminConfig()`; registro en `types.ts`
+  - `apps/admin/tailwind.config.ts` reescrito: colores `brand-*` como `rgb(var(--xxx) / <alpha-value>)`; nuevo token `brand-sidebar` para fondo del sidebar
+  - `apps/admin/globals.css` reescrito: paleta corporativa slate/indigo por defecto en CSS vars
+  - `apps/admin/layout.tsx`: `getAdminConfig()` → `hexToRgb`/`darkenHex` → `<style>` inyectado en `<head>` sobreescribe vars de globals.css
+  - `AdminSidebar`: `bg-brand-sidebar` en `<aside>` (antes `bg-brand-primary`)
+  - `roles.ts`: nueva `AdminSection` `'sistema'`; disponible para `super_admin` y `admin`
+  - `AdminSidebar`: grupo Sistema ampliado con `/sistema/apariencia` (sección `'sistema'`)
+  - `PATCH /api/admin/sistema`: guard super_admin/admin; upsert en `admin_config`
+  - `/sistema/apariencia/page.tsx` + `AdminConfigForm.tsx`: color pickers, presets de paleta, vista previa en tiempo real
+  - Export/Import actualizado a **v3**: incluye `admin_config` y `themes`; import maneja los 3 versiones; respuesta devuelve `version` del snapshot ✅
+
+### Pendiente — próximas épicas
+- [ ] **HU-060 — Tracking en Mi Cuenta** — timeline visual de estado del pedido con número de guía Skydropx
+- [ ] **HU-061 — Responsive audit** — revisión mobile-first completa; menú hamburguesa en admin
+- [ ] **HU-062 — SEO avanzado** — structured data (JSON-LD) para productos y artículos de blog
+- [ ] **HU-063 — Despliegue en Vercel** — CI/CD desde GitHub Actions; preview branches; variables de entorno en Vercel Dashboard
+- [ ] **HU-064 — Fuentes adicionales de tema** — ampliar opciones display/body en editor de temas
 - [ ] **Tests newsletter** — API routes GET /api/admin/newsletter y POST /api/admin/newsletter/send
-- [ ] **Tracking en Mi Cuenta** — timeline visual del estado del pedido / Skydropx
-- [ ] **Responsive audit** mobile-first completo
-- [ ] **Fuentes adicionales de tema** — ampliar opciones de display y body en el editor de temas
+- [ ] **Tests admin-config** — `getAdminConfig`, `updateAdminConfig`, PATCH /api/admin/sistema
 
 ---
 
@@ -327,24 +405,17 @@ cp .env.example apps/admin/.env.local
 # Editar ambos archivos con las keys reales
 ```
 
-### 4. Ejecutar migraciones SQL en Supabase
-Abrir el SQL Editor de Supabase y ejecutar en orden:
+### 4. Ejecutar schema y seeds en Supabase
+Abrir el SQL Editor de Supabase y ejecutar en orden (**3 archivos — despliegue desde cero**):
 ```
-packages/database/supabase/migrations/1_initial_schema.sql
-packages/database/supabase/migrations/2_shipping_config.sql
-packages/database/supabase/migrations/3_banner_mobile_image.sql
-packages/database/supabase/migrations/4_store_config.sql
-packages/database/supabase/migrations/5_payment_config.sql
-packages/database/supabase/migrations/6_shipping_profiles.sql
-packages/database/supabase/migrations/7_customers.sql
-packages/database/supabase/migrations/8_customer_addresses.sql
-packages/database/supabase/migrations/9_section_settings.sql
-packages/database/supabase/migrations/10_coupons.sql
-packages/database/supabase/migrations/11_testimonials.sql
-packages/database/supabase/migrations/12_cart_items.sql
-packages/database/supabase/migrations/13_themes.sql
-packages/database/supabase/migrations/14_product_variants_extended.sql
+packages/database/supabase/migrations/01_schema.sql   ← schema completo (único archivo)
+packages/database/supabase/seeds/01_config.sql        ← tema, variantes, categorías, nav base
+packages/database/supabase/seeds/02_content.sql       ← páginas, secciones e ítems CMS
 ```
+
+> **v13 — esquema canónico compactado:** Las 20 migraciones históricas (1_initial_schema.sql … 20_integrity_and_indexes.sql) se conservan en la carpeta `migrations/` como registro de la evolución del proyecto, pero **para un despliegue nuevo usar únicamente `01_schema.sql`**. El esquema canónico incorpora desde el inicio todas las columnas, FKs, índices compuestos, triggers `updated_at`, CHECK constraints y comentarios de tabla que antes se añadían en migraciones sucesivas.
+
+> Si ya tienes una instancia corriendo con las 20 migraciones aplicadas, **no** ejecutes `01_schema.sql` — el esquema ya está al día.
 
 ### 5. Levantar el proyecto
 ```bash
@@ -467,8 +538,10 @@ vps-coffee/
 ├── packages/
 │   ├── ui/src/
 │   ├── database/src/
+│   │   ├── lib/
+│   │   │   └── email.ts                — EmailConfig, sendShippingNotification, sendStatusNotification (compartidas)
 │   │   ├── queries/
-│   │   │   ├── products.ts
+│   │   │   ├── products.ts             — getProducts, getProductBySlug, getFeaturedProducts, getBestSellingProducts, getCategories
 │   │   │   ├── orders.ts
 │   │   │   ├── blog.ts
 │   │   │   ├── banners.ts
@@ -477,23 +550,31 @@ vps-coffee/
 │   │   │   ├── coupons.ts              — getCoupons, validateCoupon (pura), CRUD, incrementCouponUsage
 │   │   │   ├── testimonials.ts         — getTestimonials(onlyActive), CRUD
 │   │   │   ├── cart.ts                 — getCartItems, upsertCartItem, removeCartItem, clearCart, replaceCart
-│   │   │   ├── sections.ts             — getSectionSettings(), isSectionEnabled() (fail-open)
-│   │   │   └── themes.ts               — getThemes(), getActiveTheme(), createTheme(), updateTheme(), setActiveTheme(), deleteTheme()
-│   │   └── supabase/migrations/         — 14 archivos (consolidados desde 19)
+│   │   │   ├── sections.ts             — getSectionSettings(), isSectionEnabled(), getHomeData() (admin editor)
+│   │   │   ├── themes.ts               — getThemes(), getActiveTheme(), createTheme(), updateTheme(), setActiveTheme(), deleteTheme()
+│   │   │   ├── content.ts              — getPages, getPageBySlug, getPageWithSections, CRUD pages/sections/items
+│   │   │   ├── nav.ts                  — getNavItems, CRUD nav_items
+│   │   │   ├── media.ts                — getMediaAssets, CRUD media_assets
+│   │   │   └── home.ts                 — getWebHomeData() (consolida 6 queries paralelas del home público)
+│   │   └── supabase/migrations/         — 18 archivos
 │   │       ├── 1_initial_schema.sql      — Stack Auth-native: sin FK auth.users, sin triggers
 │   │       ├── 2_shipping_config.sql     — shipping_config con multi-proveedor, envío gratis y origen Skydropx
-│   │       ├── 3_banner_mobile_image.sql
-│   │       ├── 4_store_config.sql        — store_config con branding, Resend, legal, sociales, toggles
-│   │       ├── 5_payment_config.sql
-│   │       ├── 6_shipping_profiles.sql
-│   │       ├── 7_customers.sql
-│   │       ├── 8_customer_addresses.sql
-│   │       ├── 9_section_settings.sql
-│   │       ├── 10_coupons.sql
-│   │       ├── 11_testimonials.sql
-│   │       ├── 12_cart_items.sql
-│   │       ├── 13_themes.sql
-│   │       └── 14_product_variants_extended.sql — dimensiones físicas + variantes genéricas (color/talla/etc.)
+│   │       ├── 3_store_config.sql        — store_config con branding, Resend, legal, sociales, toggles
+│   │       ├── 4_payment_config.sql
+│   │       ├── 5_customers.sql
+│   │       ├── 6_customer_addresses.sql
+│   │       ├── 7_content_settings.sql    — section_settings, coupons, testimonials, themes + seeds
+│   │       ├── 8_variant_types.sql
+│   │       ├── 9_indexes.sql
+│   │       ├── 10_trust_badges.sql
+│   │       ├── 11_pages.sql              — pages, page_sections, section_items, nav_items
+│   │       ├── 12_nav_items.sql
+│   │       ├── 13_content_restructure.sql
+│   │       ├── 14_structural_cleanup.sql — section_key, nav_key, page_key, media_assets
+│   │       ├── 15_store_seo.sql          — SEO por página
+│   │       ├── 16_order_notes.sql        — notas internas en pedidos
+│   │       ├── 17_home_sections.sql      — metadata JSONB en section_settings + seed historia
+│   │       └── 18_legal_pages.sql        — seed /privacidad y /terminos en tabla pages (idempotente)
 │   └── config/
 │
 ├── .env.example

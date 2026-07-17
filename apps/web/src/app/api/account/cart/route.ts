@@ -41,12 +41,18 @@ export async function POST(req: NextRequest) {
   const { items } = await req.json()
   if (!Array.isArray(items)) return NextResponse.json({ error: 'items requerido' }, { status: 400 })
 
+  // Skip items missing valid IDs — they can't satisfy the FK constraints
+  // (productId is optional on CartItem for legacy reasons; variantId=0 is also invalid)
+  const validItems = items.filter(
+    (i) => i.productId && i.productId > 0 && i.variantId && i.variantId > 0
+  )
+
   await replaceCart(
     customerId,
-    items.map((i) => ({
+    validItems.map((i) => ({
       customer_id: customerId,
       variant_id: i.variantId,
-      product_id: i.productId ?? 0,
+      product_id: i.productId,
       product_name: i.productName,
       variant_label: i.variantLabel,
       qty: i.qty,

@@ -164,8 +164,9 @@ vps-coffee/
     │   │   ├── shipping-config.ts, store-config.ts, payment-config.ts
     │   │   ├── coupons.ts, testimonials.ts, cart.ts
     │   │   ├── sections.ts                 ← isSectionEnabled (fail-open)
-    │   │   └── themes.ts                   ← getActiveTheme, setActiveTheme, etc.
-    │   └── supabase/migrations/            ← 1_initial_schema.sql … 14_product_variants_extended.sql
+    │   │   ├── themes.ts                   ← getActiveTheme, setActiveTheme, etc.
+    │   │   └── variant-types.ts            ← getVariantTypes, CRUD, toVariantType()
+    │   └── supabase/migrations/            ← 1_initial_schema.sql … 9_indexes.sql (9 archivos)
     └── config/
         ├── tailwind.config.ts              ← Design system VPS (colores, fuentes, etc.)
         └── tsconfig.json                   ← Configuración TypeScript base
@@ -223,18 +224,13 @@ Abrir el **SQL Editor** de Supabase y ejecutar los archivos en este orden:
 ```
 packages/database/supabase/migrations/1_initial_schema.sql
 packages/database/supabase/migrations/2_shipping_config.sql
-packages/database/supabase/migrations/3_banner_mobile_image.sql
-packages/database/supabase/migrations/4_store_config.sql
-packages/database/supabase/migrations/5_payment_config.sql
-packages/database/supabase/migrations/6_shipping_profiles.sql
-packages/database/supabase/migrations/7_customers.sql
-packages/database/supabase/migrations/8_customer_addresses.sql
-packages/database/supabase/migrations/9_section_settings.sql
-packages/database/supabase/migrations/10_coupons.sql
-packages/database/supabase/migrations/11_testimonials.sql
-packages/database/supabase/migrations/12_cart_items.sql
-packages/database/supabase/migrations/13_themes.sql
-packages/database/supabase/migrations/14_product_variants_extended.sql
+packages/database/supabase/migrations/3_store_config.sql
+packages/database/supabase/migrations/4_payment_config.sql
+packages/database/supabase/migrations/5_customers.sql
+packages/database/supabase/migrations/6_customer_addresses.sql
+packages/database/supabase/migrations/7_content_settings.sql
+packages/database/supabase/migrations/8_variant_types.sql
+packages/database/supabase/migrations/9_indexes.sql
 ```
 
 ### Paso 5 — Levantar el proyecto
@@ -311,49 +307,65 @@ Todas las variables se definen en `.env.local` dentro de cada app. La plantilla 
 ### Diagrama de tablas
 
 ```
-auth.users (Supabase Auth)
+Stack Auth (usuarios externos)
     │
-    └──▶ profiles            ← rol, nombre, teléfono
+    ├──▶ profiles     ← admins del panel (rol, nombre)
+    └──▶ customers    ← compradores web (mirror Stack Auth)
              │
-             └──▶ orders     ← pedidos del cliente
+             ├──▶ customer_addresses ← direcciones guardadas
+             ├──▶ cart_items         ← carrito persistente (FK → product_variants, products)
+             └──▶ orders             ← pedidos (coupon_code, skydropx_rate_id)
 
-categories ◀── products ──▶ product_variants
-                              (roast × weight × grind × brew_method × price × stock)
+categories ◀── products (variant_options JSONB) ──▶ product_variants (attributes JSONB)
+                                                         (weight_kg, length_cm, width_cm, height_cm)
 
-banners                       ← slides del hero y secciones (imagen web + mobile)
-blog_posts                    ← artículos del blog
-newsletter_subscribers        ← lista de correos
-shipping_config               ← proveedor de envíos + credenciales (singleton)
-store_config                  ← identidad de la tienda: logo, WhatsApp, nombre, email (singleton)
+variant_types               ← plantillas globales de atributo (Tueste, Peso, Molienda…)
+banners                     ← slides del hero y secciones (image_url + image_url_mobile)
+blog_posts                  ← artículos del blog
+newsletter_subscribers      ← lista de correos
+shipping_config             ← proveedor de envíos + credenciales (singleton)
+shipping_profiles           ← perfiles de envío por zona
+store_config                ← branding, WhatsApp, Resend, legal, redes, mantenimiento (singleton)
+payment_config              ← credenciales Wompi y MercadoPago (singleton)
+section_settings            ← toggles del home (hero, featured, services…)
+coupons                     ← cupones de descuento (percentage/fixed, usos, expiración)
+testimonials                ← testimonios para /asesorias
+themes                      ← paletas de color y tipografía (solo uno activo a la vez)
 ```
 
 ### Tablas principales
 
 | Tabla | Descripción | RLS |
 |-------|-------------|-----|
-| `profiles` | Perfil de usuario extendido (rol, teléfono) | Cada usuario ve el suyo; admins ven todos |
-| `categories` | Categorías de productos | Lectura pública; escritura admin |
-| `products` | Catálogo de cafés | Lectura pública (activos); escritura admin/editor |
-| `product_variants` | Combinaciones tueste × peso × molienda | Lectura pública (activos); escritura admin/editor |
-| `orders` | Pedidos con estado, items JSONB, datos de envío | Clientes ven los suyos; admins ven todos |
-| `banners` | Slides del carrusel y secciones de servicios | Lectura pública (activos); escritura admin/editor |
-| `blog_posts` | Artículos del blog | Lectura pública (publicados); escritura admin/editor |
+| `profiles` | Administradores del panel (rol, nombre) | Cada usuario ve el suyo; service_role ve todos |
+| `customers` | Compradores web, mirror de Stack Auth | Solo service_role |
+| `customer_addresses` | Direcciones guardadas por cliente | Solo service_role |
+| `cart_items` | Carrito persistente (FK → customers, products, product_variants) | Solo service_role |
+| `categories` | Categorías de productos (con imagen de portada) | Lectura pública; escritura admin |
+| `products` | Catálogo (`variant_options JSONB`) | Lectura pública (activos); escritura admin |
+| `product_variants` | Variantes genéricas (`attributes JSONB` + dimensiones de envío) | Lectura pública (activos); escritura admin |
+| `variant_types` | Plantillas globales de atributo (Tueste/Peso/Molienda…) | SELECT público; escritura service_role |
+| `orders` | Pedidos con `coupon_code`, `carrier_name`, `skydropx_rate_id` | Clientes ven los suyos; admins ven todos |
+| `banners` | Slides del carrusel y secciones de servicios (web + mobile) | Lectura pública (activos); escritura admin |
+| `blog_posts` | Artículos del blog | Lectura pública (publicados); escritura admin |
 | `newsletter_subscribers` | Suscriptores del boletín | Solo admins |
-| `shipping_config` | Proveedor activo + credenciales (singleton) | Lectura pública; escritura service_role |
-| `store_config` | Logo, WhatsApp, nombre y email de la tienda (singleton) | Lectura pública; escritura service_role |
+| `shipping_config` | Proveedor activo + credenciales Skydropx (singleton) | Lectura pública; escritura service_role |
+| `store_config` | Branding, Resend, legal, redes sociales, mantenimiento (singleton) | Lectura pública; escritura service_role |
+| `payment_config` | Credenciales Wompi y MercadoPago (singleton) | Solo service_role |
+| `coupons` | Cupones de descuento | Lectura pública; escritura admin |
+| `testimonials` | Testimonios de clientes | Lectura pública (activos); escritura admin |
+| `themes` | Paletas de color y tipografía (único activo) | Lectura pública; escritura admin |
+| `section_settings` | Toggles de secciones del home | Solo service_role |
 
-### Roles de usuario
+### Roles del panel admin
 
 | Rol | Acceso |
 |-----|--------|
 | `super_admin` | Todo, incluida gestión de usuarios y roles |
-| `admin` | Pedidos, productos, blog, banners, configuración |
-| `editor` | Blog, banners, lectura de pedidos |
-| `customer` | Solo sus propios pedidos y perfil |
-
-### Trigger automático
-
-Al registrarse un usuario (`auth.users`), el trigger `on_auth_user_created` crea automáticamente su fila en `profiles` con `role = 'customer'`.
+| `admin` | Todo excepto gestión de usuarios |
+| `vendedor` | Productos, Categorías, Pedidos, Clientes |
+| `gestor_tienda` | Banners, Blog, Testimonios, Cupones, Secciones, Configuración General/Temas/Legal |
+| `miembro` | Sin acceso al panel (usuario invitado sin rol activo) |
 
 ### Storage buckets
 

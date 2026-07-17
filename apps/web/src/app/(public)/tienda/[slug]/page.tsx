@@ -1,4 +1,4 @@
-import { getProductBySlug, getProducts } from '@vps/database'
+import { getProductBySlug, getProducts, getStoreConfig } from '@vps/database'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import ProductDetail from '@/components/shop/ProductDetail'
@@ -39,12 +39,17 @@ export const dynamic = 'force-dynamic'
 
 export default async function ProductPage({ params }: Props) {
   const { slug } = await params
-  const product = await getProductBySlug(slug).catch(() => null)
+  const [product, storeConfig] = await Promise.all([
+    getProductBySlug(slug).catch(() => null),
+    getStoreConfig().catch(() => null),
+  ])
   if (!product) notFound()
 
   const related = await getProducts()
     .then((all) => all.filter((p) => p.id !== product.id && p.category_id === product.category_id).slice(0, 3))
     .catch(() => [])
 
-  return <ProductDetail product={product} related={related} />
+  const trustBadges = (storeConfig?.trust_badges ?? []).filter((b) => b.enabled)
+
+  return <ProductDetail product={product} related={related} trustBadges={trustBadges} />
 }

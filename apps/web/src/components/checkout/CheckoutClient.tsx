@@ -5,7 +5,7 @@ import Link from 'next/link'
 import { useCartStore } from '@/store/cart'
 import type { ShippingRate } from '@/lib/shipping/types'
 import SearchableSelect from '@/components/ui/SearchableSelect'
-import { DEPARTMENTS, getCitiesForDepartment } from '@/lib/colombia-locations'
+import { DEPARTMENTS, getCitiesForDepartment } from '@vps/ui'
 
 type Step = 1 | 2 | 3
 

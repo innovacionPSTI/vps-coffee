@@ -2,14 +2,20 @@ import { randomUUID } from 'crypto'
 import { NextRequest, NextResponse } from 'next/server'
 import { createServerClient } from '@vps/database'
 import { getAdminUser } from '@/lib/auth'
-import { ASSIGNABLE_ROLES } from '@/lib/roles'
-import type { AssignableRole } from '@/lib/roles'
+import { ASSIGNABLE_ROLES, ROLE_CONFIG } from '@/lib/roles'
+import type { AssignableRole, AdminRole } from '@/lib/roles'
 import { stackServerApp } from '@/stack'
+
+/** Verifica si el usuario autenticado puede gestionar usuarios */
+function requireUserManager(adminUser: Awaited<ReturnType<typeof getAdminUser>>) {
+  if (!adminUser) return false
+  return ROLE_CONFIG[adminUser.role as AdminRole]?.canManageUsers === true
+}
 
 /** GET /api/admin/usuarios — Lista todos los usuarios (incluyendo miembros sin rol asignado) */
 export async function GET() {
   const adminUser = await getAdminUser()
-  if (!adminUser || adminUser.role !== 'super_admin') {
+  if (!requireUserManager(adminUser)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -36,7 +42,7 @@ export async function GET() {
  */
 export async function POST(request: NextRequest) {
   const adminUser = await getAdminUser()
-  if (!adminUser || adminUser.role !== 'super_admin') {
+  if (!requireUserManager(adminUser)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -147,7 +153,7 @@ export async function POST(request: NextRequest) {
 /** PATCH /api/admin/usuarios — Cambia el rol de un usuario existente */
 export async function PATCH(request: NextRequest) {
   const adminUser = await getAdminUser()
-  if (!adminUser || adminUser.role !== 'super_admin') {
+  if (!requireUserManager(adminUser)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -174,6 +180,16 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({ error: 'No se puede modificar a un super_admin' }, { status: 403 })
   }
 
+  // Un admin (no super_admin) no puede modificar a otros admins ni promover a admin
+  if (adminUser!.role !== 'super_admin') {
+    if (target?.role === 'admin') {
+      return NextResponse.json({ error: 'Solo un super_admin puede modificar a otros admins' }, { status: 403 })
+    }
+    if (role === 'admin') {
+      return NextResponse.json({ error: 'Solo un super_admin puede asignar el rol de admin' }, { status: 403 })
+    }
+  }
+
   const { data, error } = await supabase
     .from('profiles')
     .update({ role })
@@ -188,7 +204,7 @@ export async function PATCH(request: NextRequest) {
 /** DELETE /api/admin/usuarios — Elimina el acceso al admin (borra la fila de profiles) */
 export async function DELETE(request: NextRequest) {
   const adminUser = await getAdminUser()
-  if (!adminUser || adminUser.role !== 'super_admin') {
+  if (!requireUserManager(adminUser)) {
     return NextResponse.json({ error: 'Forbidden' }, { status: 403 })
   }
 
@@ -197,7 +213,7 @@ export async function DELETE(request: NextRequest) {
     return NextResponse.json({ error: 'email requerido' }, { status: 400 })
   }
 
-  if (email === adminUser.email) {
+  if (email === adminUser!.email) {
     return NextResponse.json({ error: 'No puedes revocar tu propio acceso' }, { status: 403 })
   }
 
@@ -211,6 +227,11 @@ export async function DELETE(request: NextRequest) {
 
   if (target?.role === 'super_admin') {
     return NextResponse.json({ error: 'No se puede revocar a un super_admin' }, { status: 403 })
+  }
+
+  // Un admin (no super_admin) no puede eliminar a otros admins
+  if (adminUser!.role !== 'super_admin' && target?.role === 'admin') {
+    return NextResponse.json({ error: 'Solo un super_admin puede eliminar a otros admins' }, { status: 403 })
   }
 
   const { error } = await supabase.from('profiles').delete().eq('email', email)

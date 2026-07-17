@@ -2,15 +2,18 @@ import { redirect } from 'next/navigation'
 import type { Metadata } from 'next'
 import { createServerClient } from '@vps/database'
 import { getAdminUser } from '@/lib/auth'
+import { ROLE_CONFIG } from '@/lib/roles'
+import type { AdminRole } from '@/lib/roles'
 import UsuariosClient from './UsuariosClient'
 
 export const metadata: Metadata = { title: 'Usuarios' }
 export const dynamic = 'force-dynamic'
 
 export default async function UsuariosPage() {
-  // Solo super_admin puede gestionar usuarios
+  // super_admin y admin pueden gestionar usuarios
   const adminUser = await getAdminUser()
-  if (!adminUser || adminUser.role !== 'super_admin') {
+  const canManage = adminUser && ROLE_CONFIG[adminUser.role as AdminRole]?.canManageUsers
+  if (!canManage) {
     redirect('/no-autorizado')
   }
 

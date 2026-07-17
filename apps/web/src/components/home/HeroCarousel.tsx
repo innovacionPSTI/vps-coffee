@@ -2,30 +2,30 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import Link from 'next/link'
-import type { Banner } from '@vps/database'
+import type { SectionItem } from '@vps/database'
 
 interface HeroCarouselProps {
-  banners: Banner[]
+  items: SectionItem[]
 }
 
-export default function HeroCarousel({ banners }: HeroCarouselProps) {
+export default function HeroCarousel({ items }: HeroCarouselProps) {
   const [current, setCurrent] = useState(0)
 
   const next = useCallback(
-    () => setCurrent((c) => (c + 1) % banners.length),
-    [banners.length]
+    () => setCurrent((c) => (c + 1) % items.length),
+    [items.length]
   )
-  const prev = () => setCurrent((c) => (c - 1 + banners.length) % banners.length)
+  const prev = () => setCurrent((c) => (c - 1 + items.length) % items.length)
 
   // Autoplay 5s
   useEffect(() => {
-    if (banners.length <= 1) return
+    if (items.length <= 1) return
     const id = setInterval(next, 5000)
     return () => clearInterval(id)
-  }, [next, banners.length])
+  }, [next, items.length])
 
-  if (!banners.length) {
-    // Fallback si no hay banners en BD
+  if (!items.length) {
+    // Fallback si no hay slides en BD
     return (
       <section
         className="relative h-[100vh] min-h-[600px] flex items-center justify-center overflow-hidden"
@@ -51,56 +51,62 @@ export default function HeroCarousel({ banners }: HeroCarouselProps) {
     )
   }
 
-  const banner = banners[current]
+  const slide = items[current]
+  const meta  = slide.metadata as Record<string, string> | null | undefined
+  const bgColor = meta?.bg_color ?? '#614A2A'
 
   return (
     <section className="relative h-[100vh] min-h-[600px] flex items-center overflow-hidden">
       {/* Slides */}
-      {banners.map((b, i) => (
-        <div
-          key={b.id}
-          className={`absolute inset-0 transition-opacity duration-700 ${
-            i === current ? 'opacity-100' : 'opacity-0'
-          }`}
-        >
-          {b.image_url ? (
-            <>
-              <picture className="w-full h-full">
-                {b.image_url_mobile && (
-                  <source media="(max-width: 768px)" srcSet={b.image_url_mobile} />
-                )}
-                <img
-                  src={b.image_url}
-                  alt={b.title ?? ''}
-                  className="w-full h-full object-cover"
-                />
-              </picture>
-              <div className="absolute inset-0 bg-brand-text/40" />
-            </>
-          ) : (
-            <div className="w-full h-full" style={{ background: b.bg_color ?? '#614A2A' }} />
-          )}
-        </div>
-      ))}
+      {items.map((item, i) => {
+        const itemMeta = item.metadata as Record<string, string> | null | undefined
+        const bg = itemMeta?.bg_color ?? '#614A2A'
+        return (
+          <div
+            key={item.id}
+            className={`absolute inset-0 transition-opacity duration-700 ${
+              i === current ? 'opacity-100' : 'opacity-0'
+            }`}
+          >
+            {item.image_url ? (
+              <>
+                <picture className="w-full h-full">
+                  {item.image_url_mobile && (
+                    <source media="(max-width: 768px)" srcSet={item.image_url_mobile} />
+                  )}
+                  <img
+                    src={item.image_url}
+                    alt={item.title ?? ''}
+                    className="w-full h-full object-cover"
+                  />
+                </picture>
+                <div className="absolute inset-0 bg-brand-text/40" />
+              </>
+            ) : (
+              <div className="w-full h-full" style={{ background: bg }} />
+            )}
+          </div>
+        )
+      })}
 
       {/* Content */}
       <div className="relative z-10 max-w-7xl mx-auto px-6 w-full">
         <div className="max-w-2xl">
           <h1 className="text-hero font-display text-brand-cream leading-none mb-6">
-            {banner.title}
+            {slide.title}
           </h1>
-          {banner.subtitle && (
+          {slide.description && (
             <p className="font-brand text-brand-cream/80 text-xl mb-10">
-              {banner.subtitle}
+              {slide.description}
             </p>
           )}
           <div className="flex gap-4 flex-wrap">
-            {banner.cta_text && banner.cta_url && (
+            {slide.cta_text && slide.link_url && (
               <Link
-                href={banner.cta_url}
+                href={slide.link_url}
                 className="bg-brand-cream text-brand-primary rounded-full px-8 py-3 font-brand font-medium hover:bg-brand-yellow transition-colors"
               >
-                {banner.cta_text} →
+                {slide.cta_text} →
               </Link>
             )}
             <Link
@@ -114,7 +120,7 @@ export default function HeroCarousel({ banners }: HeroCarouselProps) {
       </div>
 
       {/* Controles */}
-      {banners.length > 1 && (
+      {items.length > 1 && (
         <>
           <button
             onClick={prev}
@@ -135,7 +141,7 @@ export default function HeroCarousel({ banners }: HeroCarouselProps) {
 
           {/* Dots */}
           <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex gap-2 z-10">
-            {banners.map((_, i) => (
+            {items.map((_, i) => (
               <button
                 key={i}
                 onClick={() => setCurrent(i)}

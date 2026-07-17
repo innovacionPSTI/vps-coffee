@@ -182,51 +182,6 @@ export type Database = {
           }
         ]
       }
-      banners: {
-        Row: {
-          id: number
-          section: string
-          title: string | null
-          subtitle: string | null
-          cta_text: string | null
-          cta_url: string | null
-          image_url: string | null
-          image_url_mobile: string | null
-          bg_color: string | null
-          order_index: number
-          active: boolean
-          created_at: string
-        }
-        Insert: {
-          id?: number
-          section: string
-          title?: string | null
-          subtitle?: string | null
-          cta_text?: string | null
-          cta_url?: string | null
-          image_url?: string | null
-          image_url_mobile?: string | null
-          bg_color?: string | null
-          order_index?: number
-          active?: boolean
-          created_at?: string
-        }
-        Update: {
-          id?: number
-          section?: string
-          title?: string | null
-          subtitle?: string | null
-          cta_text?: string | null
-          cta_url?: string | null
-          image_url?: string | null
-          image_url_mobile?: string | null
-          bg_color?: string | null
-          order_index?: number
-          active?: boolean
-          created_at?: string
-        }
-        Relationships: []
-      }
       orders: {
         Row: {
           id: number
@@ -255,6 +210,7 @@ export type Database = {
           shipping_cost_final: number | null
           pickup_id: string | null
           pickup_date: string | null
+          coupon_code: string | null
           created_at: string
           updated_at: string
         }
@@ -285,6 +241,7 @@ export type Database = {
           shipping_cost_final?: number | null
           pickup_id?: string | null
           pickup_date?: string | null
+          coupon_code?: string | null
           created_at?: string
           updated_at?: string
         }
@@ -315,6 +272,7 @@ export type Database = {
           shipping_cost_final?: number | null
           pickup_id?: string | null
           pickup_date?: string | null
+          coupon_code?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -486,6 +444,12 @@ export type Database = {
           tiktok_enabled: boolean
           maintenance_mode: boolean
           analytics_enabled: boolean
+          trust_badges: Json
+          footer_show_store: boolean
+          footer_show_blog: boolean
+          footer_show_legal: boolean
+          nav_show_cart: boolean
+          nav_show_auth: boolean
           updated_at: string
         }
         Insert: {
@@ -506,6 +470,12 @@ export type Database = {
           tiktok_enabled?: boolean
           maintenance_mode?: boolean
           analytics_enabled?: boolean
+          trust_badges?: Json
+          footer_show_store?: boolean
+          footer_show_blog?: boolean
+          footer_show_legal?: boolean
+          nav_show_cart?: boolean
+          nav_show_auth?: boolean
           updated_at?: string
         }
         Update: {
@@ -526,9 +496,60 @@ export type Database = {
           tiktok_enabled?: boolean
           maintenance_mode?: boolean
           analytics_enabled?: boolean
+          trust_badges?: Json
+          footer_show_store?: boolean
+          footer_show_blog?: boolean
+          footer_show_legal?: boolean
+          nav_show_cart?: boolean
+          nav_show_auth?: boolean
           updated_at?: string
         }
         Relationships: []
+      }
+      nav_items: {
+        Row: {
+          id: number
+          nav_key: string
+          label: string
+          href: string | null
+          page_key: string | null
+          enabled: boolean
+          order_index: number
+          parent_id: number | null
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          nav_key?: string
+          label: string
+          href?: string | null
+          page_key?: string | null
+          enabled?: boolean
+          order_index?: number
+          parent_id?: number | null
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          nav_key?: string
+          label?: string
+          href?: string | null
+          page_key?: string | null
+          enabled?: boolean
+          order_index?: number
+          parent_id?: number | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'nav_items_page_key_fkey'
+            columns: ['page_key']
+            referencedRelation: 'pages'
+            referencedColumns: ['key']
+          }
+        ]
       }
       coupons: {
         Row: {
@@ -569,41 +590,172 @@ export type Database = {
         }
         Relationships: []
       }
-      testimonials: {
+      pages: {
         Row: {
-          id: number
-          author_name: string
-          author_role: string | null
-          content: string
-          avatar_url: string | null
-          rating: number
-          active: boolean
+          key: string
+          label: string
+          slug: string
+          page_type: string
+          enabled: boolean
+          show_in_footer: boolean
+          meta_title: string | null
+          meta_description: string | null
           order_index: number
           created_at: string
+          updated_at: string
+        }
+        Insert: {
+          key: string
+          label: string
+          slug: string
+          page_type?: string
+          enabled?: boolean
+          show_in_footer?: boolean
+          meta_title?: string | null
+          meta_description?: string | null
+          order_index?: number
+          created_at?: string
+          updated_at?: string
+        }
+        Update: {
+          key?: string
+          label?: string
+          slug?: string
+          page_type?: string
+          enabled?: boolean
+          show_in_footer?: boolean
+          meta_title?: string | null
+          meta_description?: string | null
+          order_index?: number
+          updated_at?: string
+        }
+        Relationships: []
+      }
+      page_sections: {
+        Row: {
+          id: number
+          section_key: string    // UUID estable para export/import
+          page_key: string
+          section_type: string
+          title: string | null
+          subtitle: string | null
+          body: string | null
+          image_url: string | null
+          cta_label: string | null
+          cta_url: string | null
+          enabled: boolean
+          order_index: number
+          settings: Json
+          created_at: string
+          updated_at: string
         }
         Insert: {
           id?: number
-          author_name: string
-          author_role?: string | null
-          content: string
-          avatar_url?: string | null
-          rating?: number
-          active?: boolean
+          section_key?: string
+          page_key: string
+          section_type?: string
+          title?: string | null
+          subtitle?: string | null
+          body?: string | null
+          image_url?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
+          enabled?: boolean
           order_index?: number
+          settings?: Json
           created_at?: string
+          updated_at?: string
         }
         Update: {
           id?: number
-          author_name?: string
-          author_role?: string | null
-          content?: string
-          avatar_url?: string | null
-          rating?: number
-          active?: boolean
+          section_key?: string
+          page_key?: string
+          section_type?: string
+          title?: string | null
+          subtitle?: string | null
+          body?: string | null
+          image_url?: string | null
+          cta_label?: string | null
+          cta_url?: string | null
+          enabled?: boolean
+          order_index?: number
+          settings?: Json
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'page_sections_page_key_fkey'
+            columns: ['page_key']
+            referencedRelation: 'pages'
+            referencedColumns: ['key']
+          }
+        ]
+      }
+      section_items: {
+        Row: {
+          id: number
+          section_id: number
+          item_type: string
+          icon: string | null
+          title: string | null
+          description: string | null
+          question: string | null
+          answer: string | null
+          image_url: string | null
+          image_url_mobile: string | null
+          link_url: string | null
+          cta_text: string | null
+          metadata: Json
+          enabled: boolean
+          order_index: number
+          created_at: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          section_id: number
+          item_type?: string
+          icon?: string | null
+          title?: string | null
+          description?: string | null
+          question?: string | null
+          answer?: string | null
+          image_url?: string | null
+          image_url_mobile?: string | null
+          link_url?: string | null
+          cta_text?: string | null
+          metadata?: Json
+          enabled?: boolean
           order_index?: number
           created_at?: string
+          updated_at?: string
         }
-        Relationships: []
+        Update: {
+          id?: number
+          section_id?: number
+          item_type?: string
+          icon?: string | null
+          title?: string | null
+          description?: string | null
+          question?: string | null
+          answer?: string | null
+          image_url?: string | null
+          image_url_mobile?: string | null
+          link_url?: string | null
+          cta_text?: string | null
+          metadata?: Json
+          enabled?: boolean
+          order_index?: number
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'section_items_section_id_fkey'
+            columns: ['section_id']
+            referencedRelation: 'page_sections'
+            referencedColumns: ['id']
+          }
+        ]
       }
       cart_items: {
         Row: {
@@ -846,32 +998,104 @@ export type Database = {
         }
         Relationships: []
       }
-      section_settings: {
+      media_assets: {
         Row: {
           key: string
-          label: string
-          description: string | null
-          enabled: boolean
-          order_index: number
+          url: string
+          bucket: string
+          mime_type: string | null
+          size_bytes: number | null
+          width_px: number | null
+          height_px: number | null
+          alt_text: string | null
+          used_in: Json
+          uploaded_by: string | null
           created_at: string
           updated_at: string
         }
         Insert: {
           key: string
-          label: string
-          description?: string | null
-          enabled?: boolean
-          order_index?: number
+          url: string
+          bucket?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          width_px?: number | null
+          height_px?: number | null
+          alt_text?: string | null
+          used_in?: Json
+          uploaded_by?: string | null
           created_at?: string
           updated_at?: string
         }
         Update: {
           key?: string
-          label?: string
-          description?: string | null
-          enabled?: boolean
+          url?: string
+          bucket?: string
+          mime_type?: string | null
+          size_bytes?: number | null
+          width_px?: number | null
+          height_px?: number | null
+          alt_text?: string | null
+          used_in?: Json
+          uploaded_by?: string | null
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: 'media_assets_uploaded_by_fkey'
+            columns: ['uploaded_by']
+            referencedRelation: 'profiles'
+            referencedColumns: ['id']
+          }
+        ]
+      }
+      variant_types: {
+        Row: {
+          id: number
+          name: string
+          values: Json          // string[]
+          display_type: 'pill' | 'swatch'
+          active: boolean
+          order_index: number
+          created_at: string
+        }
+        Insert: {
+          id?: number
+          name: string
+          values?: Json
+          display_type?: 'pill' | 'swatch'
+          active?: boolean
           order_index?: number
           created_at?: string
+        }
+        Update: {
+          id?: number
+          name?: string
+          values?: Json
+          display_type?: 'pill' | 'swatch'
+          active?: boolean
+          order_index?: number
+          created_at?: string
+        }
+        Relationships: []
+      }
+      admin_config: {
+        Row: {
+          id: number
+          accent_color: string
+          sidebar_color: string
+          updated_at: string
+        }
+        Insert: {
+          id?: number
+          accent_color?: string
+          sidebar_color?: string
+          updated_at?: string
+        }
+        Update: {
+          id?: number
+          accent_color?: string
+          sidebar_color?: string
           updated_at?: string
         }
         Relationships: []
@@ -993,7 +1217,6 @@ export type Product = Omit<Database['public']['Tables']['products']['Row'], 'ima
   images: ProductImage[]
 }
 export type ProductVariant = Database['public']['Tables']['product_variants']['Row']
-export type Banner = Database['public']['Tables']['banners']['Row']
 export type Order = Omit<Database['public']['Tables']['orders']['Row'], 'shipping_addr' | 'items'> & {
   shipping_addr: ShippingAddress
   items: OrderItem[]
@@ -1020,5 +1243,37 @@ export type CustomerWithAddresses = Customer & {
 }
 
 export type Coupon = Database['public']['Tables']['coupons']['Row']
-export type Testimonial = Database['public']['Tables']['testimonials']['Row']
 export type CartItem = Database['public']['Tables']['cart_items']['Row']
+export type Page = Database['public']['Tables']['pages']['Row']
+export type PageSection = Database['public']['Tables']['page_sections']['Row']
+export type SectionItem = Database['public']['Tables']['section_items']['Row']
+export type NavItem = Database['public']['Tables']['nav_items']['Row']
+export type MediaAsset = Database['public']['Tables']['media_assets']['Row']
+
+/** Tipos válidos de página (page_type) */
+export type PageType = 'landing' | 'services' | 'about' | 'faq' | 'home' | 'custom'
+
+/** Tipos válidos de sección (section_type) */
+export type SectionType =
+  | 'hero'
+  | 'text'
+  | 'cards'
+  | 'faq'
+  | 'cta'
+  | 'testimonials'
+  | 'whatsapp'
+  | 'services'
+  | 'featured_products'
+  | 'best_sellers'
+  | 'historia'
+  | 'blog_preview'
+  | 'newsletter'
+
+/** Página con sus secciones y los ítems de cada sección */
+export type PageWithSections = Page & {
+  sections: (PageSection & { items: SectionItem[] })[]
+}
+
+export type VariantType = Omit<Database['public']['Tables']['variant_types']['Row'], 'values'> & {
+  values: string[]
+}

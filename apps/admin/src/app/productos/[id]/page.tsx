@@ -1,4 +1,4 @@
-import { createServerClient } from '@vps/database'
+import { createServerClient, getVariantTypes } from '@vps/database'
 import { notFound } from 'next/navigation'
 import type { Metadata } from 'next'
 import ProductForm from '../ProductForm'
@@ -16,7 +16,7 @@ export default async function EditarProductoPage({ params }: { params: Promise<{
   const { id } = await params
   const supabase = createServerClient()
 
-  const [{ data: product }, { data: categories }] = await Promise.all([
+  const [{ data: product }, { data: categories }, variantTypes] = await Promise.all([
     supabase
       .from('products')
       .select('*, variants:product_variants(*)')
@@ -27,13 +27,14 @@ export default async function EditarProductoPage({ params }: { params: Promise<{
       .select('id, name')
       .eq('active', true)
       .order('name'),
+    getVariantTypes(true),
   ])
 
   if (!product) notFound()
 
   return (
     <div>
-      <ProductForm product={product} categories={categories ?? []} />
+      <ProductForm product={product} categories={categories ?? []} variantTypes={variantTypes} />
     </div>
   )
 }

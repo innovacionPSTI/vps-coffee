@@ -138,13 +138,14 @@ export default function FeaturedProducts({ products }: FeaturedProductsProps) {
                           if (!defaultVariant) return
                           addItem({
                             variantId: defaultVariant.id,
+                            productId: product.id,
                             productSlug: product.slug,
                             productName: product.name,
                             variantLabel: getVariantLabel(defaultVariant, opts),
                             price: defaultVariant.price,
                             qty: 1,
                             imageUrl: image?.url,
-                            weight: (defaultVariant.weight ?? '500g') as '250g' | '500g' | '1kg',
+                            weight: defaultVariant.weight ?? undefined,
                             weight_kg: defaultVariant.weight_kg ?? null,
                             length_cm: defaultVariant.length_cm ?? null,
                             width_cm: defaultVariant.width_cm ?? null,
