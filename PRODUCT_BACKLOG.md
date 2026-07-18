@@ -313,6 +313,22 @@ El backlog está organizado por **épicas** y priorizado en cinco sprints de dos
 
 ---
 
+### Épica 15 — Arquitectura de Proveedores Intercambiables
+
+| ID | Historia | Prioridad | Estado |
+|----|----------|-----------|--------|
+| PRV-01 | Interfaz `ShippingProvider` con métodos `calculateRate()` y `createShipment()`; Skydropx como implementación concreta | Alta | 🔲 |
+| PRV-02 | Selector excluyente de proveedor de envíos en admin: `precio_fijo` o una integración activa (Skydropx u otras) | Alta | 🔲 |
+| PRV-03 | Checkout calcula el costo de envío exclusivamente con el proveedor activo configurado | Alta | 🔲 |
+| PRV-04 | Interfaz `PaymentGateway` con métodos `createPayment()` y `verifyWebhook()`; Wompi y MercadoPago como implementaciones concretas | Alta | 🔲 |
+| PRV-05 | Toggle independiente por pasarela de pago en `/configuracion/pagos` (Wompi, MercadoPago, Tu Compra) | Alta | 🔲 |
+| PRV-06 | Checkout muestra únicamente las pasarelas con `enabled = true` | Alta | 🔲 |
+| PRV-07 | Integración Tu Compra como tercera pasarela de pago con webhook y redireccionamiento | Alta | 🔲 |
+| PRV-08 | Interfaz `EmailProvider` con método `send({ to, subject, html })`; Resend como implementación concreta | Media | 🔲 |
+| PRV-09 | Selector de proveedor de email activo en `/configuracion/email`; campo `email_provider` en `store_config` | Media | 🔲 |
+
+---
+
 ## 3. Historias de Usuario
 
 Las historias siguen el formato: **"Como [rol], quiero [acción] para [beneficio]."**  
@@ -1233,7 +1249,7 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 
 ---
 
-## 4. Épica 9 — Arquitectura Limpia y Generalización CMS
+## 5. Épica 9 — Arquitectura Limpia y Generalización CMS
 
 > **Contexto:** análisis v11 (julio 2026) identificó deuda técnica acumulada en 5 categorías. Estas HUs la liquidan en orden de riesgo y esfuerzo.
 
@@ -1418,7 +1434,7 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 
 ---
 
-## 5. Épica 10 — CMS Unificado e Integridad de Base de Datos
+## 6. Épica 10 — CMS Unificado e Integridad de Base de Datos
 
 > **Contexto:** v13 (julio 2026) — elimina los tres modelos CMS paralelos (banners, section_settings, testimonials), unifica todo en `pages → page_sections → section_items`, compacta 20 migraciones en un esquema canónico y refuerza integridad referencial.
 
@@ -1584,6 +1600,12 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 
 ---
 
+## 7. Épica 11 — Despliegue, Seguridad e Identidad del Panel
+
+> **Contexto:** v14 (julio 2026) — seis historias: tres pendientes de producción (tracking, CI/CD, audit), dos completadas de identidad del panel admin (favicon, colores corporativos), y tres pendientes de mejora UX/técnica (responsive admin, JSON-LD, fuentes de tema).
+
+---
+
 ### HU-060 — Tracking en Mi Cuenta
 
 > Como cliente, quiero ver el estado de mi pedido en tiempo real con número de guía y transportadora directamente en Mi Cuenta, sin necesitar abrir el email de confirmación cada vez.
@@ -1691,7 +1713,567 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 
 ---
 
-## 6. Resumen de Cobertura
+### HU-079 — Responsive audit y menú hamburguesa en admin
+
+> Como operador del negocio, quiero que el panel de administración sea usable desde una tablet o pantalla pequeña, con un menú lateral que se pueda abrir y cerrar, para gestionar pedidos o productos cuando no tengo acceso a un desktop.
+
+**Estimación:** M (5 puntos)  
+**Módulo:** `apps/admin/src/components/layout/AdminSidebar.tsx`, `apps/admin/src/app/layout.tsx`  
+**Estado:** 🔲 Pendiente
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Pantalla < 768px | Sidebar oculto por defecto; botón hamburguesa visible en topbar |
+| AC-2 | Tap en hamburguesa | Sidebar aparece como drawer lateral con overlay oscuro |
+| AC-3 | Tap en overlay o en un link de navegación | Sidebar se cierra |
+| AC-4 | Tablas de pedidos y productos en mobile | Scroll horizontal con columnas prioritarias visibles sin truncar |
+| AC-5 | Formularios (ProductForm, OrderDetail) | Campos apilados en una columna en pantallas < 768px |
+| AC-6 | Desktop (≥ 1024px) | Comportamiento actual sin cambios; sidebar siempre visible |
+
+---
+
+### HU-080 — SEO avanzado: structured data JSON-LD
+
+> Como responsable de SEO, quiero que las páginas de producto y artículos de blog incluyan datos estructurados JSON-LD para que Google pueda mostrar rich snippets (precio, disponibilidad, calificación, fecha de publicación) en los resultados de búsqueda.
+
+**Estimación:** M (3 puntos)  
+**Módulo:** `apps/web/src/app/tienda/[slug]/page.tsx`, `apps/web/src/app/blog/[slug]/page.tsx`  
+**Estado:** 🔲 Pendiente
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Página de producto | `<script type="application/ld+json">` con schema `Product`: name, description, image, offers (price, currency, availability), brand |
+| AC-2 | Artículo de blog | Schema `Article`: headline, datePublished, dateModified, author, image |
+| AC-3 | Producto sin stock | `offers.availability: "https://schema.org/OutOfStock"` |
+| AC-4 | Validación con Google Rich Results Test | Sin errores críticos; eligible para rich snippets |
+| AC-5 | No afecta el LCP | JSON-LD en `<head>` sin bloquear render |
+
+---
+
+### HU-081 — Fuentes adicionales de tema
+
+> Como administrador, quiero elegir entre más opciones de tipografía en el editor de temas del sitio web, para personalizar la identidad visual más allá de las fuentes por defecto.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `apps/admin/src/app/configuracion/temas/`, `apps/web/src/app/layout.tsx`  
+**Estado:** 🔲 Pendiente
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Editor de temas muestra selector de fuente display | Al menos 6 opciones: Cormorant, Playfair Display, Lora, Libre Baskerville, DM Serif Display, Merriweather |
+| AC-2 | Editor de temas muestra selector de fuente body | Al menos 4 opciones: DM Sans, Inter, Open Sans, Lato |
+| AC-3 | Admin activa tema con nueva fuente | `web/layout.tsx` carga la fuente desde Google Fonts y la aplica via CSS var `--font-display` o `--font-body` |
+| AC-4 | La fuente se aplica sin redeploy | La inyección del tema activo en `layout.tsx` ya es dinámica; solo agregar la nueva entrada al mapa de fuentes |
+| AC-5 | Fuente no válida en BD | Fallback a Cormorant/DM Sans; sin error visible |
+
+---
+
+## 8. Épica 12 — Emails Transaccionales
+
+> **Contexto:** sistema de emails transaccionales completo usando Resend. Las credenciales se configuran desde el panel admin (`store_config`); el nombre de la tienda y la URL base se inyectan dinámicamente en cada plantilla via `buildEmailConfig()`.
+
+---
+
+### HU-065 — Configurar proveedor de email Resend desde el admin
+
+> Como administrador, quiero ingresar mis credenciales de Resend y el email remitente desde el panel de configuración, para que los emails transaccionales salgan con el dominio de VPS Coffee sin tocar código.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `apps/admin/src/app/configuracion/email/`, `packages/database/src/queries/store-config.ts`  
+**Estado:** ✅ Completado (v2)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Admin abre `/configuracion/email` | Formulario con campos `resend_api_key`, `resend_from_email`, `resend_from_name` |
+| AC-2 | Admin guarda credenciales válidas | Campos actualizados en `store_config`; toast de éxito |
+| AC-3 | Admin guarda con api_key vacía | Error de validación en el campo; no se actualiza BD |
+| AC-4 | API `PATCH /api/admin/store-config` | Acepta y persiste los campos de Resend; requiere rol admin o superior |
+| AC-5 | `buildEmailConfig()` en `packages/database` | Lee `resend_api_key`, `resend_from_email`, `resend_from_name`, `store_name`, `site_url` y los devuelve en un solo objeto |
+
+---
+
+### HU-066 — Email de confirmación de pedido
+
+> Como comprador, quiero recibir un email de confirmación inmediatamente después de que mi pago sea aprobado, con el resumen de mi pedido y número de orden, para tener un comprobante de mi compra.
+
+**Estimación:** M (3 puntos)  
+**Módulo:** `packages/database/src/email.ts`, `apps/web/src/app/api/webhooks/`  
+**Estado:** ✅ Completado (v2)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Webhook de Wompi recibe evento `TRANSACTION.UPDATED` con estado `APPROVED` | Se llama `sendOrderConfirmation()` con los datos del pedido |
+| AC-2 | Webhook de MercadoPago recibe notificación de pago aprobado | Ídem para MercadoPago |
+| AC-3 | Email recibido por el cliente | Asunto: "Pedido confirmado — VPS-XXXX"; contiene número de orden, listado de productos con variantes, subtotal, envío y total |
+| AC-4 | `store_name` en el email | Nombre configurable; por defecto "VPS Coffee Roasting House" |
+| AC-5 | Resend API key no configurada | Error logueado en servidor; pedido se crea igual; no falla el flujo de compra |
+| AC-6 | Dirección de envío incluida | Ciudad, departamento, dirección completa del comprador |
+
+**Criterios de rechazo:**
+- El flujo de checkout se interrumpe si el envío del email falla.
+
+---
+
+### HU-067 — Email de notificación de envío con tracking
+
+> Como cliente, quiero recibir un email automático cuando mi pedido sea marcado como "Enviado" que incluya el número de guía y la transportadora, para poder hacer seguimiento sin contactar a la tienda.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `packages/database/src/email.ts`, `apps/admin/src/app/api/admin/orders/[id]/route.ts`  
+**Estado:** ✅ Completado (v10)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Admin cambia estado de pedido a "shipped" en `/pedidos/[id]` | Se dispara `sendShippingNotification()` automáticamente |
+| AC-2 | Email recibido por el cliente | Asunto: "Tu pedido está en camino — VPS-XXXX"; incluye `tracking_number`, `carrier_name` y enlace de seguimiento |
+| AC-3 | Pedido sin `tracking_number` | Email enviado igualmente sin sección de guía; no error |
+| AC-4 | Cambio de estado a otro valor (ej. "processing") | No se dispara el email de envío |
+| AC-5 | Cambio de estado de vuelta a "shipped" | Email se envía de nuevo (el admin puede reenviar manualmente) |
+
+---
+
+### HU-068 — Email de bienvenida al registrarse
+
+> Como nuevo cliente, quiero recibir un email de bienvenida al crear mi cuenta, para sentir que VPS Coffee me reconoce como parte de su comunidad.
+
+**Estimación:** S (1 punto)  
+**Módulo:** `packages/database/src/email.ts`, `apps/web/src/app/api/auth/welcome/route.ts`  
+**Estado:** ✅ Completado (v3)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Stack Auth llama a `/api/auth/welcome` tras nuevo registro | Se crea fila en `customers` y se envía `sendWelcomeEmail()` |
+| AC-2 | Email recibido | Asunto: "Bienvenido a [store_name]"; cuerpo con saludo personalizado y enlace a la tienda |
+| AC-3 | Email ya registrado (re-registro) | No se envía segundo email de bienvenida; upsert en `customers` sin duplicar |
+| AC-4 | Ruta `/api/auth/welcome` no autenticada con Stack Auth token | 401 devuelto; email no enviado |
+
+---
+
+### HU-069 — Email de confirmación de suscripción al newsletter
+
+> Como suscriptor, quiero recibir un email de confirmación cuando me suscribo al boletín de VPS Coffee, para saber que mi suscripción fue exitosa.
+
+**Estimación:** S (1 punto)  
+**Módulo:** `packages/database/src/email.ts`, `apps/web/src/app/api/newsletter/route.ts`  
+**Estado:** ✅ Completado (v3)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Usuario envía formulario de newsletter con email válido | Fila creada/actualizada en `newsletter_subscribers`; `sendNewsletterConfirmation()` ejecutada |
+| AC-2 | Email recibido | Asunto: "¡Ya eres parte de [store_name]!"; cuerpo con mensaje de agradecimiento |
+| AC-3 | Email ya suscrito (re-suscripción) | `status` se actualiza a `active`; email de confirmación enviado de nuevo |
+| AC-4 | Email inválido en el formulario | Validación client-side; no llega al API |
+
+---
+
+## 9. Épica 13 — SEO y Rendimiento
+
+> **Contexto:** estrategia SEO técnica completa: metadatos dinámicos, ISR, generación estática, sitemap, Open Graph, optimización de imágenes y analytics. Todo gestionado desde Next.js 16 con `generateMetadata` y `generateStaticParams`.
+
+---
+
+### HU-070 — Metadatos globales con template de título
+
+> Como responsable de marketing, quiero que todas las páginas del sitio tengan un título consistente con el nombre de la tienda, para reforzar la marca en resultados de búsqueda y pestañas del navegador.
+
+**Estimación:** S (1 punto)  
+**Módulo:** `apps/web/src/app/layout.tsx`, `packages/database/src/queries/store-config.ts`  
+**Estado:** ✅ Completado (v1)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `layout.tsx` exporta `generateMetadata` | `title.template: '%s — [store_name]'`; fallback `title.default` cuando la página no define título |
+| AC-2 | `store_name` se lee desde `store_config` | Cambiar el nombre en admin actualiza el template sin redeploy (ISR) |
+| AC-3 | Página de producto | Título: "Café Etiopía Yirgacheffe — VPS Coffee Roasting House" |
+| AC-4 | Página de inicio | Título default de `store_config.store_description` o nombre de la tienda |
+
+---
+
+### HU-071 — Metadatos dinámicos por producto y artículo de blog
+
+> Como responsable de SEO, quiero que cada página de producto y cada artículo del blog tenga un título, descripción y palabras clave únicos generados desde la base de datos, para maximizar la indexación individual de cada URL.
+
+**Estimación:** M (3 puntos)  
+**Módulo:** `apps/web/src/app/tienda/[slug]/page.tsx`, `apps/web/src/app/blog/[slug]/page.tsx`  
+**Estado:** ✅ Completado (v1 + v12)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Página de producto con `seo_title` definido en BD | `<title>` usa `seo_title`; fallback al nombre del producto |
+| AC-2 | Página de producto con `seo_description` | `<meta name="description">` usa el campo; fallback a `description` |
+| AC-3 | Artículo de blog | `generateMetadata` extrae título y excerpt del artículo |
+| AC-4 | Slug no encontrado | `notFound()` retornado; no se genera metadata |
+| AC-5 | Páginas del CMS (`[slug]`) | `generateMetadata` lee `pages.seo_title` y `pages.seo_description` |
+
+---
+
+### HU-072 — ISR en tienda y blog
+
+> Como visitante, quiero que las páginas de catálogo y blog carguen rápido aunque el inventario se actualice frecuentemente, sin sacrificar datos frescos.
+
+**Estimación:** S (1 punto)  
+**Módulo:** `apps/web/src/app/tienda/page.tsx`, `apps/web/src/app/blog/page.tsx`  
+**Estado:** ✅ Completado (v1)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `/tienda` tiene `revalidate = 60` | Página cacheada 60s; se regenera en background tras la primera visita post-expiración |
+| AC-2 | `/blog` tiene `revalidate = 60` | Ídem |
+| AC-3 | Admin publica nuevo producto | El cambio es visible en la tienda tras máximo 60s sin redeploy |
+| AC-4 | Admin publica artículo | Visible en `/blog` tras máximo 60s |
+
+---
+
+### HU-073 — Generación estática de rutas de producto y blog
+
+> Como equipo técnico, queremos que las páginas de producto y artículo individuales sean pre-renderizadas en build time para máxima performance y SEO.
+
+**Estimación:** S (1 punto)  
+**Módulo:** `apps/web/src/app/tienda/[slug]/page.tsx`, `apps/web/src/app/blog/[slug]/page.tsx`  
+**Estado:** ✅ Completado (v1)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `generateStaticParams` en `/tienda/[slug]` | Todos los slugs de productos activos pre-renderizados en build |
+| AC-2 | `generateStaticParams` en `/blog/[slug]` | Todos los artículos publicados pre-renderizados en build |
+| AC-3 | Producto creado después del build | Se sirve en runtime con ISR (`dynamicParams = true` por defecto) |
+| AC-4 | Producto inactivo | No incluido en `generateStaticParams`; 404 si se accede directamente |
+
+---
+
+### HU-074 — Sitemap.xml dinámico
+
+> Como responsable de SEO, quiero que el sitio genere automáticamente un sitemap.xml con todas las URLs indexables para que los motores de búsqueda descubran todas las páginas eficientemente.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `apps/web/src/app/sitemap.ts`  
+**Estado:** ✅ Completado (v3)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | GET `/sitemap.xml` | Responde con XML válido; `Content-Type: application/xml` |
+| AC-2 | Incluye URLs estáticas | `/`, `/tienda`, `/blog`, `/maquila`, `/asesorias`, `/nosotros` |
+| AC-3 | Incluye productos activos | `/tienda/[slug]` por cada producto con `is_active = true` |
+| AC-4 | Incluye artículos publicados | `/blog/[slug]` por cada artículo con `published = true` |
+| AC-5 | `lastmod` de productos | Toma `updated_at` del producto |
+| AC-6 | Nuevo producto añadido desde admin | Aparece en el sitemap sin redeploy (ISR o `no-store`) |
+
+---
+
+### HU-075 — robots.txt
+
+> Como responsable de SEO, quiero un archivo robots.txt que permita la indexación del sitio público y bloquee el panel de administración, para proteger rutas privadas y no desperdiciar crawl budget.
+
+**Estimación:** XS (1 punto)  
+**Módulo:** `apps/web/public/robots.txt` o `apps/web/src/app/robots.ts`  
+**Estado:** ✅ Completado (v3)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | GET `/robots.txt` | Responde con texto válido |
+| AC-2 | `User-agent: *` con `Allow: /` | Todo el sitio público indexable |
+| AC-3 | `Disallow` para rutas de API | `/api/` bloqueado para crawlers |
+| AC-4 | Referencia a sitemap | `Sitemap: https://[dominio]/sitemap.xml` |
+
+---
+
+### HU-076 — Open Graph y Twitter Card por página
+
+> Como responsable de marketing, quiero que al compartir cualquier página del sitio en redes sociales se muestre una imagen previa, título y descripción atractivos, para aumentar el CTR de los enlaces compartidos.
+
+**Estimación:** S (2 puntos)  
+**Módulo:** `apps/web/src/app/layout.tsx`, páginas individuales  
+**Estado:** ✅ Completado (v3)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Layout global exporta `openGraph` | `og:site_name`, `og:type: website`, imagen por defecto del sitio |
+| AC-2 | Página de producto | `og:title`, `og:description`, `og:image` con la imagen del producto |
+| AC-3 | Artículo de blog | `og:title` del artículo; `og:image` con imagen de portada |
+| AC-4 | `twitter:card: summary_large_image` | Presente en todas las páginas con imagen |
+| AC-5 | Compartir en WhatsApp/Slack | Preview correcto con imagen, título y descripción |
+
+---
+
+### HU-077 — Optimización de imágenes con next/image
+
+> Como visitante, quiero que las imágenes del sitio carguen rápido y en el formato más eficiente para mi dispositivo, sin sacrificar calidad visual.
+
+**Estimación:** M (3 puntos)  
+**Módulo:** `apps/web/src/components/`, `apps/web/next.config.ts`  
+**Estado:** ✅ Completado (v4)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Imágenes de producto | Componente `<Image>` con `sizes` responsive; formato WebP servido por Next.js |
+| AC-2 | Imágenes de Supabase Storage | Dominio de Supabase en `next.config.ts → images.remotePatterns` |
+| AC-3 | Hero carrusel | `priority={true}` en el primer slide; lazy load en los demás |
+| AC-4 | LCP (Largest Contentful Paint) | Hero principal sin CLS; imagen visible antes del scroll |
+| AC-5 | Imágenes con `alt` descriptivo | Todo `<Image>` tiene `alt` no vacío; accesibilidad garantizada |
+
+---
+
+### HU-078 — Analytics con Vercel Analytics
+
+> Como propietario del negocio, quiero ver cuántas visitas tiene el sitio, qué páginas son las más visitadas y de dónde vienen los usuarios, para tomar decisiones de marketing basadas en datos reales.
+
+**Estimación:** XS (1 punto)  
+**Módulo:** `apps/web/src/app/layout.tsx`, `apps/web/package.json`  
+**Estado:** ✅ Completado (v4)
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `@vercel/analytics` instalado y `<Analytics />` en layout | Eventos de pageview enviados automáticamente en producción |
+| AC-2 | Dashboard de Vercel | Visitas, páginas únicas, fuentes de tráfico, Web Vitals visibles |
+| AC-3 | Desarrollo local | Analytics deshabilitado o en modo sandbox; no contamina datos de producción |
+| AC-4 | Sin cookies de seguimiento | Vercel Analytics es cookieless; sin banner de GDPR necesario |
+
+---
+
+## 10. Épica 15 — Arquitectura de Proveedores Intercambiables
+
+> **Contexto:** refactorización para que envíos, pasarelas de pago y email usen interfaces abstractas con una implementación activa a la vez. Permite agregar nuevos proveedores (Coordinadora, Tu Compra, SendGrid) sin tocar el flujo existente. Las tres áreas comparten el mismo patrón: interfaz → implementaciones concretas → selector en admin → único proveedor activo visible al cliente.
+
+---
+
+### HU-082 — Interfaz ShippingProvider y refactor de Skydropx
+
+> Como desarrollador, quiero que el módulo de envíos esté abstraído detrás de una interfaz `ShippingProvider`, para que agregar un nuevo proveedor (ej. Coordinadora) solo requiera implementar esa interfaz sin tocar el flujo de checkout.
+
+**Estimación:** M (5 puntos)
+**Módulo:** `packages/database/src/providers/shipping/`, `apps/web/src/app/api/shipping/`
+**Estado:** 🔲 Pendiente
+**Prerequisito de:** HU-083, HU-084
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Interfaz `ShippingProvider` definida | Métodos: `calculateRate(cart, address): Promise<ShippingRate[]>` y `createShipment(order): Promise<Shipment>` |
+| AC-2 | `SkydropxProvider` implementa la interfaz | Lógica actual de cotización y creación de guía encapsulada en la clase concreta |
+| AC-3 | `FixedPriceProvider` implementa la interfaz | `calculateRate()` devuelve la tarifa fija configurada; `createShipment()` es no-op |
+| AC-4 | Factory `getShippingProvider(config)` | Lee `shipping_config.provider` y devuelve la instancia correcta |
+| AC-5 | `tsc --noEmit` sin errores | Tipos estrictos en toda la cadena |
+| AC-6 | Tests unitarios de `SkydropxProvider` y `FixedPriceProvider` | Cubren `calculateRate` con mocks de la API externa |
+
+**Criterios de rechazo:**
+- La lógica de Skydropx queda dispersa fuera de la clase concreta.
+
+---
+
+### HU-083 — Selector excluyente de proveedor de envíos en admin
+
+> Como administrador, quiero elegir entre "Precio fijo" y las integraciones disponibles (ej. Skydropx) como método de cálculo de envío de forma excluyente, para que nunca estén activos dos métodos al mismo tiempo.
+
+**Estimación:** S (2 puntos)
+**Módulo:** `packages/database/supabase/migrations/`, `apps/admin/src/app/configuracion/envios/`
+**Estado:** 🔲 Pendiente
+**Bloqueada por:** HU-082
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `shipping_config` tiene campo `provider TEXT` | Valores válidos: `'fixed'`, `'skydropx'`; default `'fixed'`; CHECK constraint |
+| AC-2 | Admin abre `/configuracion/envios` | Radio buttons: "Precio fijo" y "Skydropx"; solo uno seleccionado a la vez |
+| AC-3 | Admin selecciona "Precio fijo" | Muestra solo el campo de tarifa fija; credenciales Skydropx ocultas |
+| AC-4 | Admin selecciona "Skydropx" | Muestra campos de credenciales Skydropx; tarifa fija oculta |
+| AC-5 | Guardar configuración | `provider` actualizado en BD; campo anterior no afecta el cálculo |
+| AC-6 | Migración idempotente | Rows existentes reciben `provider = 'skydropx'` si tienen credenciales, `'fixed'` si no |
+
+---
+
+### HU-084 — Checkout calcula envío con el proveedor activo
+
+> Como comprador, quiero que el costo de envío se calcule con el método que haya configurado el administrador, sin que el sistema mezcle tarifas fijas con tarifas de API.
+
+**Estimación:** S (2 puntos)
+**Módulo:** `apps/web/src/app/api/shipping/quote/route.ts`
+**Estado:** 🔲 Pendiente
+**Bloqueada por:** HU-082, HU-083
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `provider = 'fixed'` configurado | Checkout muestra una única tarifa con el precio fijo; sin llamada a API externa |
+| AC-2 | `provider = 'skydropx'` configurado | Checkout llama a Skydropx y muestra las opciones reales de tarifa |
+| AC-3 | API externa de Skydropx falla | Error manejado; mensaje al usuario; no expone detalles técnicos |
+| AC-4 | Envío gratis configurado y subtotal suficiente | Aplica independientemente del proveedor activo |
+| AC-5 | `provider` no está definido en BD | Fallback a `'fixed'` con tarifa cero; no rompe el checkout |
+
+---
+
+### HU-085 — Interfaz PaymentGateway y refactor de Wompi y MercadoPago
+
+> Como desarrollador, quiero que cada pasarela de pago implemente una interfaz `PaymentGateway` común, para poder agregar nuevas pasarelas (ej. Tu Compra) sin modificar el flujo de checkout ni los webhooks existentes.
+
+**Estimación:** M (5 puntos)
+**Módulo:** `packages/database/src/providers/payment/`, `apps/web/src/app/api/checkout/`
+**Estado:** 🔲 Pendiente
+**Prerequisito de:** HU-086, HU-087, HU-088
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Interfaz `PaymentGateway` definida | Métodos: `createPayment(order, config): Promise<PaymentResult>` y `verifyWebhook(req): Promise<WebhookEvent>` |
+| AC-2 | `WompiGateway` implementa la interfaz | Lógica actual de hosted checkout y verificación de webhook encapsulada |
+| AC-3 | `MercadoPagoGateway` implementa la interfaz | Lógica actual de preference y webhook encapsulada |
+| AC-4 | Factory `getPaymentGateway(name, config)` | Recibe el nombre de la pasarela y devuelve la instancia correcta |
+| AC-5 | Rutas `/api/checkout` y `/api/webhooks/*` usan la factory | Sin lógica condicional `if wompi / else mercadopago` en los handlers |
+| AC-6 | `tsc --noEmit` sin errores | Tipos estrictos; `PaymentResult` y `WebhookEvent` tipados |
+
+---
+
+### HU-086 — Toggle por pasarela de pago en admin
+
+> Como administrador, quiero habilitar o deshabilitar cada pasarela de pago (Wompi, MercadoPago, Tu Compra) de forma independiente, para controlar cuál se ofrece al comprador sin tener que eliminar credenciales.
+
+**Estimación:** S (2 puntos)
+**Módulo:** `packages/database/supabase/migrations/`, `apps/admin/src/app/configuracion/pagos/`
+**Estado:** 🔲 Pendiente
+**Bloqueada por:** HU-085
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `payment_config` tiene campos `wompi_enabled`, `mercadopago_enabled`, `tucompra_enabled` (BOOLEAN DEFAULT false) | Migración aplica sin errores |
+| AC-2 | Admin abre `/configuracion/pagos` | Cada pasarela tiene un toggle independiente + sección de credenciales colapsable |
+| AC-3 | Admin activa Wompi | `wompi_enabled = true`; sección de credenciales Wompi visible y requerida |
+| AC-4 | Admin desactiva MercadoPago | `mercadopago_enabled = false`; pasarela no aparece en checkout aunque tenga credenciales |
+| AC-5 | Ninguna pasarela activa | Admin ve advertencia: "El checkout no tendrá método de pago disponible" |
+| AC-6 | Al menos una pasarela debe tener credenciales si está activa | Validación antes de guardar; mensaje de error claro |
+
+---
+
+### HU-087 — Checkout muestra solo las pasarelas activas
+
+> Como comprador, quiero ver en el checkout únicamente las pasarelas de pago que el administrador haya habilitado, para no confundirme con opciones no disponibles.
+
+**Estimación:** S (2 puntos)
+**Módulo:** `apps/web/src/app/(public)/checkout/`
+**Estado:** 🔲 Pendiente
+**Bloqueada por:** HU-085, HU-086
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Solo Wompi activa | Checkout muestra únicamente "Pagar con Wompi"; sin selector de pasarela |
+| AC-2 | Wompi y MercadoPago activas | Checkout muestra radio buttons para elegir entre las dos |
+| AC-3 | Las tres pasarelas activas | Checkout muestra las tres opciones |
+| AC-4 | Cero pasarelas activas | Checkout muestra mensaje: "No hay método de pago disponible; contacta a la tienda" |
+| AC-5 | API `/api/checkout` valida que la pasarela recibida esté activa | 400 si el cliente envía una pasarela deshabilitada |
+
+---
+
+### HU-088 — Integración Tu Compra como tercera pasarela de pago
+
+> Como administrador, quiero poder configurar Tu Compra e integrarlo como opción de pago, para ofrecer una alternativa local a los compradores colombianos.
+
+**Estimación:** L (8 puntos)
+**Módulo:** `packages/database/src/providers/payment/TuCompraGateway.ts`, `apps/web/src/app/api/webhooks/tucompra/`
+**Estado:** 🔲 Pendiente
+**Bloqueada por:** HU-085, HU-086
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `payment_config` tiene campos `tucompra_merchant_id`, `tucompra_secret_key`, `tucompra_sandbox` | Migración aplica; campos opcionales |
+| AC-2 | Admin configura credenciales y activa Tu Compra | Toggle + formulario de credenciales en `/configuracion/pagos` |
+| AC-3 | Comprador selecciona Tu Compra en checkout | `POST /api/checkout` con `gateway: 'tucompra'` → redirige a página de pago de Tu Compra |
+| AC-4 | Tu Compra notifica pago aprobado por webhook | `POST /api/webhooks/tucompra` → orden marcada como pagada; email de confirmación enviado |
+| AC-5 | Tu Compra notifica pago rechazado | Orden permanece `pending`; comprador puede reintentar |
+| AC-6 | Modo sandbox activado | Las llamadas van al entorno de pruebas de Tu Compra |
+| AC-7 | Verificación de firma HMAC del webhook | Requests sin firma válida devuelven 401 |
+
+**Criterios de rechazo:**
+- El webhook acepta eventos sin verificar la firma.
+
+---
+
+### HU-089 — Interfaz EmailProvider y refactor de Resend
+
+> Como desarrollador, quiero que el módulo de email esté abstraído detrás de una interfaz `EmailProvider`, para que cambiar de Resend a SendGrid o Mailgun no requiera modificar los callers del negocio.
+
+**Estimación:** S (2 puntos)
+**Módulo:** `packages/database/src/providers/email/`, `packages/database/src/lib/email.ts`
+**Estado:** 🔲 Pendiente
+**Prerequisito de:** HU-090
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | Interfaz `EmailProvider` definida | Método único: `send({ from, to, subject, html }): Promise<void>` |
+| AC-2 | `ResendProvider` implementa la interfaz | Lógica actual de `fetch` a la API de Resend encapsulada en la clase |
+| AC-3 | Factory `getEmailProvider(config)` | Lee `store_config.email_provider` y devuelve la instancia correcta; default `'resend'` |
+| AC-4 | Todas las funciones en `lib/email.ts` usan la factory | `sendOrderConfirmation`, `sendShippingNotification`, etc. no referencian Resend directamente |
+| AC-5 | `tsc --noEmit` sin errores | Tipos estrictos en toda la cadena |
+| AC-6 | Test unitario de `ResendProvider` | Mock del `fetch` verifica que construye el payload correcto para la API de Resend |
+
+---
+
+### HU-090 — Selector de proveedor de email activo en admin
+
+> Como administrador, quiero seleccionar el proveedor de email activo desde `/configuracion/email`, para poder cambiar de Resend a otro servicio sin tocar código.
+
+**Estimación:** S (2 puntos)
+**Módulo:** `apps/admin/src/app/configuracion/email/`, `packages/database/supabase/migrations/`
+**Estado:** 🔲 Pendiente
+**Bloqueada por:** HU-089
+
+**Criterios de aceptación:**
+
+| # | Escenario | Resultado esperado |
+|---|-----------|-------------------|
+| AC-1 | `store_config` tiene campo `email_provider TEXT DEFAULT 'resend'` | Migración aplica; CHECK constraint con valores válidos conocidos |
+| AC-2 | Admin abre `/configuracion/email` | Selector de proveedor (actualmente solo "Resend"); sección de credenciales del proveedor seleccionado |
+| AC-3 | Proveedor `resend` seleccionado | Muestra campos `resend_api_key`, `resend_from_email`, `resend_from_name` |
+| AC-4 | Nuevo proveedor agregado en el futuro | Solo requiere: nueva `XxxProvider` class + nueva opción en el selector + campos de credenciales |
+| AC-5 | Guardar sin credenciales del proveedor activo | Validación: campos requeridos del proveedor seleccionado no pueden estar vacíos |
+| AC-6 | `getEmailProvider()` lee el campo en cada envío | Cambio de proveedor en admin efectivo en el próximo email sin redeploy |
+
+---
+
+## 11. Resumen de Cobertura
 
 | Épica | Total ítems | Implementados | Pendientes | % |
 |-------|-------------|---------------|------------|---|
@@ -1711,12 +2293,13 @@ Para agregar un nuevo proveedor (ej. FedEx): crear `providers/fedex/index.ts`, a
 | Plataforma genérica + UX envíos | 4 | 4 | 0 | 100% |
 | Épica 9 — Arquitectura Limpia | 9 | 9 | 0 | 100% |
 | Épica 10 — CMS Unificado + DB | 7 | 7 | 0 | 100% |
-| Épica 11 — Despliegue y Seguridad | 3 | 0 | 3 | 0% |
-| **TOTAL** | **164** | **161** | **3** | **98%** |
+| Épica 11 — Despliegue y Seguridad | 6 | 0 | 6 | 0% |
+| Épica 15 — Arquitectura de Proveedores | 9 | 0 | 9 | 0% |
+| **TOTAL** | **176** | **161** | **15** | **91%** |
 
 ---
 
-## 6. Criterios de Definición de "Hecho" (DoD)
+## 12. Criterios de Definición de "Hecho" (DoD)
 
 Para que una historia de usuario se considere completamente implementada debe cumplir:
 
@@ -1731,7 +2314,7 @@ Para que una historia de usuario se considere completamente implementada debe cu
 
 ---
 
-## 7. Cómo ejecutar las pruebas
+## 13. Cómo ejecutar las pruebas
 
 ```bash
 # Desde la raíz del monorepo:

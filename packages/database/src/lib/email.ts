@@ -1,12 +1,12 @@
 /**
  * Utilidades de email transaccional compartidas entre apps/web y apps/admin.
- * Usa la API REST de Resend directamente (sin SDK) — sin dependencias externas.
+ * Usa la abstracción EmailProvider — por defecto ResendProvider.
  *
  * Las funciones específicas de cada app (sendOrderConfirmation, sendWelcomeEmail,
  * sendNewsletterConfirmation, buildEmailConfig) permanecen en cada app.
  */
 
-const RESEND_API_URL = 'https://api.resend.com/emails'
+import { getEmailProvider } from '../providers/email'
 
 export interface EmailConfig {
   apiKey: string
@@ -15,6 +15,8 @@ export interface EmailConfig {
   storeName?: string
   /** URL base del sitio */
   siteUrl?: string
+  /** Proveedor activo — desde store_config.email_provider. Default: 'resend'. */
+  emailProvider?: string | null
 }
 
 interface EmailPayload {
@@ -25,18 +27,8 @@ interface EmailPayload {
 }
 
 async function sendEmail(config: EmailConfig, payload: EmailPayload): Promise<void> {
-  const res = await fetch(RESEND_API_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${config.apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify(payload),
-  })
-  if (!res.ok) {
-    const err = await res.text()
-    throw new Error(`Resend error ${res.status}: ${err}`)
-  }
+  const provider = getEmailProvider({ provider: config.emailProvider, apiKey: config.apiKey })
+  await provider.send(payload)
 }
 
 function baseTemplate(content: string, config: EmailConfig): string {

@@ -1,6 +1,6 @@
 import type { Metadata, ResolvingMetadata } from 'next'
 import { Suspense } from 'react'
-import { Cormorant_Garamond, DM_Sans, Playfair_Display, Inter } from 'next/font/google'
+import { Cormorant_Garamond, DM_Sans, Playfair_Display, Inter, Lora, Merriweather, Montserrat, Nunito } from 'next/font/google'
 import { StackProvider, StackTheme } from '@stackframe/stack'
 import { Analytics } from '@vercel/analytics/react'
 import { stackServerApp } from '../stack'
@@ -45,6 +45,40 @@ const inter = Inter({
   display: 'swap',
 })
 
+// Display opción 3: Lora
+const lora = Lora({
+  subsets: ['latin'],
+  weight: ['400', '500', '600', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-lora',
+  display: 'swap',
+})
+
+// Display opción 4: Merriweather
+const merriweather = Merriweather({
+  subsets: ['latin'],
+  weight: ['300', '400', '700'],
+  style: ['normal', 'italic'],
+  variable: '--font-merriweather',
+  display: 'swap',
+})
+
+// Body opción 3: Montserrat
+const montserrat = Montserrat({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-montserrat',
+  display: 'swap',
+})
+
+// Body opción 4: Nunito
+const nunito = Nunito({
+  subsets: ['latin'],
+  weight: ['300', '400', '500', '600', '700'],
+  variable: '--font-nunito',
+  display: 'swap',
+})
+
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
 /** Convierte hex #RRGGBB a canales RGB separados por espacios para CSS vars */
@@ -58,12 +92,16 @@ function hexToRgb(hex: string): string {
 
 /** Mapeo de identificador de fuente → valor de CSS var */
 const FONT_DISPLAY_MAP: Record<string, string> = {
-  cormorant: 'var(--font-ahsing), Georgia, serif',
-  playfair:  'var(--font-playfair), Georgia, serif',
+  cormorant:    'var(--font-ahsing), Georgia, serif',
+  playfair:     'var(--font-playfair), Georgia, serif',
+  lora:         'var(--font-lora), Georgia, serif',
+  merriweather: 'var(--font-merriweather), Georgia, serif',
 }
 const FONT_BODY_MAP: Record<string, string> = {
-  'dm-sans': 'var(--font-geeeki), system-ui, sans-serif',
-  inter:     'var(--font-inter), system-ui, sans-serif',
+  'dm-sans':   'var(--font-geeeki), system-ui, sans-serif',
+  inter:       'var(--font-inter), system-ui, sans-serif',
+  montserrat:  'var(--font-montserrat), system-ui, sans-serif',
+  nunito:      'var(--font-nunito), system-ui, sans-serif',
 }
 
 /**
@@ -145,6 +183,10 @@ export default async function RootLayout({ children }: { children: React.ReactNo
     playfair.variable,
     dmSans.variable,
     inter.variable,
+    lora.variable,
+    merriweather.variable,
+    montserrat.variable,
+    nunito.variable,
   ].join(' ')
 
   return (

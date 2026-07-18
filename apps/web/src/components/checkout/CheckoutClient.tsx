@@ -43,6 +43,12 @@ const FALLBACK_CFG: ShippingPublicConfig = {
   free_shipping_enabled: true, free_shipping_min_amount: 100000,
 }
 
+interface GatewayOption { value: string; label: string; desc: string }
+
+const FALLBACK_GATEWAYS: GatewayOption[] = [
+  { value: 'wompi', label: 'Wompi', desc: 'Tarjeta débito/crédito, PSE, Bancolombia' },
+]
+
 const fmt = (n: number) =>
   new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n)
 
@@ -69,7 +75,8 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
       ? addressToShipping(defaultAddress)
       : { name: '', lastname: '', address: '', city: '', department: '', phone: '', postal_code: '' }
   )
-  const [paymentMethod, setPaymentMethod] = useState<'wompi' | 'mercadopago'>('wompi')
+  const [paymentMethod, setPaymentMethod] = useState<string>('wompi')
+  const [gateways, setGateways]           = useState<GatewayOption[]>(FALLBACK_GATEWAYS)
   const [loading, setLoading]   = useState(false)
 
   // Envío
@@ -86,11 +93,21 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
   const [couponLoading, setCouponLoading]   = useState(false)
   const [couponError, setCouponError]       = useState('')
 
-  // Cargar config de envío al montar
+  // Cargar config de envío y pasarelas activas al montar
   useEffect(() => {
     fetch('/api/shipping/config')
       .then((r) => r.ok ? r.json() : null)
       .then((d) => { if (d) setShippingCfg(d) })
+      .catch(() => {})
+
+    fetch('/api/checkout/gateways')
+      .then((r) => r.ok ? r.json() : null)
+      .then((d: { gateways: GatewayOption[] } | null) => {
+        if (d?.gateways?.length) {
+          setGateways(d.gateways)
+          setPaymentMethod(d.gateways[0].value)
+        }
+      })
       .catch(() => {})
   }, [])
 
@@ -441,12 +458,9 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
               <div className="bg-white rounded-2xl p-6 shadow-sm">
                 <h2 className="font-brand font-semibold text-brand-primary text-xl mb-5">3. Método de pago</h2>
                 <div className="space-y-3 mb-6">
-                  {[
-                    { value: 'wompi', label: 'Wompi', desc: 'Tarjeta débito/crédito, PSE, Bancolombia' },
-                    { value: 'mercadopago', label: 'MercadoPago', desc: 'Tarjeta, efectivo, Nequi, Daviplata' },
-                  ].map((pm) => (
+                  {gateways.map((pm) => (
                     <label key={pm.value} className={`flex items-center gap-4 p-4 rounded-xl border-2 cursor-pointer transition-colors ${paymentMethod === pm.value ? 'border-brand-primary bg-brand-cream/50' : 'border-brand-primary/10 hover:border-brand-primary/30'}`}>
-                      <input type="radio" name="payment" value={pm.value} checked={paymentMethod === pm.value as typeof paymentMethod} onChange={() => setPaymentMethod(pm.value as typeof paymentMethod)} className="accent-brand-primary" />
+                      <input type="radio" name="payment" value={pm.value} checked={paymentMethod === pm.value} onChange={() => setPaymentMethod(pm.value)} className="accent-brand-primary" />
                       <div>
                         <p className="font-brand font-semibold text-brand-primary">{pm.label}</p>
                         <p className="font-brand text-xs text-brand-primary/50">{pm.desc}</p>
@@ -456,7 +470,7 @@ export default function CheckoutClient({ initialEmail = '', defaultAddress = nul
                 </div>
                 <div className="bg-brand-yellow/20 rounded-xl p-4 mb-6">
                   <p className="font-brand text-sm text-brand-primary/70">
-                    💡 El widget de {paymentMethod === 'wompi' ? 'Wompi' : 'MercadoPago'} se cargará al confirmar. Datos protegidos con SSL.
+                    💡 El widget de {gateways.find((g) => g.value === paymentMethod)?.label ?? paymentMethod} se cargará al confirmar. Datos protegidos con SSL.
                   </p>
                 </div>
                 <div className="flex gap-3">

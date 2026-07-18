@@ -11,10 +11,14 @@ interface PaymentConfigData {
   mercadopago_access_token: string | null
   mercadopago_public_key: string | null
   mercadopago_active: boolean
+  tucompra_merchant_id: string | null
+  tucompra_sandbox: boolean
+  tucompra_active: boolean
   has_wompi_private_key: boolean
   has_wompi_integrity_secret: boolean
   has_wompi_events_secret: boolean
   has_mercadopago_access_token: boolean
+  has_tucompra_secret_key: boolean
 }
 
 interface Props {
@@ -87,6 +91,8 @@ export default function PaymentConfigForm({ initialConfig }: Props) {
     const payload: Record<string, string | boolean> = {
       wompi_active: fd.get('wompi_active') === 'on',
       mercadopago_active: fd.get('mercadopago_active') === 'on',
+      tucompra_active: fd.get('tucompra_active') === 'on',
+      tucompra_sandbox: fd.get('tucompra_sandbox') === 'on',
     }
 
     const stringFields = [
@@ -96,6 +102,8 @@ export default function PaymentConfigForm({ initialConfig }: Props) {
       'wompi_events_secret',
       'mercadopago_access_token',
       'mercadopago_public_key',
+      'tucompra_merchant_id',
+      'tucompra_secret_key',
     ]
     for (const field of stringFields) {
       const val = fd.get(field)
@@ -244,6 +252,70 @@ export default function PaymentConfigForm({ initialConfig }: Props) {
             placeholder="TEST-abc123… o APP_USR-abc123…"
             hint="Credencial privada de servidor. TEST-… = sandbox, APP_USR-… = producción."
           />
+        </div>
+      </div>
+
+      <hr className="border-brand-primary/10" />
+
+      {/* ── Tu Compra ──────────────────────────────────────────── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h3 className="font-brand font-semibold text-brand-primary">Tu Compra</h3>
+            <p className="font-brand text-xs text-brand-primary/40">
+              Pasarela colombiana — tarjeta, efectivo, Nequi, PSE
+            </p>
+          </div>
+          <label className="flex items-center gap-2 cursor-pointer">
+            <span className="font-brand text-sm text-brand-primary/60">Activo</span>
+            <div className="relative">
+              <input
+                type="checkbox"
+                name="tucompra_active"
+                defaultChecked={cfg?.tucompra_active ?? false}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-5 bg-brand-primary/20 rounded-full peer peer-checked:bg-brand-primary transition-colors" />
+              <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
+            </div>
+          </label>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4">
+          <div>
+            <label className="font-brand text-sm font-semibold text-brand-primary block mb-1">
+              Merchant ID
+            </label>
+            <input
+              type="text"
+              name="tucompra_merchant_id"
+              defaultValue={cfg?.tucompra_merchant_id ?? ''}
+              placeholder="Código de comercio Tu Compra"
+              className="w-full border border-brand-primary/20 rounded-xl px-4 py-2.5 font-mono text-sm focus:outline-none focus:border-brand-primary"
+            />
+          </div>
+
+          <SecretInput
+            label="Secret Key"
+            name="tucompra_secret_key"
+            hasExisting={cfg?.has_tucompra_secret_key ?? false}
+            placeholder="Llave secreta Tu Compra"
+            hint="Credencial privada de servidor. Nunca se expone al cliente."
+          />
+
+          <label className="flex items-center gap-3 cursor-pointer">
+            <div className="relative">
+              <input
+                type="checkbox"
+                name="tucompra_sandbox"
+                defaultChecked={cfg?.tucompra_sandbox ?? true}
+                className="sr-only peer"
+              />
+              <div className="w-10 h-5 bg-brand-primary/20 rounded-full peer peer-checked:bg-brand-primary transition-colors" />
+              <div className="absolute top-0.5 left-0.5 w-4 h-4 bg-white rounded-full shadow peer-checked:translate-x-5 transition-transform" />
+            </div>
+            <span className="font-brand text-sm text-brand-primary">Modo sandbox (pruebas)</span>
+          </label>
         </div>
       </div>
 

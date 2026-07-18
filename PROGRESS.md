@@ -374,14 +374,37 @@
   - `/sistema/apariencia/page.tsx` + `AdminConfigForm.tsx`: color pickers, presets de paleta, vista previa en tiempo real
   - Export/Import actualizado a **v3**: incluye `admin_config` y `themes`; import maneja los 3 versiones; respuesta devuelve `version` del snapshot ✅
 
-### Pendiente — próximas épicas
-- [ ] **HU-060 — Tracking en Mi Cuenta** — timeline visual de estado del pedido con número de guía Skydropx
-- [ ] **HU-061 — Responsive audit** — revisión mobile-first completa; menú hamburguesa en admin
-- [ ] **HU-062 — SEO avanzado** — structured data (JSON-LD) para productos y artículos de blog
-- [ ] **HU-063 — Despliegue en Vercel** — CI/CD desde GitHub Actions; preview branches; variables de entorno en Vercel Dashboard
-- [ ] **HU-064 — Fuentes adicionales de tema** — ampliar opciones display/body en editor de temas
-- [ ] **Tests newsletter** — API routes GET /api/admin/newsletter y POST /api/admin/newsletter/send
-- [ ] **Tests admin-config** — `getAdminConfig`, `updateAdminConfig`, PATCH /api/admin/sistema
+### Completado en v15 — Épica 15: Proveedores Intercambiables (Iteraciones 1-6)
+
+#### Iteraciones 1-4 (sesión anterior)
+- [x] **HU-082/083/084** — `ShippingProvider` + `SkydropxProvider` + `FixedPriceProvider` + factory; selector admin; checkout usa factory ✅
+- [x] **HU-085/086/087** — `PaymentGateway` + `WompiGateway` + `MercadoPagoGateway` + factory; toggles admin; checkout solo muestra pasarelas activas ✅
+- [x] **HU-088** — `TuCompraGateway` (MD5 signature, sandbox/prod); webhook `/api/webhooks/tucompra`; tipo `tucompra` en `payment_method` ✅
+- [x] **HU-089/090** — `EmailProvider` + `ResendProvider` + factory `getEmailProvider()`; campo `email_provider` en `store_config`; selector en admin ✅
+- [x] **HU-060** — Tracking en Mi Cuenta: `/mi-cuenta/pedidos/[id]` con timeline visual (pending→processing→shipped→delivered); tracking number, tabla de ítems, dirección, totales; verificación de propiedad por email ✅
+- [x] **`/api/checkout/gateways`** — endpoint público que devuelve pasarelas activas; `CheckoutClient` las carga dinámicamente con fallback ✅
+
+#### Iteración 5 — Polish
+- [x] **HU-079 — Responsive admin** — `AdminSidebar` self-contained: hamburger fijo `top-0 left-0 z-50 md:hidden`, overlay backdrop, `<aside>` con `fixed md:relative` + `translate-x` animation; layout.tsx añade `pl-14 md:pl-0` al topbar ✅
+- [x] **HU-080 — JSON-LD structured data** — schema `Product` (con offers, brand, images) en `/tienda/[slug]`; schema `Article` (con author/publisher desde store_config) en `/blog/[slug]` ✅
+- [x] **HU-081 — Fuentes adicionales en editor de temas** — añadidos `Lora` y `Merriweather` como display; `Montserrat` y `Nunito` como body; registrados en `FONT_DISPLAY_MAP`/`FONT_BODY_MAP` del web layout y en `TemasClient.tsx` ✅
+- [x] **Tests newsletter** — `newsletter.integration.test.ts`: 10 casos para GET/POST con auth, validaciones, Resend mock ✅
+- [x] **Tests admin-config/sistema** — `sistema.integration.test.ts` + `admin-config.test.ts`: cobertura de `getAdminConfig`, `updateAdminConfig`, PATCH /api/admin/sistema (auth, filtro falsy, propagación de errores) ✅
+
+#### Iteración 6 — Infraestructura y Seguridad
+- [x] **HU-061 — GitHub Actions CI/CD** — `.github/workflows/ci.yml`: TypeScript check → tests → deploy web+admin a Vercel en `main`; preview URL con comentario en PR para branches ✅
+- [x] **HU-062 — Security hardening**:
+  - `/api/admin/*` — todos protegidos con `getAdminUser()` (ya estaban) ✅
+  - Wompi webhook — HMAC SHA256 con `eventsSecret` (ya implementado) ✅
+  - MercadoPago webhook — pull model: el estado se consulta directamente a la API de MP con nuestro `access_token`, sin depender del cuerpo del webhook ✅
+  - TuCompra webhook — MD5 signature verification ✅
+  - **Rate limiting** en `/api/checkout` — 10 req/min por IP, respuesta 429 con `Retry-After` ✅
+  - **CSP headers** en `apps/web/next.config.ts` — `Content-Security-Policy`, `X-Frame-Options: DENY`, `X-Content-Type-Options`, `Referrer-Policy`, `Permissions-Policy`, `HSTS` ✅
+  - **CSP headers** en `apps/admin/next.config.ts` — mismas directivas (sin Google Fonts, con Stack Auth domain) ✅
+
+#### Épica 15 — Estado final
+- [x] **HU-082 a HU-090** — todas completas ✅
+- [x] `tsc --noEmit --skipLibCheck` pasa en `apps/web` y `apps/admin` ✅
 
 ---
 

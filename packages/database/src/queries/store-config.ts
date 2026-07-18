@@ -38,6 +38,8 @@ export type StoreConfig = {
   /** Toggles del navbar. */
   nav_show_cart: boolean
   nav_show_auth: boolean
+  /** Proveedor de email activo ('resend' por defecto). */
+  email_provider: string
   updated_at: string
 }
 
@@ -70,6 +72,7 @@ const DEFAULT_CONFIG: StoreConfig = {
   footer_show_legal: true,
   nav_show_cart: true,
   nav_show_auth: true,
+  email_provider: 'resend',
   updated_at: new Date().toISOString(),
 }
 

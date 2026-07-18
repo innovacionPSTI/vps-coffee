@@ -64,9 +64,10 @@ export default async function PedidosPage() {
             const st = STATUS[order.status] ?? { label: order.status, color: 'bg-gray-50 text-gray-600', dot: 'bg-gray-400' }
 
             return (
-              <div
+              <Link
                 key={order.id}
-                className="bg-white rounded-2xl shadow-sm overflow-hidden"
+                href={`/mi-cuenta/pedidos/${order.id}`}
+                className="bg-white rounded-2xl shadow-sm overflow-hidden block hover:shadow-md transition-shadow"
               >
                 {/* Fila principal */}
                 <div className="px-5 py-4 flex items-center justify-between gap-4 flex-wrap">
@@ -111,7 +112,7 @@ export default async function PedidosPage() {
                     </p>
                   </div>
                 )}
-              </div>
+              </Link>
             )
           })}
         </div>

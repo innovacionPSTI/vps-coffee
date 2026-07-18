@@ -51,5 +51,42 @@ export default async function ProductPage({ params }: Props) {
 
   const trustBadges = (storeConfig?.trust_badges ?? []).filter((b) => b.enabled)
 
-  return <ProductDetail product={product} related={related} trustBadges={trustBadges} />
+  // JSON-LD — Product schema
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
+  const lowestPrice = (product.variants ?? []).reduce(
+    (min: number | null, v: { price: number }) => (min === null || v.price < min ? v.price : min),
+    null as number | null,
+  )
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Product',
+    name: product.name,
+    ...(product.description ? { description: product.description } : {}),
+    ...(product.images?.length
+      ? { image: product.images.map((img: { url: string }) => img.url) }
+      : {}),
+    url: `${siteUrl}/tienda/${product.slug}`,
+    ...(lowestPrice !== null
+      ? {
+          offers: {
+            '@type': 'Offer',
+            priceCurrency: 'COP',
+            price: lowestPrice,
+            availability: 'https://schema.org/InStock',
+            url: `${siteUrl}/tienda/${product.slug}`,
+          },
+        }
+      : {}),
+    ...(storeConfig?.store_name ? { brand: { '@type': 'Brand', name: storeConfig.store_name } } : {}),
+  }
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
+      <ProductDetail product={product} related={related} trustBadges={trustBadges} />
+    </>
+  )
 }

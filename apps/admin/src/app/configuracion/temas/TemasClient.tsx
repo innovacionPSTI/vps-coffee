@@ -7,12 +7,16 @@ import type { Theme } from '@vps/database'
 // ── Constantes ────────────────────────────────────────────────────────────────
 
 const FONT_DISPLAY_OPTIONS = [
-  { value: 'cormorant', label: 'Cormorant Garamond', sample: 'serif elegante' },
-  { value: 'playfair',  label: 'Playfair Display',   sample: 'display clásico' },
+  { value: 'cormorant',    label: 'Cormorant Garamond', sample: 'Serif elegante' },
+  { value: 'playfair',     label: 'Playfair Display',   sample: 'Display clásico' },
+  { value: 'lora',         label: 'Lora',               sample: 'Serif literario' },
+  { value: 'merriweather', label: 'Merriweather',       sample: 'Serif legible' },
 ]
 const FONT_BODY_OPTIONS = [
-  { value: 'dm-sans', label: 'DM Sans',  sample: 'Sans moderno' },
-  { value: 'inter',   label: 'Inter',    sample: 'Sans neutro' },
+  { value: 'dm-sans',    label: 'DM Sans',     sample: 'Sans moderno' },
+  { value: 'inter',      label: 'Inter',       sample: 'Sans neutro' },
+  { value: 'montserrat', label: 'Montserrat',  sample: 'Sans geométrico' },
+  { value: 'nunito',     label: 'Nunito',      sample: 'Sans redondeado' },
 ]
 
 const COLOR_FIELDS: { key: keyof ThemeFormData; label: string; description: string }[] = [

@@ -23,6 +23,7 @@ export default async function ConfigEmailsPage() {
     ? {
         resend_from_email: storeConfig.resend_from_email,
         has_resend_api_key: !!storeConfig.resend_api_key,
+        email_provider: storeConfig.email_provider ?? 'resend',
       }
     : null
 

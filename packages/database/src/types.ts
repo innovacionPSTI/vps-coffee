@@ -197,7 +197,7 @@ export type Database = {
           discount: number
           total: number
           status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'exception'
-          payment_method: 'wompi' | 'mercadopago' | null
+          payment_method: 'wompi' | 'mercadopago' | 'tucompra' | null
           payment_id: string | null
           payment_status: 'pending' | 'approved' | 'rejected' | 'refunded'
           notes: string | null
@@ -228,7 +228,7 @@ export type Database = {
           discount?: number
           total: number
           status?: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'exception'
-          payment_method?: 'wompi' | 'mercadopago' | null
+          payment_method?: 'wompi' | 'mercadopago' | 'tucompra' | null
           payment_id?: string | null
           payment_status?: 'pending' | 'approved' | 'rejected' | 'refunded'
           notes?: string | null
@@ -259,7 +259,7 @@ export type Database = {
           discount?: number
           total?: number
           status?: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled' | 'exception'
-          payment_method?: 'wompi' | 'mercadopago' | null
+          payment_method?: 'wompi' | 'mercadopago' | 'tucompra' | null
           payment_id?: string | null
           payment_status?: 'pending' | 'approved' | 'rejected' | 'refunded'
           notes?: string | null
@@ -450,6 +450,7 @@ export type Database = {
           footer_show_legal: boolean
           nav_show_cart: boolean
           nav_show_auth: boolean
+          email_provider: string
           updated_at: string
         }
         Insert: {
@@ -476,6 +477,7 @@ export type Database = {
           footer_show_legal?: boolean
           nav_show_cart?: boolean
           nav_show_auth?: boolean
+          email_provider?: string
           updated_at?: string
         }
         Update: {
@@ -502,6 +504,7 @@ export type Database = {
           footer_show_legal?: boolean
           nav_show_cart?: boolean
           nav_show_auth?: boolean
+          email_provider?: string
           updated_at?: string
         }
         Relationships: []
@@ -815,6 +818,10 @@ export type Database = {
           mercadopago_access_token: string | null
           mercadopago_public_key: string | null
           mercadopago_active: boolean
+          tucompra_merchant_id: string | null
+          tucompra_secret_key: string | null
+          tucompra_sandbox: boolean
+          tucompra_active: boolean
           updated_at: string
         }
         Insert: {
@@ -827,6 +834,10 @@ export type Database = {
           mercadopago_access_token?: string | null
           mercadopago_public_key?: string | null
           mercadopago_active?: boolean
+          tucompra_merchant_id?: string | null
+          tucompra_secret_key?: string | null
+          tucompra_sandbox?: boolean
+          tucompra_active?: boolean
           updated_at?: string
         }
         Update: {
@@ -839,6 +850,10 @@ export type Database = {
           mercadopago_access_token?: string | null
           mercadopago_public_key?: string | null
           mercadopago_active?: boolean
+          tucompra_merchant_id?: string | null
+          tucompra_secret_key?: string | null
+          tucompra_sandbox?: boolean
+          tucompra_active?: boolean
           updated_at?: string
         }
         Relationships: []

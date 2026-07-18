@@ -1,4 +1,4 @@
-import { getBlogPostBySlug, getBlogPostBySlugAny, getBlogPosts } from '@vps/database'
+import { getBlogPostBySlug, getBlogPostBySlugAny, getBlogPosts, getStoreConfig } from '@vps/database'
 import { notFound } from 'next/navigation'
 import { cookies } from 'next/headers'
 import Link from 'next/link'
@@ -59,17 +59,51 @@ export default async function BlogPostPage({ params, searchParams }: Props) {
   const draftMode = (await isDraftMode()) || draft === '1'
 
   // Draft mode: load any post regardless of published status
-  const post = draftMode
-    ? await getBlogPostBySlugAny(slug).catch(() => null)
-    : await getBlogPostBySlug(slug).catch(() => null)
+  const [rawPost, storeConfig] = await Promise.all([
+    (draftMode
+      ? getBlogPostBySlugAny(slug)
+      : getBlogPostBySlug(slug)
+    ).catch(() => null),
+    getStoreConfig().catch(() => null),
+  ])
 
+  const post = rawPost
   if (!post) notFound()
 
   const related = await getBlogPosts({ category: post.category ?? undefined, limit: 3 })
     .then((posts) => posts.filter((p) => p.id !== post.id).slice(0, 2))
     .catch(() => [])
 
+  // JSON-LD — Article schema
+  const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
+  const jsonLd = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: post.title,
+    ...(post.excerpt ? { description: post.excerpt } : {}),
+    ...(post.cover_image ? { image: post.cover_image } : {}),
+    datePublished: post.published_at ?? post.created_at,
+    dateModified: post.published_at ?? post.created_at,
+    url: `${siteUrl}/blog/${post.slug}`,
+    author: {
+      '@type': 'Organization',
+      name: storeConfig?.store_name ?? 'VPS Coffee',
+      url: siteUrl,
+    },
+    publisher: {
+      '@type': 'Organization',
+      name: storeConfig?.store_name ?? 'VPS Coffee',
+      url: siteUrl,
+      ...(storeConfig?.logo_url ? { logo: { '@type': 'ImageObject', url: storeConfig.logo_url } } : {}),
+    },
+  }
+
   return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+      />
     <div className="bg-brand-cream min-h-screen pt-16">
       {/* Draft mode banner */}
       {draftMode && !post.published && (
@@ -155,5 +189,6 @@ export default async function BlogPostPage({ params, searchParams }: Props) {
         )}
       </div>
     </div>
+    </>
   )
 }

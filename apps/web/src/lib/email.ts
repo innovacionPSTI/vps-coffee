@@ -118,12 +118,14 @@ export function buildEmailConfig(
   apiKey: string,
   fromEmail: string,
   storeName?: string | null,
+  emailProvider?: string | null,
 ): EmailConfig {
   return {
     apiKey,
     fromEmail,
     storeName: storeName ?? undefined,
     siteUrl: process.env.NEXT_PUBLIC_SITE_URL,
+    emailProvider: emailProvider ?? 'resend',
   }
 }
 

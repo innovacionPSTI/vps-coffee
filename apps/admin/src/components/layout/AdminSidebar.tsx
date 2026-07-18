@@ -157,16 +157,20 @@ export default function AdminSidebar({ role }: Props) {
   const allowedSections = ROLE_CONFIG[role].sections
   const fullAccess = role === 'super_admin' || role === 'admin'
 
+  // Drawer móvil
+  const [drawerOpen, setDrawerOpen] = useState(false)
+
   // Grupos abiertos: se inicializan con el grupo activo actual
   const [openGroups, setOpenGroups] = useState<Set<string>>(() => {
     const active = getActiveGroupId(NAV, pathname)
     return active ? new Set([active]) : new Set()
   })
 
-  // Si el pathname cambia (navegación), abrir el grupo correspondiente
+  // Si el pathname cambia (navegación), abrir el grupo correspondiente y cerrar drawer
   useEffect(() => {
     const active = getActiveGroupId(NAV, pathname)
     if (active) setOpenGroups((prev) => new Set([...prev, active]))
+    setDrawerOpen(false)
   }, [pathname])
 
   function toggleGroup(label: string) {
@@ -188,7 +192,33 @@ export default function AdminSidebar({ role }: Props) {
   })
 
   return (
-    <aside className="w-56 flex-shrink-0 bg-brand-sidebar min-h-screen flex flex-col">
+    <>
+      {/* Hamburger — solo móvil */}
+      <button
+        aria-label="Abrir menú"
+        onClick={() => setDrawerOpen(true)}
+        className="md:hidden fixed top-0 left-0 z-50 h-14 w-14 flex items-center justify-center text-brand-sidebar"
+      >
+        <svg className="w-6 h-6" fill="none" stroke="currentColor" strokeWidth={2} viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Overlay backdrop — solo móvil */}
+      {drawerOpen && (
+        <div
+          className="md:hidden fixed inset-0 z-40 bg-black/50"
+          onClick={() => setDrawerOpen(false)}
+        />
+      )}
+
+    <aside className={[
+      'w-56 flex-shrink-0 bg-brand-sidebar flex flex-col',
+      // Móvil: drawer fijo fuera de pantalla; desktop: elemento de flujo normal
+      'fixed inset-y-0 left-0 z-50 transition-transform duration-300',
+      'md:relative md:z-auto md:translate-x-0 md:min-h-screen',
+      drawerOpen ? 'translate-x-0' : '-translate-x-full md:translate-x-0',
+    ].join(' ')}>
       {/* Logo */}
       <div className="p-5 border-b border-brand-cream/10">
         <Link href="/dashboard" className="flex items-center gap-2">
@@ -408,5 +438,6 @@ export default function AdminSidebar({ role }: Props) {
         </button>
       </div>
     </aside>
+    </>
   )
 }

@@ -1,12 +1,27 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createOrder, getPaymentConfig, createServerClient } from '@vps/database'
+import { createOrder, getPaymentConfig, createServerClient, getPaymentGateway } from '@vps/database'
 import { stackServerApp } from '@/stack'
-import { buildWompiCheckoutUrl } from '@/lib/wompi'
-import {
-  createMercadoPagoPreference,
-  isMercadoPagoSandbox,
-  type MPItem,
-} from '@/lib/mercadopago'
+
+// ── Rate limiting (best-effort, per-instance) ──────────────────────────────────
+// Allows MAX_REQUESTS per IP within WINDOW_MS. In Vercel's serverless model
+// each function instance maintains its own in-memory store; this provides
+// basic DoS protection. For production-grade limiting use @upstash/ratelimit.
+const WINDOW_MS      = 60_000  // 1 minute
+const MAX_REQUESTS   = 10      // max checkout attempts per IP per window
+
+type RateLimitEntry = { count: number; resetAt: number }
+const rateLimitStore = new Map<string, RateLimitEntry>()
+
+function isRateLimited(ip: string): boolean {
+  const now = Date.now()
+  const entry = rateLimitStore.get(ip)
+  if (!entry || now > entry.resetAt) {
+    rateLimitStore.set(ip, { count: 1, resetAt: now + WINDOW_MS })
+    return false
+  }
+  entry.count++
+  return entry.count > MAX_REQUESTS
+}
 
 /**
  * Auto-guarda la dirección de envío en customer_addresses para el usuario logueado.
@@ -75,6 +90,26 @@ async function saveAddressForUser(
 }
 
 export async function POST(req: NextRequest) {
+  // Rate limiting
+  const ip =
+    req.headers.get('x-forwarded-for')?.split(',')[0]?.trim() ??
+    req.headers.get('x-real-ip') ??
+    'unknown'
+
+  if (isRateLimited(ip)) {
+    return NextResponse.json(
+      { error: 'Demasiadas solicitudes. Intenta de nuevo en un minuto.' },
+      {
+        status: 429,
+        headers: {
+          'Retry-After': '60',
+          'X-RateLimit-Limit': String(MAX_REQUESTS),
+          'X-RateLimit-Window': String(WINDOW_MS / 1000),
+        },
+      },
+    )
+  }
+
   try {
     const body = await req.json()
 
@@ -103,38 +138,21 @@ export async function POST(req: NextRequest) {
 
     // Cargar configuración de pagos desde la BD
     const paymentConfig = await getPaymentConfig()
-
-    const method: 'wompi' | 'mercadopago' = payment_method ?? 'wompi'
-
-    // Validar que la pasarela seleccionada esté activa y configurada
-    if (method === 'wompi') {
-      if (!paymentConfig?.wompi_active) {
-        return NextResponse.json(
-          { error: 'Wompi no está activo. Configura las credenciales en el panel admin.' },
-          { status: 503 },
-        )
-      }
-      if (!paymentConfig.wompi_public_key || !paymentConfig.wompi_integrity_secret) {
-        return NextResponse.json(
-          { error: 'Wompi: faltan credenciales (public_key o integrity_secret).' },
-          { status: 503 },
-        )
-      }
+    if (!paymentConfig) {
+      console.error('[checkout] 503: no existe fila en payment_config (id=1). Ejecuta el seed local o configura en admin → Configuración → Pagos.')
+      return NextResponse.json({ error: 'Configuración de pagos no disponible' }, { status: 503 })
     }
 
-    if (method === 'mercadopago') {
-      if (!paymentConfig?.mercadopago_active) {
-        return NextResponse.json(
-          { error: 'MercadoPago no está activo. Configura las credenciales en el panel admin.' },
-          { status: 503 },
-        )
-      }
-      if (!paymentConfig.mercadopago_access_token) {
-        return NextResponse.json(
-          { error: 'MercadoPago: falta el access token.' },
-          { status: 503 },
-        )
-      }
+    const method = (payment_method ?? 'wompi') as 'wompi' | 'mercadopago' | string
+
+    // Validar pasarela via factory (lanza si está inactiva o faltan credenciales)
+    let gateway
+    try {
+      gateway = getPaymentGateway(method, paymentConfig)
+    } catch (err) {
+      const reason = err instanceof Error ? err.message : 'Pasarela de pago no disponible'
+      console.error(`[checkout] 503: getPaymentGateway("${method}") — ${reason}`)
+      return NextResponse.json({ error: reason }, { status: 503 })
     }
 
     // Crear la orden en la BD (payment_status: 'pending')
@@ -147,7 +165,7 @@ export async function POST(req: NextRequest) {
       subtotal,
       shipping_cost: shipping_cost ?? 0,
       total,
-      payment_method: method,
+      payment_method: method as 'wompi' | 'mercadopago' | 'tucompra',
       skydropx_rate_id,
       carrier_name,
     })
@@ -170,49 +188,22 @@ export async function POST(req: NextRequest) {
     const siteUrl = (process.env.NEXT_PUBLIC_SITE_URL ?? '').replace(/\/$/, '')
     const confirmUrl = `${siteUrl}/checkout/confirmacion?order=${order.order_number}`
 
-    let payment_url: string
-
-    if (method === 'mercadopago') {
-      const preference = await createMercadoPagoPreference(
-        paymentConfig!.mercadopago_access_token!,
-        {
-          externalReference: order.order_number,
-          items: (items as Array<{ variant_id: number; product_name: string; qty: number; price: number }>).map(
-            (i): MPItem => ({
-              id: String(i.variant_id),
-              title: i.product_name,
-              quantity: i.qty,
-              unit_price: i.price,
-              currency_id: 'COP',
-            }),
-          ),
-          payerEmail: email,
-          backUrls: {
-            success: confirmUrl,
-            failure: `${siteUrl}/checkout?error=pago_rechazado`,
-            pending: `${confirmUrl}&status=pending`,
-          },
-          notificationUrl: `${siteUrl}/api/webhooks/mercadopago`,
-        },
-      )
-      payment_url = isMercadoPagoSandbox(paymentConfig!.mercadopago_access_token!)
-        ? preference.sandbox_init_point
-        : preference.init_point
-    } else {
-      // Wompi
-      payment_url = buildWompiCheckoutUrl({
-        publicKey: paymentConfig!.wompi_public_key!,
-        integritySecret: paymentConfig!.wompi_integrity_secret!,
-        reference: order.order_number,
-        amountInCents: Math.round(total * 100),
-        redirectUrl: confirmUrl,
-        customerData: {
-          email,
-          fullName: name,
-          phoneNumber: phone ?? undefined,
-        },
-      })
-    }
+    const payment_url = await gateway.createPaymentUrl({
+      orderNumber: order.order_number,
+      amountInCents: Math.round(total * 100),
+      currency: 'COP',
+      customerEmail: email,
+      customerName: name,
+      customerPhone: phone ?? undefined,
+      items: (items as Array<{ variant_id: number; product_name: string; qty: number; price: number }>).map((i) => ({
+        id: String(i.variant_id),
+        title: i.product_name,
+        quantity: i.qty,
+        unit_price: i.price,
+      })),
+      redirectUrl: confirmUrl,
+      webhookUrl: `${siteUrl}/api/webhooks/${method}`,
+    })
 
     return NextResponse.json({
       order_number: order.order_number,
